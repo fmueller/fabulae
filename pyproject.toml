@@ -1,0 +1,33 @@
+[project]
+name = "fabulae"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.12.5",
+    "pydantic-ai-slim[openai]>=1.39.0",
+    "pyyaml>=6.0.3",
+    "textual>=6.11.0",
+    "typer>=0.21.0",
+]
+
+[project.scripts]
+fabulae = "fabulae.main:main"
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "faker>=40.1.0",
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.10",
+    "textual-dev>=1.8.0",
+]
