@@ -1,5 +1,7 @@
 """Tests for the fabulae CLI."""
 
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from fabulae import __version__
@@ -36,3 +38,34 @@ def test_no_command_shows_help() -> None:
     result = runner.invoke(app)
     assert result.exit_code == 0
     assert "Fabulae" in result.output
+
+
+def test_validate_command_succeeds(tmp_path: Path) -> None:
+    """Validate command succeeds for a minimal project."""
+    import yaml
+
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A test premise.",
+                "scenes": [{"id": "scene-one", "location": "apiary"}],
+            }
+        )
+    )
+    (tmp_path / "world.yml").write_text(
+        yaml.dump(
+            {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
+        )
+    )
+
+    result = runner.invoke(app, ["validate", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "Validation OK" in result.output
+
+
+def test_validate_command_fails_for_missing_manifest(tmp_path: Path) -> None:
+    """Validate command fails when fabulae.yml is missing."""
+    result = runner.invoke(app, ["validate", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "Validation failed" in result.output

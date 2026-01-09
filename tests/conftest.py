@@ -7,7 +7,7 @@ from faker import Faker
 
 
 @pytest.fixture
-def fake() -> Generator[Faker, None, None]:
+def fake() -> Generator[Faker]:
     """Provide a seeded Faker instance for deterministic test data."""
     yield Faker()
     Faker.seed(1337)

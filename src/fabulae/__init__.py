@@ -1,9 +1,14 @@
 """Fabulae package."""
 
-from importlib.metadata import PackageNotFoundError, version as pkg_version
-from pathlib import Path
 import subprocess
-import tomllib
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
+from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pragma: no cover
+    import tomli as tomllib
 
 
 def _version_from_pyproject() -> str:
@@ -11,7 +16,11 @@ def _version_from_pyproject() -> str:
     pyproject = Path(__file__).parent.parent.parent / "pyproject.toml"
     if pyproject.exists():
         data = tomllib.loads(pyproject.read_text())
-        return data.get("project", {}).get("version", "0.0.0")
+        project = data.get("project", {})
+        if isinstance(project, dict):
+            version_value = project.get("version")
+            if isinstance(version_value, str):
+                return version_value
     return "0.0.0"
 
 
