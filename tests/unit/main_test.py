@@ -7,6 +7,8 @@ from typer.testing import CliRunner
 from fabulae import __version__
 from fabulae.main import app
 
+TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "templates" / "basic"
+
 runner = CliRunner()
 
 
@@ -108,3 +110,38 @@ def test_narrative_patterns_command_lists_patterns(tmp_path: Path) -> None:
     result = runner.invoke(app, ["narrative-patterns", str(tmp_path)])
     assert result.exit_code == 0
     assert "cozy-mystery" in result.output
+
+
+def test_init_command_creates_project_files(tmp_path: Path) -> None:
+    """Init command bootstraps a project with template files."""
+    result = runner.invoke(app, ["init", str(tmp_path)])
+    assert result.exit_code == 0
+
+    expected_files = {path.name for path in TEMPLATE_DIR.glob("*.yml")}
+    created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_files
+    assert created_files == expected_files
+
+    assert (tmp_path / "fabulae.yml").read_text(encoding="utf-8") == (
+        TEMPLATE_DIR / "fabulae.yml"
+    ).read_text(encoding="utf-8")
+
+
+def test_init_command_fails_on_existing_files(tmp_path: Path) -> None:
+    """Init command fails when target files already exist."""
+    (tmp_path / "fabulae.yml").write_text("version: 9.9.9", encoding="utf-8")
+
+    result = runner.invoke(app, ["init", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "already exist" in result.output
+
+
+def test_init_command_overwrites_with_force(tmp_path: Path) -> None:
+    """Init command overwrites existing files when forced."""
+    (tmp_path / "fabulae.yml").write_text("version: 9.9.9", encoding="utf-8")
+
+    result = runner.invoke(app, ["init", "--force", str(tmp_path)])
+    assert result.exit_code == 0
+    assert (tmp_path / "fabulae.yml").read_text(encoding="utf-8") == (
+        TEMPLATE_DIR / "fabulae.yml"
+    ).read_text(encoding="utf-8")

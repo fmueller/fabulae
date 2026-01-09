@@ -35,6 +35,26 @@ See `templates/basic` for a runnable example project.
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
 - `fabulae narrative-patterns <dir>` lists narrative patterns (if present).
+- `fabulae init <dir>` scaffolds a new project from a template.
+
+Example init flow:
+
+```bash
+# before: empty directory
+fabulae init my-story
+ls my-story
+```
+
+```text
+# after: generated files
+fabulae.yml
+plot.yml
+characters.yml
+world.yml
+style.yml
+plot_patterns.yml
+narrative_patterns.yml
+```
 
 ## Development
 
