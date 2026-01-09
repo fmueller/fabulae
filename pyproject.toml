@@ -3,7 +3,7 @@ name = "fabulae"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.12.5",
     "pydantic-ai-slim[openai]>=1.39.0",
