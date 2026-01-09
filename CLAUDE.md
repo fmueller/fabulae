@@ -15,7 +15,15 @@ uv run ruff check --fix               # Auto-fix lint issues
 uv run mypy                           # Type check (strict mode)
 ```
 
-After every task, run: `uv run ruff check --fix && uv run mypy && uv run pytest`
+## Before Completing Any Task
+
+After every task, run all checks and fix any errors before handing off:
+
+```bash
+uv run ruff check --fix && uv run mypy && uv run pytest
+```
+
+If any check fails, fix the issues before considering the task complete.
 
 ## Architecture
 
