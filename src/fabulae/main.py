@@ -62,19 +62,43 @@ def narrative_patterns_command(
         typer.echo(f"{pattern.id}: {pattern.name}")
 
 
+AVAILABLE_FORMATS = ["novel", "novella", "short-story", "micro-prose", "poem"]
+
+
 @app.command(name="init", help="Initialize a new Fabulae project from a template.")
 def init_command(
     path: Annotated[Path, typer.Argument(help="Target project directory.")] = DEFAULT_PROJECT_PATH,
-    template: Annotated[str, typer.Option("--template", "-t", help="Template name.")] = "basic",
+    format_: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Literature format (novel, novella, short-story, micro-prose, poem).",
+        ),
+    ] = "novel",
     force: Annotated[
         bool,
-        typer.Option("--force", "-f", help="Overwrite existing files if present."),
+        typer.Option("--force", help="Overwrite existing files if present."),
     ] = False,
 ) -> None:
     """Initialize a Fabulae project with starter files."""
-    template_path = TEMPLATES_DIR / template
+    # Map format to template directory (novella and short-story use novel template)
+    template_map = {
+        "novel": "novel",
+        "novella": "novel",
+        "short-story": "novel",
+        "micro-prose": "micro-prose",
+        "poem": "poem",
+    }
+
+    if format_ not in template_map:
+        available = ", ".join(AVAILABLE_FORMATS)
+        raise typer.BadParameter(f"Unknown format: {format_}. Available: {available}")
+
+    template_name = template_map[format_]
+    template_path = TEMPLATES_DIR / template_name
     if not template_path.is_dir():
-        raise typer.BadParameter(f"Unknown template: {template}")
+        raise typer.BadParameter(f"Template not found: {template_name}")
 
     template_files = sorted(template_path.glob("*.yml"))
     if not template_files:
@@ -103,9 +127,9 @@ def init_command(
         shutil.copy2(template_file, destination)
         created.append(destination)
 
-    typer.echo(f"Initialized Fabulae project in {path}")
+    typer.echo(f"Initialized Fabulae project in {path} (format: {format_})")
     for created_file in created:
-        typer.echo(f"Created {created_file}")
+        typer.echo(f"  {created_file.name}")
 
 
 def main() -> None:

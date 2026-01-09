@@ -40,16 +40,22 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 
 **File I/O**: `load_project(path)` and `save_project(project, path)` handle all YAML serialization with validation.
 
-**Template System**: `templates/basic/` contains the default project template, copied by `init` command.
+**Template System**: `templates/` contains project templates for different formats:
+- `novel/` - Default prose template (also used for novella, short-story)
+- `poem/` - Poetry with stanzas
+- `micro-prose/` - Flash fiction with fragments
+
+The `init --format <format>` command copies the appropriate template.
 
 ## Key Validation Rules
 
 - All entity IDs must be globally unique across the entire project
 - IDs must be lowercase alphanumeric with hyphens (e.g., `scene-01`, `world-london`)
-- Scene `location` must reference a WorldFact with `type="location"`
+- Scene `location` is optional; if set, must reference a WorldFact with `type="location"`
 - Scene `characters` and `world_facts` must reference valid entities
 - If chapters exist, scenes must reference them via `chapter.scene_ids`
 - `plot_pattern_beat` requires `plot_pattern` to be set on the scene
+- Format validation: prose formats require scenes, micro-prose requires fragments, poem requires stanzas/lines
 
 ## Coding Conventions
 

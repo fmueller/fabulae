@@ -1,3 +1,5 @@
+[![Build](https://github.com/fmueller/fabulae/actions/workflows/build.yml/badge.svg)](https://github.com/fmueller/fabulae/actions/workflows/build.yml)
+
 # Fabulae
 
 **A new way to tell stories: stories as a system.**
@@ -44,7 +46,7 @@ Key rules:
 - `plot_patterns.yml` and `narrative_patterns.yml` are optional; omit them if you do not use patterns.
 
 Templates:
-- `templates/basic` – Novel with chapters, scenes, and beats
+- `templates/novel` – Novel with chapters, scenes, and beats
 - `templates/poem` – Poetry with stanzas
 - `templates/micro-prose` – Flash fiction with fragments
 
@@ -53,26 +55,22 @@ Templates:
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
 - `fabulae narrative-patterns <dir>` lists narrative patterns (if present).
-- `fabulae init <dir>` scaffolds a new project from a template.
+- `fabulae init [--format FORMAT] <dir>` scaffolds a new project from a template.
 
-Example init flow:
+### Initializing a project
 
 ```bash
-# before: empty directory
-fabulae init my-story
-ls my-story
+# Create a novel project (default)
+fabulae init my-novel
+
+# Create a poem project
+fabulae init --format poem my-poem
+
+# Create a micro-prose project
+fabulae init -f micro-prose my-flash-fiction
 ```
 
-```text
-# after: generated files
-fabulae.yml
-plot.yml
-characters.yml
-world.yml
-style.yml
-plot_patterns.yml
-narrative_patterns.yml
-```
+Available formats: `novel`, `novella`, `short-story`, `micro-prose`, `poem`
 
 ## Development
 

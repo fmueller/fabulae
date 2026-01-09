@@ -7,7 +7,10 @@ from typer.testing import CliRunner
 from fabulae import __version__
 from fabulae.main import app
 
-TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "templates" / "basic"
+TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
+NOVEL_TEMPLATE_DIR = TEMPLATES_DIR / "novel"
+POEM_TEMPLATE_DIR = TEMPLATES_DIR / "poem"
+MICRO_PROSE_TEMPLATE_DIR = TEMPLATES_DIR / "micro-prose"
 
 runner = CliRunner()
 
@@ -112,19 +115,71 @@ def test_narrative_patterns_command_lists_patterns(tmp_path: Path) -> None:
     assert "cozy-mystery" in result.output
 
 
-def test_init_command_creates_project_files(tmp_path: Path) -> None:
-    """Init command bootstraps a project with template files."""
+def test_init_command_creates_novel_project_by_default(tmp_path: Path) -> None:
+    """Init command bootstraps a novel project by default."""
     result = runner.invoke(app, ["init", str(tmp_path)])
     assert result.exit_code == 0
+    assert "format: novel" in result.output
 
-    expected_files = {path.name for path in TEMPLATE_DIR.glob("*.yml")}
+    expected_files = {path.name for path in NOVEL_TEMPLATE_DIR.glob("*.yml")}
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files
 
     assert (tmp_path / "fabulae.yml").read_text(encoding="utf-8") == (
-        TEMPLATE_DIR / "fabulae.yml"
+        NOVEL_TEMPLATE_DIR / "fabulae.yml"
     ).read_text(encoding="utf-8")
+
+
+def test_init_command_creates_poem_project(tmp_path: Path) -> None:
+    """Init command with --format poem creates a poem project."""
+    result = runner.invoke(app, ["init", "--format", "poem", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "format: poem" in result.output
+
+    expected_files = {path.name for path in POEM_TEMPLATE_DIR.glob("*.yml")}
+    created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_files
+    assert created_files == expected_files
+
+
+def test_init_command_creates_micro_prose_project(tmp_path: Path) -> None:
+    """Init command with --format micro-prose creates a micro-prose project."""
+    result = runner.invoke(app, ["init", "--format", "micro-prose", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "format: micro-prose" in result.output
+
+    expected_files = {path.name for path in MICRO_PROSE_TEMPLATE_DIR.glob("*.yml")}
+    created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_files
+    assert created_files == expected_files
+
+
+def test_init_command_short_story_uses_novel_template(tmp_path: Path) -> None:
+    """Init command with --format short-story uses the novel template."""
+    result = runner.invoke(app, ["init", "--format", "short-story", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "format: short-story" in result.output
+
+    # short-story uses the novel template
+    expected_files = {path.name for path in NOVEL_TEMPLATE_DIR.glob("*.yml")}
+    created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert created_files == expected_files
+
+
+def test_init_command_format_short_flag(tmp_path: Path) -> None:
+    """Init command accepts -f as short flag for --format."""
+    result = runner.invoke(app, ["init", "-f", "poem", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "format: poem" in result.output
+
+
+def test_init_command_fails_on_unknown_format(tmp_path: Path) -> None:
+    """Init command fails for unknown format."""
+    result = runner.invoke(app, ["init", "--format", "screenplay", str(tmp_path)])
+    assert result.exit_code != 0
+    assert "Unknown format" in result.output
+    assert "screenplay" in result.output
 
 
 def test_init_command_fails_on_existing_files(tmp_path: Path) -> None:
@@ -143,5 +198,5 @@ def test_init_command_overwrites_with_force(tmp_path: Path) -> None:
     result = runner.invoke(app, ["init", "--force", str(tmp_path)])
     assert result.exit_code == 0
     assert (tmp_path / "fabulae.yml").read_text(encoding="utf-8") == (
-        TEMPLATE_DIR / "fabulae.yml"
+        NOVEL_TEMPLATE_DIR / "fabulae.yml"
     ).read_text(encoding="utf-8")
