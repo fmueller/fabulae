@@ -1,3 +1,4 @@
+format: novel
 premise: A beekeeper fights to save her hives.
 themes:
   - stewardship
@@ -24,6 +25,7 @@ scenes:
   - id: dawn-inspection
     chapter: discovery
     location: apiary
+    time: dawn
     characters: [marta]
     summary: Marta finds the hives dead.
     beats:

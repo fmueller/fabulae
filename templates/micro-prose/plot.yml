@@ -1,0 +1,15 @@
+format: micro-prose
+premise: A moment of recognition between strangers.
+themes:
+  - connection
+  - solitude
+fragments:
+  - id: the-glance
+    content: She looked up from her book at the exact moment he looked up from his.
+    target_words: 50
+  - id: the-recognition
+    content: Not recognition of face, but of something else. The same dog-eared page. The same coffee gone cold.
+    target_words: 75
+  - id: the-return
+    content: They both looked down again. Some doors are meant to stay closed. But now they knew the door was there.
+    target_words: 60

@@ -4,9 +4,23 @@
 
 Fabulae is a CLI-first toolkit for building narratives from small, versionable building blocks – characters, beats,
 plot patterns, and world facts – so you can iterate without losing consistency. Instead of starting from a blank page,
-you assemble a structure (YAML) and let Fabulae render readable prose or scene drafts you can edit and own. It’s built
+you assemble a structure (YAML) and let Fabulae render readable prose or scene drafts you can edit and own. It's built
 for exploration and repeatability: explore your story space by generating candidates, comparing variants, keeping what
 resonates, and exporting to clean artifacts.
+
+## Supported Formats
+
+Fabulae supports multiple narrative formats via the `format` field in `plot.yml`:
+
+| Format | Structure | Use Case |
+|--------|-----------|----------|
+| `novel` | Chapters, scenes, beats | Long-form fiction |
+| `novella` | Chapters, scenes, beats | Medium-length fiction |
+| `short-story` | Scenes, beats (chapters optional) | Single-sitting narratives |
+| `micro-prose` | Fragments | Flash fiction, vignettes |
+| `poem` | Stanzas or lines | Poetry, lyrics, verse |
+
+See `templates/` for examples of each format.
 
 ## Project layout (v0.1.0)
 
@@ -23,12 +37,16 @@ narrative_patterns.yml
 Key rules:
 - Global IDs are lowercase with hyphens and unique across the project.
 - Chapters are optional; if present, scenes must reference a chapter.
-- Scene locations must reference a `world.fact` with type `location`.
+- Scene locations are optional; if set, must reference a `world.fact` with type `location`.
+- Scenes can have a `time` field for temporal context (e.g., "dawn", "three years later").
 - Explicit scene order (via `chapter.scene_ids` or `plot.scene_ids`) overrides file order.
 - Plot patterns describe plot structure; narrative patterns bundle plot patterns with theme/world cues.
 - `plot_patterns.yml` and `narrative_patterns.yml` are optional; omit them if you do not use patterns.
 
-See `templates/basic` for a runnable example project.
+Templates:
+- `templates/basic` – Novel with chapters, scenes, and beats
+- `templates/poem` – Poetry with stanzas
+- `templates/micro-prose` – Flash fiction with fragments
 
 ## CLI
 
