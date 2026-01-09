@@ -1,0 +1,7 @@
+characters:
+  - id: marta
+    name: Marta
+    role: protagonist
+    desire: To save her bees.
+    flaw: Too trusting.
+    traits: [determined, kind]

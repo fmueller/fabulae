@@ -1,0 +1,11 @@
+setting: A rural valley near a refinery.
+time_period: Present day.
+tone: Quiet dread.
+motifs: [honey, silence, rust]
+facts:
+  - id: apiary
+    type: location
+    name: The Apiary
+    facts:
+      - On a hillside.
+      - Fifty hives.

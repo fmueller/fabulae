@@ -1,0 +1,7 @@
+language: en
+pov: third_limited
+tense: past
+voice: spare
+register: neutral
+constraints:
+  - Keep sentences short.

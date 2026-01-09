@@ -1,0 +1,27 @@
+premise: A beekeeper fights to save her hives.
+themes:
+  - stewardship
+hook:
+  line: The hives went silent overnight.
+  question: Who poisoned them?
+  promise: A local mystery with personal cost.
+stakes:
+  external: The hives will be destroyed.
+  internal: Marta's identity as a caretaker will collapse.
+chapters:
+  - id: discovery
+    title: The Silence
+    scene_ids: [dawn-inspection]
+scenes:
+  - id: dawn-inspection
+    chapter: discovery
+    location: apiary
+    characters: [marta]
+    summary: Marta finds the hives dead.
+    beats:
+      - id: silence
+        kind: setup
+        summary: The yard is too quiet.
+      - id: reveal
+        kind: payoff
+        summary: The hive is carpeted with dead bees.
