@@ -97,13 +97,46 @@ class PlotPatternBeat(BaseModel):
 
 
 class PlotPattern(BaseModel):
-    """A reusable narrative pattern (writer-native alternative to microplots)."""
+    """A reusable plot structure pattern (writer-native alternative to microplots)."""
 
     id: EntityId
     name: str
     description: str
     roles: list[PlotPatternRole] = Field(default_factory=list)
     required_beats: list[PlotPatternBeat] = Field(default_factory=list)
+
+
+class PlotPatternBeatAssignment(BaseModel):
+    """Map a plot pattern beat to a scene (and optional scene beat)."""
+
+    type: str = Field(min_length=1)
+    scene: EntityId
+    scene_beat: EntityId | None = None
+    notes: str | None = None
+
+
+class NarrativeRole(BaseModel):
+    """An abstract role within a narrative pattern."""
+
+    id: EntityId
+    description: str
+    required: bool = True
+
+
+class NarrativePattern(BaseModel):
+    """A reusable narrative system bundling plot, theme, and world cues."""
+
+    id: EntityId
+    name: str
+    description: str
+    plot_pattern: EntityId | None = None
+    roles: list[NarrativeRole] = Field(default_factory=list)
+    themes: list[SemanticValue] = Field(default_factory=list)
+    motifs: list[SemanticValue] = Field(default_factory=list)
+    setting: str | None = None
+    time_period: str | None = None
+    tone: str | None = None
+    notes: list[str] = Field(default_factory=list)
 
 
 class Beat(BaseModel):
@@ -154,6 +187,8 @@ class Plot(BaseModel):
     themes: list[SemanticValue] = Field(default_factory=list)
     hook: Hook | None = None
     stakes: Stakes | None = None
+    plot_pattern: EntityId | None = None
+    plot_pattern_beats: list[PlotPatternBeatAssignment] = Field(default_factory=list)
     chapters: list[Chapter] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
     scene_ids: list[EntityId] | None = None
@@ -180,6 +215,7 @@ class ProjectPaths(BaseModel):
     world: str = "world.yml"
     style: str = "style.yml"
     plot_patterns: str = "plot_patterns.yml"
+    narrative_patterns: str = "narrative_patterns.yml"
 
 
 class ProjectDefaults(BaseModel):
@@ -209,6 +245,12 @@ class PlotPatternsFile(BaseModel):
     plot_patterns: list[PlotPattern] = Field(default_factory=list)
 
 
+class NarrativePatternsFile(BaseModel):
+    """Wrapper for narrative_patterns.yml."""
+
+    narrative_patterns: list[NarrativePattern] = Field(default_factory=list)
+
+
 class Project(BaseModel):
     """Fully loaded Fabulae project."""
 
@@ -218,6 +260,7 @@ class Project(BaseModel):
     world: World | None = None
     style: Style | None = None
     plot_patterns: list[PlotPattern] = Field(default_factory=list)
+    narrative_patterns: list[NarrativePattern] = Field(default_factory=list)
 
 
 def load_yaml_file(path: Path) -> dict[str, object]:
@@ -245,6 +288,9 @@ def _validate_unique_ids(project: Project) -> None:
 
     for pattern in project.plot_patterns:
         id_sources[pattern.id].append("plot_pattern")
+
+    for narrative_pattern in project.narrative_patterns:
+        id_sources[narrative_pattern.id].append("narrative_pattern")
 
     for chapter in project.plot.chapters:
         id_sources[chapter.id].append("chapter")
@@ -313,6 +359,34 @@ def _validate_references(project: Project) -> None:
     characters = {character.id for character in project.characters}
     patterns = {pattern.id: pattern for pattern in project.plot_patterns}
     world_facts = {fact.id: fact for fact in project.world.facts} if project.world else {}
+    scene_map = {scene.id: scene for scene in project.plot.scenes}
+
+    if project.plot.plot_pattern and project.plot.plot_pattern not in patterns:
+        raise ValueError(
+            f"Plot references unknown plot pattern {project.plot.plot_pattern!r}."
+        )
+
+    if project.plot.plot_pattern_beats and not project.plot.plot_pattern:
+        raise ValueError("plot.plot_pattern_beats requires plot.plot_pattern to be set.")
+
+    if project.plot.plot_pattern and project.plot.plot_pattern_beats:
+        beat_types = {beat.type for beat in patterns[project.plot.plot_pattern].required_beats}
+        for assignment in project.plot.plot_pattern_beats:
+            if assignment.type not in beat_types:
+                raise ValueError(
+                    f"Plot references unknown plot pattern beat {assignment.type!r}."
+                )
+            if assignment.scene not in scene_map:
+                raise ValueError(
+                    f"Plot plot_pattern_beats references unknown scene {assignment.scene!r}."
+                )
+            if assignment.scene_beat:
+                scene_beat_ids = {beat.id for beat in scene_map[assignment.scene].beats}
+                if assignment.scene_beat not in scene_beat_ids:
+                    raise ValueError(
+                        f"Plot plot_pattern_beats references unknown scene beat "
+                        f"{assignment.scene_beat!r} in scene {assignment.scene!r}."
+                    )
 
     for scene in project.plot.scenes:
         if scene.characters:
@@ -360,6 +434,13 @@ def _validate_references(project: Project) -> None:
                         f"{scene.plot_pattern_beat!r}."
                     )
 
+    for pattern in project.narrative_patterns:
+        if pattern.plot_pattern and pattern.plot_pattern not in patterns:
+            raise ValueError(
+                f"Narrative pattern {pattern.id!r} references unknown plot pattern "
+                f"{pattern.plot_pattern!r}."
+            )
+
 
 def _validate_project(project: Project) -> None:
     _validate_unique_ids(project)
@@ -399,6 +480,14 @@ def load_project(path: Path) -> Project:
         patterns_data = PlotPatternsFile.model_validate(load_yaml_file(patterns_path))
         plot_patterns = patterns_data.plot_patterns
 
+    narrative_patterns_path = path / config.paths.narrative_patterns
+    narrative_patterns: list[NarrativePattern] = []
+    if narrative_patterns_path.exists():
+        narrative_patterns_data = NarrativePatternsFile.model_validate(
+            load_yaml_file(narrative_patterns_path)
+        )
+        narrative_patterns = narrative_patterns_data.narrative_patterns
+
     project = Project(
         config=config,
         plot=plot,
@@ -406,6 +495,7 @@ def load_project(path: Path) -> Project:
         world=world,
         style=style,
         plot_patterns=plot_patterns,
+        narrative_patterns=narrative_patterns,
     )
     _validate_project(project)
     return project
@@ -440,4 +530,13 @@ def save_project(project: Project, path: Path) -> None:
         save_yaml_file(
             patterns_path,
             PlotPatternsFile(plot_patterns=project.plot_patterns).model_dump(exclude_none=True),
+        )
+
+    if project.narrative_patterns:
+        narrative_patterns_path = path / config.paths.narrative_patterns
+        save_yaml_file(
+            narrative_patterns_path,
+            NarrativePatternsFile(narrative_patterns=project.narrative_patterns).model_dump(
+                exclude_none=True
+            ),
         )

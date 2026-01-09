@@ -8,8 +8,10 @@ from pydantic import ValidationError
 from fabulae.models import (
     Beat,
     Character,
+    NarrativePattern,
     Plot,
     PlotPattern,
+    PlotPatternBeat,
     Project,
     ProjectConfig,
     Scene,
@@ -131,6 +133,144 @@ class TestPlot:
         assert len(plot.scenes) == 1
 
 
+class TestPlotPatternReferences:
+    """Tests for plot pattern references and mappings."""
+
+    def test_plot_pattern_beats_require_plot_pattern(self, tmp_path: Path) -> None:
+        """plot.plot_pattern_beats requires plot.plot_pattern."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "Mapping test",
+                    "plot_pattern_beats": [{"type": "setup", "scene": "scene-one"}],
+                    "scenes": [{"id": "scene-one", "location": "apiary"}],
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump(
+                {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "plot_pattern_beats" in str(exc_info.value)
+
+    def test_plot_pattern_requires_known_pattern(self, tmp_path: Path) -> None:
+        """Plot plot_pattern must reference a known plot pattern."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "Unknown pattern test",
+                    "plot_pattern": "unknown",
+                    "scenes": [{"id": "scene-one", "location": "apiary"}],
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump(
+                {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "plot pattern" in str(exc_info.value).lower()
+
+    def test_plot_pattern_beats_validate_scene_and_beat(self, tmp_path: Path) -> None:
+        """Plot plot_pattern_beats validates scene and beat references."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "Beat mapping test",
+                    "plot_pattern": "betrayal",
+                    "plot_pattern_beats": [
+                        {"type": "setup", "scene": "scene-one", "scene_beat": "missing"}
+                    ],
+                    "scenes": [
+                        {
+                            "id": "scene-one",
+                            "location": "apiary",
+                            "beats": [{"id": "beat-one", "kind": "setup"}],
+                        }
+                    ],
+                }
+            )
+        )
+        (tmp_path / "plot_patterns.yml").write_text(
+            yaml.dump(
+                {
+                    "plot_patterns": [
+                        {
+                            "id": "betrayal",
+                            "name": "Betrayal",
+                            "description": "Trust breaks.",
+                            "required_beats": [
+                                {"type": "setup", "description": "Trust forms."}
+                            ],
+                        }
+                    ]
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump(
+                {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "scene beat" in str(exc_info.value).lower()
+
+    def test_narrative_pattern_requires_known_plot_pattern(self, tmp_path: Path) -> None:
+        """Narrative pattern plot_pattern must reference a known plot pattern."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "Narrative pattern test",
+                    "scenes": [{"id": "scene-one", "location": "apiary"}],
+                }
+            )
+        )
+        (tmp_path / "narrative_patterns.yml").write_text(
+            yaml.dump(
+                {
+                    "narrative_patterns": [
+                        {
+                            "id": "lost-city",
+                            "name": "Lost City",
+                            "description": "A forgotten place resurfaces.",
+                            "plot_pattern": "missing",
+                        }
+                    ]
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump(
+                {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "narrative pattern" in str(exc_info.value).lower()
+
+
 class TestFileIO:
     """Tests for file I/O helpers."""
 
@@ -218,6 +358,26 @@ class TestFileIO:
             )
         )
 
+        (tmp_path / "narrative_patterns.yml").write_text(
+            yaml.dump(
+                {
+                    "narrative_patterns": [
+                        {
+                            "id": "rusted-friendship",
+                            "name": "Rusted Friendship",
+                            "description": "Trust decays under hidden motives.",
+                            "plot_pattern": "betrayal",
+                            "roles": [
+                                {"id": "friend", "description": "The betrayed friend"},
+                                {"id": "traitor", "description": "The betrayer"},
+                            ],
+                            "themes": ["trust", "loss"],
+                        }
+                    ]
+                }
+            )
+        )
+
         project = load_project(tmp_path)
         assert project.config.version == "0.1.0"
         assert project.plot.premise == "A test premise"
@@ -226,6 +386,7 @@ class TestFileIO:
         assert project.world.setting == "Test valley"
         assert len(project.plot.scenes) == 1
         assert len(project.plot_patterns) == 1
+        assert len(project.narrative_patterns) == 1
 
     def test_save_and_load_project_round_trip(self, tmp_path: Path) -> None:
         """save_project and load_project produce equivalent data."""
@@ -252,6 +413,25 @@ class TestFileIO:
                 setting="Lab city",
                 facts=[WorldFact(id="test-lab", type="location", name="The Lab")],
             ),
+            plot_patterns=[
+                PlotPattern(
+                    id="betrayal",
+                    name="Betrayal",
+                    description="Trust is broken.",
+                    required_beats=[
+                        PlotPatternBeat(type="setup", description="Trust forms.")
+                    ],
+                )
+            ],
+            narrative_patterns=[
+                NarrativePattern(
+                    id="lab-espionage",
+                    name="Lab Espionage",
+                    description="Secrets unfold in a sealed lab.",
+                    plot_pattern="betrayal",
+                    themes=["secrecy"],
+                )
+            ],
         )
 
         save_project(project, tmp_path)

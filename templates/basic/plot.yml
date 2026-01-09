@@ -8,6 +8,14 @@ hook:
 stakes:
   external: The hives will be destroyed.
   internal: Marta's identity as a caretaker will collapse.
+plot_pattern: betrayal
+plot_pattern_beats:
+  - type: setup
+    scene: dawn-inspection
+    scene_beat: silence
+  - type: payoff
+    scene: dawn-inspection
+    scene_beat: reveal
 chapters:
   - id: discovery
     title: The Silence

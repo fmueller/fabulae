@@ -3,7 +3,7 @@
 **A new way to tell stories: stories as a system.**
 
 Fabulae is a CLI-first toolkit for building narratives from small, versionable building blocks – characters, beats,
-microplots, and world facts – so you can iterate without losing consistency. Instead of starting from a blank page,
+plot patterns, and world facts – so you can iterate without losing consistency. Instead of starting from a blank page,
 you assemble a structure (YAML) and let Fabulae render readable prose or scene drafts you can edit and own. It’s built
 for exploration and repeatability: explore your story space by generating candidates, comparing variants, keeping what
 resonates, and exporting to clean artifacts.
@@ -17,6 +17,7 @@ characters.yml
 world.yml
 style.yml
 plot_patterns.yml
+narrative_patterns.yml
 ```
 
 Key rules:
@@ -24,6 +25,8 @@ Key rules:
 - Chapters are optional; if present, scenes must reference a chapter.
 - Scene locations must reference a `world.fact` with type `location`.
 - Explicit scene order (via `chapter.scene_ids` or `plot.scene_ids`) overrides file order.
+- Plot patterns describe plot structure; narrative patterns bundle plot patterns with theme/world cues.
+- `plot_patterns.yml` and `narrative_patterns.yml` are optional; omit them if you do not use patterns.
 
 See `templates/basic` for a runnable example project.
 
@@ -31,6 +34,7 @@ See `templates/basic` for a runnable example project.
 
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
+- `fabulae narrative-patterns <dir>` lists narrative patterns (if present).
 
 ## Development
 
