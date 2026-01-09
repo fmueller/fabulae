@@ -158,7 +158,8 @@ class Scene(BaseModel):
 
     id: EntityId
     chapter: EntityId | None = None
-    location: EntityId
+    location: EntityId | None = None
+    time: str | None = None
     characters: list[EntityId] = Field(default_factory=list)
     world_facts: list[EntityId] = Field(default_factory=list)
     plot_pattern: EntityId | None = None
@@ -179,19 +180,59 @@ class Chapter(BaseModel):
     scene_ids: list[EntityId] | None = None
 
 
-class Plot(BaseModel):
-    """Plot metadata and narrative structure."""
+class Stanza(BaseModel):
+    """A stanza in a poem."""
 
+    id: EntityId
+    lines: list[str] = Field(default_factory=list)
+    meter: str | None = None
+    rhyme_scheme: str | None = None
+
+
+class Fragment(BaseModel):
+    """A micro-prose fragment or paragraph."""
+
+    id: EntityId
+    content: str
+    target_words: int | None = Field(default=None, ge=1)
+    notes: str | None = None
+
+
+class Plot(BaseModel):
+    """Plot metadata and narrative structure.
+
+    Supports multiple narrative formats:
+    - novel/novella/short-story: use chapters, scenes, beats
+    - micro-prose: use fragments
+    - poem: use stanzas or lines
+    """
+
+    # Format specification
+    format: Literal["novel", "novella", "short-story", "micro-prose", "poem"] | None = "novel"
+
+    # Common metadata (all formats)
     title: str | None = None
     premise: str
     themes: list[SemanticValue] = Field(default_factory=list)
     hook: Hook | None = None
     stakes: Stakes | None = None
+
+    # Prose formats (novel, novella, short-story)
     plot_pattern: EntityId | None = None
     plot_pattern_beats: list[PlotPatternBeatAssignment] = Field(default_factory=list)
     chapters: list[Chapter] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
     scene_ids: list[EntityId] | None = None
+
+    # Micro-prose format
+    fragments: list[Fragment] = Field(default_factory=list)
+
+    # Poetry format
+    stanzas: list[Stanza] = Field(default_factory=list)
+    lines: list[str] = Field(default_factory=list)  # for non-stanza poetry (e.g., haiku)
+    poem_form: str | None = None  # sonnet, haiku, villanelle, free verse, etc.
+    poem_meter: str | None = None
+    poem_rhyme_scheme: str | None = None
 
 
 class Style(BaseModel):
@@ -300,6 +341,12 @@ def _validate_unique_ids(project: Project) -> None:
         for beat in scene.beats:
             id_sources[beat.id].append("beat")
 
+    for fragment in project.plot.fragments:
+        id_sources[fragment.id].append("fragment")
+
+    for stanza in project.plot.stanzas:
+        id_sources[stanza.id].append("stanza")
+
     duplicates = {id_value: sources for id_value, sources in id_sources.items() if len(sources) > 1}
     if duplicates:
         details = ", ".join(
@@ -396,19 +443,19 @@ def _validate_references(project: Project) -> None:
                     f"Scene {scene.id!r} references unknown characters: {sorted(missing_chars)!r}."
                 )
 
-        if not world_facts:
-            raise ValueError(
-                f"Scene {scene.id!r} references location {scene.location!r} but world facts are missing."
-            )
-
-        if scene.location not in world_facts:
-            raise ValueError(
-                f"Scene {scene.id!r} references unknown location {scene.location!r}."
-            )
-        if world_facts[scene.location].type != "location":
-            raise ValueError(
-                f"Scene {scene.id!r} location {scene.location!r} is not a world fact of type 'location'."
-            )
+        if scene.location:
+            if not world_facts:
+                raise ValueError(
+                    f"Scene {scene.id!r} references location {scene.location!r} but world facts are missing."
+                )
+            if scene.location not in world_facts:
+                raise ValueError(
+                    f"Scene {scene.id!r} references unknown location {scene.location!r}."
+                )
+            if world_facts[scene.location].type != "location":
+                raise ValueError(
+                    f"Scene {scene.id!r} location {scene.location!r} is not a world fact of type 'location'."
+                )
 
         if scene.world_facts:
             missing_facts = set(scene.world_facts) - set(world_facts)
@@ -442,7 +489,48 @@ def _validate_references(project: Project) -> None:
             )
 
 
+def _validate_format(plot: Plot) -> None:
+    """Validate that format-appropriate fields are populated."""
+    fmt = plot.format or "novel"
+
+    prose_formats = {"novel", "novella", "short-story"}
+    has_prose = bool(plot.chapters or plot.scenes)
+    has_micro_prose = bool(plot.fragments)
+    has_poetry = bool(plot.stanzas or plot.lines)
+
+    if fmt in prose_formats:
+        if has_micro_prose:
+            raise ValueError(
+                f"Format {fmt!r} should not have fragments (use scenes/chapters instead)."
+            )
+        if has_poetry:
+            raise ValueError(
+                f"Format {fmt!r} should not have stanzas/lines (use scenes/chapters instead)."
+            )
+        if not has_prose:
+            raise ValueError(f"Format {fmt!r} requires at least one scene.")
+
+    elif fmt == "micro-prose":
+        if has_prose and not has_micro_prose:
+            raise ValueError(
+                "Format 'micro-prose' should use fragments, not scenes/chapters."
+            )
+        if has_poetry:
+            raise ValueError("Format 'micro-prose' should not have stanzas/lines.")
+        if not has_micro_prose:
+            raise ValueError("Format 'micro-prose' requires at least one fragment.")
+
+    elif fmt == "poem":
+        if has_prose:
+            raise ValueError("Format 'poem' should not have scenes/chapters.")
+        if has_micro_prose:
+            raise ValueError("Format 'poem' should not have fragments.")
+        if not has_poetry:
+            raise ValueError("Format 'poem' requires stanzas or lines.")
+
+
 def _validate_project(project: Project) -> None:
+    _validate_format(project.plot)
     _validate_unique_ids(project)
     _validate_scene_order(project.plot)
     _validate_references(project)

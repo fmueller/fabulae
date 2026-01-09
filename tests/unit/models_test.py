@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from fabulae.models import (
     Beat,
     Character,
+    Fragment,
     NarrativePattern,
     Plot,
     PlotPattern,
@@ -15,6 +16,7 @@ from fabulae.models import (
     Project,
     ProjectConfig,
     Scene,
+    Stanza,
     World,
     WorldFact,
     load_project,
@@ -117,6 +119,28 @@ class TestScene:
         assert scene.id == "discovery"
         assert scene.location == "apiary"
         assert len(scene.beats) == 2
+
+    def test_scene_without_location_loads(self) -> None:
+        """A scene without a location loads without error."""
+        data = {
+            "id": "dream-sequence",
+            "time": "night",
+            "summary": "A surreal dreamscape",
+        }
+        scene = Scene.model_validate(data)
+        assert scene.id == "dream-sequence"
+        assert scene.location is None
+        assert scene.time == "night"
+
+    def test_scene_with_time_loads(self) -> None:
+        """A scene with time field loads without error."""
+        data = {
+            "id": "morning-ritual",
+            "location": "kitchen",
+            "time": "early morning",
+        }
+        scene = Scene.model_validate(data)
+        assert scene.time == "early morning"
 
 
 class TestPlot:
@@ -269,6 +293,165 @@ class TestPlotPatternReferences:
         with pytest.raises(ValueError) as exc_info:
             load_project(tmp_path)
         assert "narrative pattern" in str(exc_info.value).lower()
+
+
+class TestFormatSupport:
+    """Tests for different narrative formats."""
+
+    def test_micro_prose_format_loads(self) -> None:
+        """A micro-prose work with fragments loads without error."""
+        data = {
+            "format": "micro-prose",
+            "premise": "Flash fiction about memory",
+            "fragments": [
+                {"id": "opening", "content": "The watch stopped at 3:47."},
+                {"id": "middle", "content": "She remembered the exact moment.", "target_words": 50},
+            ],
+        }
+        plot = Plot.model_validate(data)
+        assert plot.format == "micro-prose"
+        assert len(plot.fragments) == 2
+        assert plot.fragments[0].content == "The watch stopped at 3:47."
+
+    def test_poem_format_with_stanzas_loads(self) -> None:
+        """A poem with stanzas loads without error."""
+        data = {
+            "format": "poem",
+            "premise": "A sonnet about time",
+            "poem_form": "sonnet",
+            "poem_rhyme_scheme": "ABAB CDCD EFEF GG",
+            "stanzas": [
+                {
+                    "id": "quatrain-1",
+                    "lines": ["Time slips through fingers like sand", "Each grain a moment that won't stay"],
+                    "rhyme_scheme": "ABAB",
+                },
+                {
+                    "id": "quatrain-2",
+                    "lines": ["The clock's relentless secondhand", "Marks out the price we all must pay"],
+                },
+            ],
+        }
+        plot = Plot.model_validate(data)
+        assert plot.format == "poem"
+        assert plot.poem_form == "sonnet"
+        assert len(plot.stanzas) == 2
+
+    def test_poem_format_with_lines_loads(self) -> None:
+        """A poem with just lines (no stanzas) loads without error."""
+        data = {
+            "format": "poem",
+            "premise": "A haiku about autumn",
+            "poem_form": "haiku",
+            "lines": ["Leaves fall silently", "Red and gold carpet the ground", "Winter waits nearby"],
+        }
+        plot = Plot.model_validate(data)
+        assert plot.format == "poem"
+        assert len(plot.lines) == 3
+
+    def test_short_story_format_loads(self) -> None:
+        """A short story loads without error."""
+        data = {
+            "format": "short-story",
+            "premise": "A brief encounter",
+            "scenes": [{"id": "meeting", "location": "cafe"}],
+        }
+        plot = Plot.model_validate(data)
+        assert plot.format == "short-story"
+        assert len(plot.scenes) == 1
+
+    def test_format_validation_prose_cannot_have_fragments(self, tmp_path: Path) -> None:
+        """Prose formats should not mix with fragments."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "format": "novel",
+                    "premise": "Mixed format test",
+                    "scenes": [{"id": "scene-one", "location": "place"}],
+                    "fragments": [{"id": "frag-one", "content": "Should not be here"}],
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump({"facts": [{"id": "place", "type": "location", "name": "Place"}]})
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "fragments" in str(exc_info.value).lower()
+
+    def test_format_validation_poem_requires_stanzas_or_lines(self, tmp_path: Path) -> None:
+        """Poem format requires stanzas or lines."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump({"format": "poem", "premise": "A poem with no content"})
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "stanzas or lines" in str(exc_info.value).lower()
+
+    def test_format_validation_micro_prose_requires_fragments(self, tmp_path: Path) -> None:
+        """Micro-prose format requires fragments."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump({"format": "micro-prose", "premise": "Micro-prose with no fragments"})
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "fragment" in str(exc_info.value).lower()
+
+    def test_micro_prose_round_trip(self, tmp_path: Path) -> None:
+        """Save and load a micro-prose project."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="micro-prose",
+                premise="Brief moments",
+                fragments=[
+                    Fragment(id="moment-one", content="The door closed."),
+                    Fragment(id="moment-two", content="Silence followed.", target_words=100),
+                ],
+            ),
+        )
+
+        save_project(project, tmp_path)
+        loaded = load_project(tmp_path)
+
+        assert loaded.plot.format == "micro-prose"
+        assert len(loaded.plot.fragments) == 2
+        assert loaded.plot.fragments[0].content == "The door closed."
+
+    def test_poem_round_trip(self, tmp_path: Path) -> None:
+        """Save and load a poem project."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="poem",
+                premise="Nature's cycle",
+                poem_form="free verse",
+                stanzas=[
+                    Stanza(id="stanza-1", lines=["The river flows", "Always moving forward"]),
+                    Stanza(id="stanza-2", lines=["Yet always here", "In this moment"]),
+                ],
+            ),
+        )
+
+        save_project(project, tmp_path)
+        loaded = load_project(tmp_path)
+
+        assert loaded.plot.format == "poem"
+        assert loaded.plot.poem_form == "free verse"
+        assert len(loaded.plot.stanzas) == 2
+        assert loaded.plot.stanzas[0].lines[0] == "The river flows"
 
 
 class TestFileIO:
@@ -496,3 +679,26 @@ class TestFileIO:
         with pytest.raises(ValueError) as exc_info:
             load_project(tmp_path)
         assert "location" in str(exc_info.value).lower()
+
+    def test_scene_without_location_no_world_required(self, tmp_path: Path) -> None:
+        """Scenes without locations don't require world facts."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A simple story",
+                    "scenes": [
+                        {"id": "scene-one", "time": "morning"},
+                        {"id": "scene-two", "time": "evening"},
+                    ],
+                }
+            )
+        )
+        # No world.yml file
+
+        project = load_project(tmp_path)
+        assert len(project.plot.scenes) == 2
+        assert project.plot.scenes[0].location is None
+        assert project.plot.scenes[0].time == "morning"
