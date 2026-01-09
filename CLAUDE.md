@@ -52,7 +52,7 @@ The `init --format <format>` command copies the appropriate template.
 - All entity IDs must be globally unique across the entire project
 - IDs must be lowercase alphanumeric with hyphens (e.g., `scene-01`, `world-london`)
 - Scene `location` is optional; if set, must reference a WorldFact with `type="location"`
-- Scene `characters` and `world_facts` must reference valid entities
+- Scene `characters` and `world_fact_ids` must reference valid entities
 - If chapters exist, scenes must reference them via `chapter.scene_ids`
 - `plot_pattern_beat` requires `plot_pattern` to be set on the scene
 - Format validation: prose formats require scenes, micro-prose requires fragments, poem requires stanzas/lines

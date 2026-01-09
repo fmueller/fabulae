@@ -409,6 +409,26 @@ class TestFormatSupport:
             load_project(tmp_path)
         assert "fragment" in str(exc_info.value).lower()
 
+    def test_format_validation_micro_prose_cannot_have_scenes(self, tmp_path: Path) -> None:
+        """Micro-prose format should not have scenes, even if fragments are present."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "format": "micro-prose",
+                    "premise": "Mixed format test",
+                    "fragments": [{"id": "frag-one", "content": "Valid fragment"}],
+                    "scenes": [{"id": "scene-one"}],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "scenes" in str(exc_info.value).lower()
+
     def test_micro_prose_round_trip(self, tmp_path: Path) -> None:
         """Save and load a micro-prose project."""
         project = Project(

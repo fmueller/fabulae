@@ -161,7 +161,7 @@ class Scene(BaseModel):
     location: EntityId | None = None
     time: str | None = None
     characters: list[EntityId] = Field(default_factory=list)
-    world_facts: list[EntityId] = Field(default_factory=list)
+    world_fact_ids: list[EntityId] = Field(default_factory=list)
     plot_pattern: EntityId | None = None
     plot_pattern_beat: str | None = None
     summary: str | None = None
@@ -457,8 +457,8 @@ def _validate_references(project: Project) -> None:
                     f"Scene {scene.id!r} location {scene.location!r} is not a world fact of type 'location'."
                 )
 
-        if scene.world_facts:
-            missing_facts = set(scene.world_facts) - set(world_facts)
+        if scene.world_fact_ids:
+            missing_facts = set(scene.world_fact_ids) - set(world_facts)
             if missing_facts:
                 raise ValueError(
                     f"Scene {scene.id!r} references unknown world facts: {sorted(missing_facts)!r}."
@@ -511,7 +511,7 @@ def _validate_format(plot: Plot) -> None:
             raise ValueError(f"Format {fmt!r} requires at least one scene.")
 
     elif fmt == "micro-prose":
-        if has_prose and not has_micro_prose:
+        if has_prose:
             raise ValueError(
                 "Format 'micro-prose' should use fragments, not scenes/chapters."
             )
