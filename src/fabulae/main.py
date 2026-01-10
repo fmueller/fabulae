@@ -43,24 +43,6 @@ def validate_command(
     typer.echo("Validation OK.")
 
 
-@app.command(name="narrative-patterns", help="List narrative patterns in a project.")
-def narrative_patterns_command(
-    path: Annotated[Path, typer.Argument(help="Project directory.")] = DEFAULT_PROJECT_PATH
-) -> None:
-    """List narrative patterns for a project."""
-    try:
-        project = load_project(path)
-    except (FileNotFoundError, ValidationError, ValueError) as exc:
-        typer.echo(f"Load failed: {exc}")
-        raise typer.Exit(code=1) from exc
-
-    if not project.narrative_patterns:
-        typer.echo("No narrative patterns found.")
-        return
-
-    for pattern in project.narrative_patterns:
-        typer.echo(f"{pattern.id}: {pattern.name}")
-
 
 AVAILABLE_FORMATS = ["novel", "novella", "short-story", "micro-prose", "poem"]
 

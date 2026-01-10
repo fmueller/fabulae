@@ -30,7 +30,7 @@ def test_help_flag_shows_help() -> None:
     assert result.exit_code == 0
     assert "Fabulae" in result.output
     assert "version" in result.output
-    assert "narrative-patterns" in result.output
+    assert "narrative-patterns" not in result.output
 
 
 def test_short_help_flag_shows_help() -> None:
@@ -39,7 +39,7 @@ def test_short_help_flag_shows_help() -> None:
     assert result.exit_code == 0
     assert "Fabulae" in result.output
     assert "version" in result.output
-    assert "narrative-patterns" in result.output
+    assert "narrative-patterns" not in result.output
 
 
 def test_no_command_shows_help() -> None:
@@ -79,42 +79,6 @@ def test_validate_command_fails_for_missing_manifest(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Validation failed" in result.output
 
-
-def test_narrative_patterns_command_lists_patterns(tmp_path: Path) -> None:
-    """Narrative patterns command lists available patterns."""
-    import yaml
-
-    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
-    (tmp_path / "plot.yml").write_text(
-        yaml.dump(
-            {
-                "premise": "A test premise.",
-                "scenes": [{"id": "scene-one", "location": "apiary"}],
-            }
-        )
-    )
-    (tmp_path / "world.yml").write_text(
-        yaml.dump(
-            {"facts": [{"id": "apiary", "type": "location", "name": "Apiary"}]}
-        )
-    )
-    (tmp_path / "narrative_patterns.yml").write_text(
-        yaml.dump(
-            {
-                "narrative_patterns": [
-                    {
-                        "id": "cozy-mystery",
-                        "name": "Cozy Mystery",
-                        "description": "A gentle mystery unfolds.",
-                    }
-                ]
-            }
-        )
-    )
-
-    result = runner.invoke(app, ["narrative-patterns", str(tmp_path)])
-    assert result.exit_code == 0
-    assert "cozy-mystery" in result.output
 
 
 def test_init_command_creates_novel_project_by_default(tmp_path: Path) -> None:

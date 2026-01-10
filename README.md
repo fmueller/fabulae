@@ -56,7 +56,6 @@ Templates:
 
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
-- `fabulae narrative-patterns <dir>` lists narrative patterns (if present).
 - `fabulae init [--format FORMAT] <dir>` scaffolds a new project from a template.
 
 ### Initializing a project
