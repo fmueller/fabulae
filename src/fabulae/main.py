@@ -7,7 +7,8 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from fabulae.models import load_project
+from fabulae.features.create.cli import register_create_command
+from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
 
 app = typer.Typer(
@@ -24,6 +25,7 @@ def app_callback(ctx: typer.Context) -> None:
 
 
 app.command(name="version", help="Display the current version.")(version_command)
+register_create_command(app)
 
 
 DEFAULT_PROJECT_PATH = Path(".")
@@ -44,7 +46,6 @@ def validate_command(
 
 
 
-AVAILABLE_FORMATS = ["novel", "novella", "short-story", "micro-prose", "poem"]
 
 
 @app.command(name="init", help="Initialize a new Fabulae project from a template.")

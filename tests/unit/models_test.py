@@ -429,6 +429,66 @@ class TestFormatSupport:
             load_project(tmp_path)
         assert "scenes" in str(exc_info.value).lower()
 
+    def test_format_validation_micro_prose_cannot_have_plot_pattern(self, tmp_path: Path) -> None:
+        """Micro-prose format should not define plot patterns."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "format": "micro-prose",
+                    "premise": "Mixed format test",
+                    "fragments": [{"id": "frag-one", "content": "Valid fragment"}],
+                    "plot_pattern": "structure",
+                }
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "plot patterns" in str(exc_info.value).lower()
+
+    def test_format_validation_poem_cannot_have_fragments(self, tmp_path: Path) -> None:
+        """Poem format should not include fragments."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "format": "poem",
+                    "premise": "Mixed format test",
+                    "stanzas": [{"id": "stanza-01", "lines": ["Line"]}],
+                    "fragments": [{"id": "frag-one", "content": "Should not be here"}],
+                }
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "fragments" in str(exc_info.value).lower()
+
+    def test_format_validation_poem_cannot_have_plot_pattern(self, tmp_path: Path) -> None:
+        """Poem format should not define plot patterns."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "format": "poem",
+                    "premise": "Mixed format test",
+                    "stanzas": [{"id": "stanza-01", "lines": ["Line"]}],
+                    "plot_pattern": "structure",
+                }
+            )
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            load_project(tmp_path)
+        assert "plot patterns" in str(exc_info.value).lower()
+
     def test_micro_prose_round_trip(self, tmp_path: Path) -> None:
         """Save and load a micro-prose project."""
         project = Project(
@@ -644,6 +704,19 @@ class TestFileIO:
         assert loaded.characters[0].name == "The Tester"
         assert loaded.world is not None
         assert loaded.world.setting == "Lab city"
+
+    def test_load_project_uses_default_paths_when_missing(self, tmp_path: Path) -> None:
+        """Project loads with default paths when config paths are missing."""
+        import yaml
+
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump({"premise": "Premise", "scenes": [{"id": "scene-01"}]})
+        )
+
+        project = load_project(tmp_path)
+        assert project.config.paths is None
+        assert project.plot.premise == "Premise"
 
     def test_duplicate_ids_raise_error(self, tmp_path: Path) -> None:
         """Duplicate IDs across nodes raise an error."""

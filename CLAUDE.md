@@ -25,6 +25,10 @@ uv run ruff check --fix && uv run mypy && uv run pytest
 
 If any check fails, fix the issues before considering the task complete.
 
+## Test Isolation
+
+- Tests must never call live LLMs. Use the fake LLM hook (`FABULAE_FAKE_LLM=1`) or stub `create_agent` in tests.
+
 ## Architecture
 
 Fabulae is a CLI toolkit for building narratives from YAML building blocks. The codebase follows a lightweight vertical-slice architecture:

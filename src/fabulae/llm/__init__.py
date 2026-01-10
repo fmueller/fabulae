@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar, cast
 
 import httpx
 from pydantic import BaseModel
@@ -20,6 +20,7 @@ DEFAULT_BASE_URL = "http://localhost:11434/v1"
 DEFAULT_API_KEY = "ollama"
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_TIMEOUT_SECONDS = 5.0
+FAKE_LLM_ENV = "FABULAE_FAKE_LLM"
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class LLMConfig:
     temperature: float = DEFAULT_TEMPERATURE
     base_url: str = DEFAULT_BASE_URL
     api_key: str = DEFAULT_API_KEY
+    seed: int | None = None
 
 
 class LLMTestPromptResult(BaseModel):
@@ -72,11 +74,25 @@ def _read_env_float(name: str) -> float | None:
         raise ValueError(f"Invalid float value for {name}: {value!r}") from exc
 
 
+def _read_env_int(name: str) -> int | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid int value for {name}: {value!r}") from exc
+
+
 def resolve_config(
     cli_model: str | None,
     cli_base_url: str | None,
     cli_api_key: str | None,
     cli_temperature: float | None,
+    cli_seed: int | None,
 ) -> LLMConfig:
     """Resolve configuration with precedence: CLI > FABULAE_* > OPENAI_* > defaults."""
     model = cli_model or _read_env_str("FABULAE_LLM_MODEL") or DEFAULT_MODEL
@@ -99,23 +115,62 @@ def resolve_config(
     )
     if temperature is None:
         temperature = DEFAULT_TEMPERATURE
-    return LLMConfig(model=model, temperature=temperature, base_url=base_url, api_key=api_key)
+    seed = cli_seed if cli_seed is not None else _read_env_int("FABULAE_LLM_SEED")
+    return LLMConfig(model=model, temperature=temperature, base_url=base_url, api_key=api_key, seed=seed)
+
+
+class FakeAgent(Generic[T]):
+    """Placeholder agent used in tests to prevent live LLM calls."""
+
+    def __init__(
+        self,
+        output_type: type[T],
+        system_prompt: str,
+        model_settings: dict[str, float | int | None] | None = None,
+    ) -> None:
+        self.output_type = output_type
+        self.system_prompt = system_prompt
+        self.model_settings = model_settings
+
+    async def run(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(
+            f"LLM calls are disabled in tests ({FAKE_LLM_ENV}=1). "
+            "Provide a fake agent or stub the call."
+        )
 
 
 def create_agent(
     result_type: type[T],
     system_prompt: str,
     config: LLMConfig | None = None,
-) -> Agent[None, T]:
+) -> Any:
     """Create a Pydantic AI agent configured for OpenAI-compatible providers."""
     resolved = config or LLMConfig()
+    if os.getenv(FAKE_LLM_ENV) == "1":
+        return cast(
+            Any,
+            FakeAgent(
+                result_type,
+                system_prompt,
+                model_settings={
+                    "temperature": resolved.temperature,
+                    "seed": resolved.seed,
+                },
+            ),
+        )
     provider = OpenAIProvider(base_url=resolved.base_url, api_key=resolved.api_key)
     model = OpenAIModel(resolved.model, provider=provider)
-    return Agent(
-        model,
-        output_type=result_type,
-        system_prompt=system_prompt,
-        model_settings={"temperature": resolved.temperature},
+    model_settings: dict[str, float | int] = {"temperature": resolved.temperature}
+    if resolved.seed is not None:
+        model_settings["seed"] = resolved.seed
+    return cast(
+        Any,
+        Agent(
+            model,
+            output_type=result_type,
+            system_prompt=system_prompt,
+            model_settings=cast(Any, model_settings),
+        ),
     )
 
 
@@ -163,7 +218,7 @@ async def run_test_prompt(
     user_prompt = prompt or "fabulae"
     agent = create_agent(LLMTestPromptResult, system_prompt, config)
     result = await agent.run(user_prompt)
-    return result.output
+    return cast(LLMTestPromptResult, result.output)
 
 
 async def test_llm_connection(
@@ -206,6 +261,8 @@ __all__ = [
     "DEFAULT_BASE_URL",
     "DEFAULT_MODEL",
     "DEFAULT_TEMPERATURE",
+    "FAKE_LLM_ENV",
+    "FakeAgent",
     "LLMConfig",
     "LLMConnectionResult",
     "LLMTestPromptResult",

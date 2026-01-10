@@ -56,4 +56,15 @@ def api_key_option() -> str | None:
     )
 
 
-__all__ = ["api_key_option", "base_url_option", "model_option", "temperature_option"]
+def seed_option() -> int | None:
+    return cast(
+        int | None,
+        typer.Option(
+            None,
+            "--seed",
+            help="Seed for deterministic generation (if supported by the provider).",
+        ),
+    )
+
+
+__all__ = ["api_key_option", "base_url_option", "model_option", "seed_option", "temperature_option"]

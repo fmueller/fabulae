@@ -23,6 +23,17 @@ def _validate_id(value: str) -> str:
 EntityId = Annotated[str, Field(min_length=1), AfterValidator(_validate_id)]
 
 
+LiteratureFormat = Literal["novel", "novella", "short-story", "micro-prose", "poem"]
+
+AVAILABLE_FORMATS: list[LiteratureFormat] = [
+    "novel",
+    "novella",
+    "short-story",
+    "micro-prose",
+    "poem",
+]
+
+
 class SemanticTag(BaseModel):
     """A labeled semantic tag with optional notes."""
 
@@ -208,7 +219,7 @@ class Plot(BaseModel):
     """
 
     # Format specification
-    format: Literal["novel", "novella", "short-story", "micro-prose", "poem"] | None = "novel"
+    format: LiteratureFormat | None = "novel"
 
     # Common metadata (all formats)
     title: str | None = None
@@ -270,7 +281,7 @@ class ProjectConfig(BaseModel):
 
     version: str | None = None
     title: str | None = None
-    paths: ProjectPaths = Field(default_factory=ProjectPaths)
+    paths: ProjectPaths | None = None
     defaults: ProjectDefaults | None = None
 
 
@@ -315,6 +326,13 @@ def save_yaml_file(path: Path, data: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+def _dump_plot(plot: Plot) -> dict[str, object]:
+    data = plot.model_dump(exclude_none=True, exclude_defaults=True)
+    if plot.format is not None:
+        data["format"] = plot.format
+    return data
 
 
 def _validate_unique_ids(project: Project) -> None:
@@ -497,6 +515,7 @@ def _validate_format(plot: Plot) -> None:
     has_prose = bool(plot.chapters or plot.scenes)
     has_micro_prose = bool(plot.fragments)
     has_poetry = bool(plot.stanzas or plot.lines)
+    has_plot_pattern = bool(plot.plot_pattern or plot.plot_pattern_beats)
 
     if fmt in prose_formats:
         if has_micro_prose:
@@ -507,24 +526,28 @@ def _validate_format(plot: Plot) -> None:
             raise ValueError(
                 f"Format {fmt!r} should not have stanzas/lines (use scenes/chapters instead)."
             )
-        if not has_prose:
+        if not plot.scenes:
             raise ValueError(f"Format {fmt!r} requires at least one scene.")
 
     elif fmt == "micro-prose":
-        if has_prose:
+        if has_prose or plot.scene_ids:
             raise ValueError(
                 "Format 'micro-prose' should use fragments, not scenes/chapters."
             )
         if has_poetry:
             raise ValueError("Format 'micro-prose' should not have stanzas/lines.")
+        if has_plot_pattern:
+            raise ValueError("Format 'micro-prose' should not define plot patterns.")
         if not has_micro_prose:
             raise ValueError("Format 'micro-prose' requires at least one fragment.")
 
     elif fmt == "poem":
-        if has_prose:
+        if has_prose or plot.scene_ids:
             raise ValueError("Format 'poem' should not have scenes/chapters.")
         if has_micro_prose:
             raise ValueError("Format 'poem' should not have fragments.")
+        if has_plot_pattern:
+            raise ValueError("Format 'poem' should not define plot patterns.")
         if not has_poetry:
             raise ValueError("Format 'poem' requires stanzas or lines.")
 
@@ -545,30 +568,32 @@ def load_project(path: Path) -> Project:
     config_data = load_yaml_file(config_path)
     config = ProjectConfig.model_validate(config_data)
 
-    plot_path = path / config.paths.plot
+    paths = config.paths or ProjectPaths()
+
+    plot_path = path / paths.plot
     if not plot_path.exists():
         raise FileNotFoundError(f"Plot file not found: {plot_path}")
     plot = Plot.model_validate(load_yaml_file(plot_path))
 
-    characters_path = path / config.paths.characters
+    characters_path = path / paths.characters
     characters: list[Character] = []
     if characters_path.exists():
         characters_data = CharactersFile.model_validate(load_yaml_file(characters_path))
         characters = characters_data.characters
 
-    world_path = path / config.paths.world
+    world_path = path / paths.world
     world = World.model_validate(load_yaml_file(world_path)) if world_path.exists() else None
 
-    style_path = path / config.paths.style
+    style_path = path / paths.style
     style = Style.model_validate(load_yaml_file(style_path)) if style_path.exists() else None
 
-    patterns_path = path / config.paths.plot_patterns
+    patterns_path = path / paths.plot_patterns
     plot_patterns: list[PlotPattern] = []
     if patterns_path.exists():
         patterns_data = PlotPatternsFile.model_validate(load_yaml_file(patterns_path))
         plot_patterns = patterns_data.plot_patterns
 
-    narrative_patterns_path = path / config.paths.narrative_patterns
+    narrative_patterns_path = path / paths.narrative_patterns
     narrative_patterns: list[NarrativePattern] = []
     if narrative_patterns_path.exists():
         narrative_patterns_data = NarrativePatternsFile.model_validate(
@@ -594,34 +619,35 @@ def save_project(project: Project, path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
     config = project.config
+    paths = config.paths or ProjectPaths()
     save_yaml_file(path / "fabulae.yml", config.model_dump(exclude_none=True))
 
-    plot_path = path / config.paths.plot
-    save_yaml_file(plot_path, project.plot.model_dump(exclude_none=True))
+    plot_path = path / paths.plot
+    save_yaml_file(plot_path, _dump_plot(project.plot))
 
-    characters_path = path / config.paths.characters
+    characters_path = path / paths.characters
     save_yaml_file(
         characters_path,
         CharactersFile(characters=project.characters).model_dump(exclude_none=True),
     )
 
     if project.world:
-        world_path = path / config.paths.world
+        world_path = path / paths.world
         save_yaml_file(world_path, project.world.model_dump(exclude_none=True))
 
     if project.style:
-        style_path = path / config.paths.style
+        style_path = path / paths.style
         save_yaml_file(style_path, project.style.model_dump(exclude_none=True, by_alias=True))
 
     if project.plot_patterns:
-        patterns_path = path / config.paths.plot_patterns
+        patterns_path = path / paths.plot_patterns
         save_yaml_file(
             patterns_path,
             PlotPatternsFile(plot_patterns=project.plot_patterns).model_dump(exclude_none=True),
         )
 
     if project.narrative_patterns:
-        narrative_patterns_path = path / config.paths.narrative_patterns
+        narrative_patterns_path = path / paths.narrative_patterns
         save_yaml_file(
             narrative_patterns_path,
             NarrativePatternsFile(narrative_patterns=project.narrative_patterns).model_dump(
