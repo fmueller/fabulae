@@ -27,9 +27,15 @@ If any check fails, fix the issues before considering the task complete.
 
 ## Architecture
 
-Fabulae is a CLI toolkit for building narratives from YAML building blocks. The codebase has three main layers:
+Fabulae is a CLI toolkit for building narratives from YAML building blocks. The codebase follows a lightweight vertical-slice architecture:
 
-**CLI Layer** (`src/fabulae/main.py`): Typer-based commands - `version`, `validate`, `narrative-patterns`, `init`. Entry point defined in pyproject.toml as `fabulae = "fabulae.main:main"`.
+**CLI Layer** (`src/fabulae/main.py`): Typer-based command wiring only. Command functions live in `src/fabulae/features/<slice>/cli.py` and should call feature services while avoiding embedded business logic. Entry point is `fabulae = "fabulae.main:main"`.
+
+**Feature Slices** (`src/fabulae/features/`): Each feature owns its prompts, schemas, and service logic (e.g., `create/`, `build/`, `check/`, `doctor/`, `entities/`, `tui/`). The CLI and TUI should call into these services to share behavior.
+
+**Shared LLM + Prompts**:
+- `src/fabulae/llm/` for `LLMConfig`, agent factory, config resolution, and connectivity tests.
+- `src/fabulae/prompts/` for shared prompt helpers; feature-specific prompts live in each slice.
 
 **Data Models** (`src/fabulae/models.py`): Pydantic v2 models for all narrative entities with multi-layer validation:
 - Core entities: `Character`, `WorldFact`, `Beat`, `Scene`, `Chapter`, `Plot`
@@ -61,4 +67,5 @@ The `init --format <format>` command copies the appropriate template.
 
 - Ruff formatting: 4-space indent, double quotes, 120-char line length
 - Test files use `_test.py` suffix (e.g., `models_test.py`)
+- Prefer placing feature tests under `tests/unit/features/` to mirror `src/fabulae/features/`
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`)

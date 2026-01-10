@@ -2,9 +2,13 @@
 
 ## Project Structure & Module Organization
 
-- `src/fabulae/` contains the CLI entrypoint (`main.py`), models (`models.py`), and version utilities.
-- `tests/` holds pytest suites; unit tests live under `tests/unit/`.
-- `templates/basic/` provides a runnable YAML project template (plot, characters, world, style).
+- `src/fabulae/main.py` is the CLI wiring only; keep business logic in feature slices.
+- `src/fabulae/models.py` remains the core domain models and validation.
+- `src/fabulae/features/` holds vertical slices (create, build, check, doctor, entities, tui).
+- `src/fabulae/llm/` contains shared LLM config, agent factory, and connectivity helpers.
+- `src/fabulae/prompts/` contains shared prompt helpers; each feature slice owns its own `prompts.py`.
+- `tests/` holds pytest suites; unit tests live under `tests/unit/` and should mirror the feature slices under `tests/unit/features/`.
+- `templates/` provides runnable YAML project templates (plot, characters, world, style).
 - `README.md` documents CLI usage and project concepts; `pyproject.toml` defines tooling and dependencies.
 
 ## Build, Test, and Development Commands
@@ -18,7 +22,7 @@
 ## Coding Style & Naming Conventions
 
 - Python code follows Ruff formatting: 4-space indentation, double quotes, and a 120-character line length.
-- Keep modules under `src/fabulae/` and add new CLI commands in `main.py` or a dedicated module.
+- Keep modules under `src/fabulae/`; register new CLI commands in `main.py`, with command functions implemented in `src/fabulae/features/<slice>/cli.py` and delegating to feature services.
 - Story template IDs must be lowercase with hyphens (e.g., `scene-01`, `world-london`), and IDs are globally unique.
 
 ## Testing Guidelines
