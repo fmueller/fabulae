@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from fabulae.prompts.language import LANGUAGE_GUARD_TEMPLATE, build_language_guard_prompt
+
 BASE_SYSTEM_PROMPT = (
     "You are Fabulae, a narrative design assistant. "
     "Return structured data only and follow the provided schema."
@@ -55,7 +57,9 @@ def format_project_context(sections: Mapping[str, Any]) -> str:
 
 __all__ = [
     "BASE_SYSTEM_PROMPT",
+    "LANGUAGE_GUARD_TEMPLATE",
     "build_system_prompt",
+    "build_language_guard_prompt",
     "format_project_context",
     "format_sections",
     "serialize_for_prompt",
