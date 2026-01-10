@@ -1,0 +1,7 @@
+language: en
+pov: third_limited
+tense: past
+voice: direct
+register: neutral
+constraints:
+  - Keep paragraphs brief and focused on action.

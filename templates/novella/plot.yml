@@ -1,0 +1,25 @@
+format: novella
+premise: A botanist returns to the valley to confront the family land sale.
+themes:
+  - legacy
+  - belonging
+hook:
+  line: The orchard gate had been repainted the wrong shade of green.
+  question: Who decided the land was already gone?
+  promise: A slow-burn confrontation with the past.
+stakes:
+  external: The orchard will be sold by week's end.
+  internal: June risks abandoning the place that shaped her.
+scenes:
+  - id: orchard-return
+    time: late afternoon
+    summary: June walks the rows and finds the new boundary markers.
+    goal: Find out who initiated the sale.
+    conflict: Her uncle refuses to discuss the papers.
+    outcome: She learns the contract is nearly signed.
+  - id: night-fire
+    time: night
+    summary: June confronts her uncle by the burn pit.
+    goal: Convince him to wait.
+    conflict: He reveals the debt he never told her about.
+    outcome: They agree to one last attempt to keep the land.

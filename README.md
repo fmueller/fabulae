@@ -47,6 +47,8 @@ Key rules:
 
 Templates:
 - `templates/novel` – Novel with chapters, scenes, and beats
+- `templates/novella` – Novella with scenes and a smaller starter scope
+- `templates/short-story` – Short story with a tight scene-based outline
 - `templates/poem` – Poetry with stanzas
 - `templates/micro-prose` – Flash fiction with fragments
 

@@ -1,0 +1,19 @@
+format: short-story
+premise: A night clerk decides whether to return a lost envelope.
+themes:
+  - temptation
+  - integrity
+hook:
+  line: The envelope was warm, as if it had just left a hand.
+  question: Who will miss it if it disappears?
+  promise: A single decision with lasting consequences.
+stakes:
+  external: The envelope contains someone's rent money.
+  internal: Malik risks becoming the person he fears.
+scenes:
+  - id: last-shift
+    time: midnight
+    summary: Malik finds the envelope under the counter and weighs his choices.
+    goal: Decide what to do before the morning rush.
+    conflict: His bills are overdue and the street outside is empty.
+    outcome: He returns the envelope and leaves a note.

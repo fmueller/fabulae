@@ -1,0 +1,7 @@
+characters:
+  - id: malik
+    name: Malik
+    role: protagonist
+    desire: To make a clean break from his debts.
+    flaw: Too quick to gamble on himself.
+    traits: [tired, principled]

@@ -82,11 +82,10 @@ def init_command(
     ] = False,
 ) -> None:
     """Initialize a Fabulae project with starter files."""
-    # Map format to template directory (novella and short-story use novel template)
     template_map = {
         "novel": "novel",
-        "novella": "novel",
-        "short-story": "novel",
+        "novella": "novella",
+        "short-story": "short-story",
         "micro-prose": "micro-prose",
         "poem": "poem",
     }

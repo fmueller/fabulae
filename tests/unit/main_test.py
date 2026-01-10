@@ -9,6 +9,8 @@ from fabulae.main import app
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
 NOVEL_TEMPLATE_DIR = TEMPLATES_DIR / "novel"
+NOVELLA_TEMPLATE_DIR = TEMPLATES_DIR / "novella"
+SHORT_STORY_TEMPLATE_DIR = TEMPLATES_DIR / "short-story"
 POEM_TEMPLATE_DIR = TEMPLATES_DIR / "poem"
 MICRO_PROSE_TEMPLATE_DIR = TEMPLATES_DIR / "micro-prose"
 
@@ -155,15 +157,27 @@ def test_init_command_creates_micro_prose_project(tmp_path: Path) -> None:
     assert created_files == expected_files
 
 
-def test_init_command_short_story_uses_novel_template(tmp_path: Path) -> None:
-    """Init command with --format short-story uses the novel template."""
+def test_init_command_creates_novella_project(tmp_path: Path) -> None:
+    """Init command with --format novella creates a novella project."""
+    result = runner.invoke(app, ["init", "--format", "novella", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "format: novella" in result.output
+
+    expected_files = {path.name for path in NOVELLA_TEMPLATE_DIR.glob("*.yml")}
+    created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_files
+    assert created_files == expected_files
+
+
+def test_init_command_creates_short_story_project(tmp_path: Path) -> None:
+    """Init command with --format short-story creates a short-story project."""
     result = runner.invoke(app, ["init", "--format", "short-story", str(tmp_path)])
     assert result.exit_code == 0
     assert "format: short-story" in result.output
 
-    # short-story uses the novel template
-    expected_files = {path.name for path in NOVEL_TEMPLATE_DIR.glob("*.yml")}
+    expected_files = {path.name for path in SHORT_STORY_TEMPLATE_DIR.glob("*.yml")}
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_files
     assert created_files == expected_files
 
 

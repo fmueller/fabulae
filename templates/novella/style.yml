@@ -1,0 +1,7 @@
+language: en
+pov: third_limited
+tense: past
+voice: intimate
+register: literary
+constraints:
+  - Favor sensory detail over exposition.
