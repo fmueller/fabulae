@@ -235,7 +235,13 @@ def build_plot_outline_prompt(
         "Format": format_name,
         "Count Targets": "\n".join(count_lines),
         "Output Schema (JSON)": schema,
-        "Notes": "Scene beat_count drives later beat generation; keep it within the range.",
+        "Notes": (
+            "Scene beat_count drives later beat generation; keep it within the range. "
+            "Plot patterns (if provided) are structural constraints; align the outline to them. "
+            "Narrative patterns (if provided) are optional guidance for voice and tone, not requirements. "
+            "Use narrative pattern tone/motifs/roles to shape chapter and scene summaries when present. "
+            "Do not invent new pattern IDs."
+        ),
     }
     if style_hint:
         sections["Style"] = style_hint
@@ -282,7 +288,14 @@ def build_scene_prompt(
         "Available Characters": available_characters or "None",
         "Available Locations": available_locations or "None",
         "Existing Scene Summaries": existing_summaries or "None yet.",
-        "Notes": "Use the beat_count from the Scene Outline; output exactly that many beats.",
+        "Notes": (
+            "Use the beat_count from the Scene Outline; output exactly that many beats. "
+            "If a Beat Template is provided, keep required beat kinds in the same positions. "
+            "Plot patterns (if provided) are structural constraints; align plot_pattern/plot_pattern_beat to them. "
+            "Narrative patterns (if provided) are optional guidance for voice and tone, not requirements. "
+            "Reflect narrative pattern tone and roles in scene summary/goal/conflict when present. "
+            "Do not invent new pattern IDs."
+        ),
         "Output Schema (JSON)": schema,
     }
     if style_hint:
@@ -316,6 +329,141 @@ def build_fragment_plan_prompt(
         "Format": format_name,
         "Count Range": _format_count_range("Fragments", count_range),
         "Output Schema (JSON)": schema,
+    }
+    if style_hint:
+        sections["Style"] = style_hint
+    return (
+        build_system_prompt(purpose, _format_guidelines())
+        + "\n\n"
+        + format_sections(sections)
+        + "\n\n"
+        + _format_example("Example Output", schema)
+    )
+
+
+def build_plot_patterns_prompt(
+    format_name: str,
+    style_hint: str | None,
+    count_range: tuple[int, int],
+) -> str:
+    purpose = (
+        "Draft a small set of plot patterns for the story format. "
+        "Each pattern should list required beats with lowercase, hyphenated beat types."
+    )
+    schema = (
+        '{\n'
+        '  "plot_patterns": [\n'
+        '    {\n'
+        '      "id": "three-act",\n'
+        '      "name": "Three-Act Arc",\n'
+        '      "description": "A classic rise-fall structure.",\n'
+        '      "roles": [\n'
+        '        {"id": "protagonist", "description": "drives the central goal", "required": true}\n'
+        "      ],\n"
+        '      "required_beats": [\n'
+        '        {"type": "inciting-incident", "description": "disrupts the status quo"}\n'
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+    sections: dict[str, str] = {
+        "Format": format_name,
+        "Count Range": _format_count_range("Plot patterns", count_range),
+        "Output Schema (JSON)": schema,
+        "Notes": (
+            "Use concise descriptions; beat types must be lowercase hyphenated IDs. "
+            "Beat descriptions are used later as guidance. "
+            "If a beat description references a role, use role:<id> that matches roles."
+        ),
+    }
+    if style_hint:
+        sections["Style"] = style_hint
+    return (
+        build_system_prompt(purpose, _format_guidelines())
+        + "\n\n"
+        + format_sections(sections)
+        + "\n\n"
+        + _format_example("Example Output", schema)
+    )
+
+
+def build_narrative_patterns_prompt(
+    format_name: str,
+    style_hint: str | None,
+    count_range: tuple[int, int],
+) -> str:
+    purpose = (
+        "Draft narrative patterns as optional creative scaffolding. "
+        "These are non-canonical exploration aids that bundle voice, themes, and world cues. "
+        "They may reference plot patterns but are not structural requirements."
+    )
+    schema = (
+        '{\n'
+        '  "narrative_patterns": [\n'
+        '    {\n'
+        '      "id": "close-third",\n'
+        '      "name": "Close Third",\n'
+        '      "description": "A tight third-person lens with selective access.",\n'
+        '      "plot_pattern": "three-act",\n'
+        '      "roles": [\n'
+        '        {"id": "observer", "description": "filters the emotional tone", "required": true}\n'
+        "      ],\n"
+        '      "themes": ["identity"],\n'
+        '      "motifs": ["mirrors"],\n'
+        '      "setting": "dense city",\n'
+        '      "time_period": "near future",\n'
+        '      "tone": "noir",\n'
+        '      "notes": ["narration tracks subtle shifts in belief"]\n'
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+    sections: dict[str, str] = {
+        "Format": format_name,
+        "Count Range": _format_count_range("Narrative patterns", count_range),
+        "Output Schema (JSON)": schema,
+        "Notes": (
+            "Narrative patterns are optional creative bundles, not canonical constraints. "
+            "If plot_pattern is set, it must match an available plot pattern ID. "
+            "Patterns may suggest POV, tense, voice, and tone but are not binding."
+        ),
+    }
+    if style_hint:
+        sections["Style"] = style_hint
+    return (
+        build_system_prompt(purpose, _format_guidelines())
+        + "\n\n"
+        + format_sections(sections)
+        + "\n\n"
+        + _format_example("Example Output", schema)
+    )
+
+
+def build_plot_pattern_assignment_prompt(
+    format_name: str,
+    style_hint: str | None,
+) -> str:
+    purpose = (
+        "Select a plot pattern and map each required beat type to a scene. "
+        "Use only the provided scene IDs and beat types."
+    )
+    schema = (
+        '{\n'
+        '  "plot_pattern": "three-act",\n'
+        '  "plot_pattern_beats": [\n'
+        '    {"type": "inciting-incident", "scene": "scene-01"}\n'
+        "  ]\n"
+        "}"
+    )
+    sections: dict[str, str] = {
+        "Format": format_name,
+        "Output Schema (JSON)": schema,
+        "Notes": (
+            "Assign every required beat exactly once; omit scene_beat. "
+            "Keep plot_pattern_beats in the same order as required_beats. "
+            "Do not assign more required beats to a scene than its beat_count."
+        ),
     }
     if style_hint:
         sections["Style"] = style_hint
@@ -434,6 +582,9 @@ __all__ = [
     "build_character_prompt",
     "build_fragment_plan_prompt",
     "build_fragment_prompt",
+    "build_narrative_patterns_prompt",
+    "build_plot_pattern_assignment_prompt",
+    "build_plot_patterns_prompt",
     "build_plot_outline_prompt",
     "build_poem_plan_prompt",
     "build_scene_prompt",

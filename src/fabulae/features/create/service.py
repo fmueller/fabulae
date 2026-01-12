@@ -19,7 +19,10 @@ from fabulae.features.create.prompts import (
     build_character_prompt,
     build_fragment_plan_prompt,
     build_fragment_prompt,
+    build_narrative_patterns_prompt,
     build_plot_outline_prompt,
+    build_plot_pattern_assignment_prompt,
+    build_plot_patterns_prompt,
     build_poem_plan_prompt,
     build_scene_prompt,
     build_stanza_prompt,
@@ -28,13 +31,19 @@ from fabulae.features.create.prompts import (
     build_world_plan_prompt,
 )
 from fabulae.features.create.schemas import (
+    BeatTemplateItem,
     CharacterOutput,
     CharacterPlanOutput,
+    CreateOptions,
     FragmentOutput,
     FragmentPlanOutput,
+    NarrativePatternsOutput,
     OutlineSceneOutput,
     PlotOutlineOutput,
+    PlotPatternAssignmentOutput,
+    PlotPatternsOutput,
     PoemPlanOutput,
+    SceneBeatTemplate,
     SceneOutput,
     StanzaOutput,
     StanzaPlanItem,
@@ -54,7 +63,9 @@ from fabulae.models import (
     CharactersFile,
     Fragment,
     LiteratureFormat,
+    NarrativePattern,
     Plot,
+    PlotPattern,
     Project,
     ProjectConfig,
     ProjectDefaults,
@@ -79,6 +90,8 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (180, 360),
         "characters": (6, 12),
         "world_facts": (10, 20),
+        "plot_patterns": (1, 2),
+        "narrative_patterns": (0, 1),
     },
     "novella": {
         "chapters": (6, 16),
@@ -86,6 +99,8 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (72, 192),
         "characters": (4, 8),
         "world_facts": (6, 12),
+        "plot_patterns": (1, 2),
+        "narrative_patterns": (0, 1),
     },
     "short-story": {
         "chapters": (0, 6),
@@ -93,6 +108,8 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (6, 24),
         "characters": (2, 5),
         "world_facts": (2, 6),
+        "plot_patterns": (1, 1),
+        "narrative_patterns": (0, 1),
     },
     "micro-prose": {
         "fragments": (1, 5),
@@ -114,6 +131,17 @@ FORMAT_BEATS_PER_SCENE: dict[LiteratureFormat, tuple[int, int]] = {
     "micro-prose": (0, 0),
     "poem": (0, 0),
 }
+
+DEFAULT_FILLER_BEAT_KINDS = (
+    "bridge",
+    "complication",
+    "reaction",
+    "escalation",
+    "turn",
+    "setup",
+)
+
+_ROLE_REF_RE = re.compile(r"\brole:([a-z0-9]+(?:-[a-z0-9]+)*)\b")
 
 
 class CreateProjectError(RuntimeError):
@@ -158,6 +186,23 @@ def _soft_count_warning(label: str, count: int, count_range: tuple[int, int]) ->
             f"(target {min_count}-{max_count})."
         )
     return None
+
+
+def _random_partition(total: int, slots: int, rng: random.Random) -> list[int]:
+    if slots <= 0:
+        return []
+    if total <= 0:
+        return [0] * slots
+    if slots == 1:
+        return [total]
+    cuts = sorted(rng.sample(range(1, total + slots), slots - 1))
+    counts: list[int] = []
+    prev = 0
+    for cut in cuts:
+        counts.append(cut - prev - 1)
+        prev = cut
+    counts.append(total + slots - prev - 1)
+    return counts
 
 
 def _validate_style_output(expected_language: str | None) -> Callable[[StyleOutput], str | None]:
@@ -273,6 +318,129 @@ def _validate_plot_outline_output(
             extra = set(output.scene_ids) - scene_ids
             if extra:
                 return f"scene_ids references unknown scenes: {sorted(extra)!r}."
+    return None
+
+
+def _validate_plot_patterns_output(
+    output: PlotPatternsOutput,
+    count_range: tuple[int, int],
+) -> str | None:
+    if not output.plot_patterns and count_range[0] > 0:
+        return "Plot patterns are missing."
+    seen: set[str] = set()
+    for pattern in output.plot_patterns:
+        if pattern.id in seen:
+            return f"Duplicate plot pattern ID: {pattern.id!r}."
+        seen.add(pattern.id)
+        if not pattern.name:
+            return f"Plot pattern {pattern.id!r} is missing a name."
+        if not pattern.description:
+            return f"Plot pattern {pattern.id!r} is missing a description."
+        role_ids = {role.id for role in pattern.roles}
+        if len(role_ids) != len(pattern.roles):
+            return f"Plot pattern {pattern.id!r} has duplicate role IDs."
+        beat_types = {beat.type for beat in pattern.required_beats}
+        if len(beat_types) != len(pattern.required_beats):
+            return f"Plot pattern {pattern.id!r} has duplicate beat types."
+        if not pattern.required_beats:
+            return f"Plot pattern {pattern.id!r} must define at least one required beat."
+    return None
+
+
+def _validate_plot_pattern_consistency(output: PlotPatternsOutput) -> str | None:
+    for pattern in output.plot_patterns:
+        role_ids = {role.id for role in pattern.roles}
+        seen_descriptions: set[str] = set()
+        for beat in pattern.required_beats:
+            description = (beat.description or "").strip()
+            if not description:
+                return f"Plot pattern {pattern.id!r} beat {beat.type!r} is missing a description."
+            normalized = description.lower()
+            if normalized in seen_descriptions:
+                return f"Plot pattern {pattern.id!r} has duplicate beat descriptions."
+            seen_descriptions.add(normalized)
+            referenced_roles = set(_ROLE_REF_RE.findall(description))
+            unknown_roles = sorted(role for role in referenced_roles if role not in role_ids)
+            if unknown_roles:
+                return (
+                    f"Plot pattern {pattern.id!r} beat {beat.type!r} references unknown role IDs: "
+                    f"{unknown_roles!r}."
+                )
+    return None
+
+
+def _validate_narrative_patterns_output(
+    output: NarrativePatternsOutput,
+    count_range: tuple[int, int],
+    available_plot_patterns: set[str],
+) -> str | None:
+    if not output.narrative_patterns and count_range[0] > 0:
+        return "Narrative patterns are missing."
+    seen: set[str] = set()
+    for pattern in output.narrative_patterns:
+        if pattern.id in seen:
+            return f"Duplicate narrative pattern ID: {pattern.id!r}."
+        seen.add(pattern.id)
+        if pattern.id in available_plot_patterns:
+            return (
+                f"Narrative pattern ID {pattern.id!r} conflicts with a plot pattern ID."
+            )
+        if not pattern.name:
+            return f"Narrative pattern {pattern.id!r} is missing a name."
+        if not pattern.description:
+            return f"Narrative pattern {pattern.id!r} is missing a description."
+        if pattern.plot_pattern and pattern.plot_pattern not in available_plot_patterns:
+            return (
+                f"Narrative pattern {pattern.id!r} references unknown plot pattern "
+                f"{pattern.plot_pattern!r}."
+            )
+        role_ids = {role.id for role in pattern.roles}
+        if len(role_ids) != len(pattern.roles):
+            return f"Narrative pattern {pattern.id!r} has duplicate role IDs."
+    return None
+
+
+def _validate_plot_pattern_assignment_output(
+    output: PlotPatternAssignmentOutput,
+    available_plot_patterns: dict[str, PlotPattern],
+    scene_ids: set[str],
+    scene_beat_counts: dict[str, int] | None = None,
+) -> str | None:
+    if output.plot_pattern is None:
+        if available_plot_patterns:
+            return "plot_pattern is required when plot patterns are provided."
+        if output.plot_pattern_beats:
+            return "plot_pattern_beats requires plot_pattern to be set."
+        return None
+    if output.plot_pattern not in available_plot_patterns:
+        return f"Plot pattern {output.plot_pattern!r} is not in the available plot patterns."
+    required_beats = {beat.type for beat in available_plot_patterns[output.plot_pattern].required_beats}
+    assigned_beats = {beat.type for beat in output.plot_pattern_beats}
+    if len(assigned_beats) != len(output.plot_pattern_beats):
+        return "plot_pattern_beats contains duplicate beat types."
+    missing = required_beats - assigned_beats
+    if missing:
+        return f"plot_pattern_beats is missing required beats: {sorted(missing)!r}."
+    unknown = assigned_beats - required_beats
+    if unknown:
+        return f"plot_pattern_beats references unknown beat types: {sorted(unknown)!r}."
+    for beat in output.plot_pattern_beats:
+        if beat.scene not in scene_ids:
+            return f"plot_pattern_beats references unknown scene {beat.scene!r}."
+    if scene_beat_counts:
+        total_capacity = sum(scene_beat_counts.values())
+        if len(required_beats) > total_capacity:
+            return (
+                "plot_pattern_beats has more required beats than total available beats "
+                f"({len(required_beats)} > {total_capacity})."
+            )
+        assigned_per_scene: dict[str, int] = {}
+        for beat in output.plot_pattern_beats:
+            assigned_per_scene[beat.scene] = assigned_per_scene.get(beat.scene, 0) + 1
+        for scene_id, count in assigned_per_scene.items():
+            beat_count = scene_beat_counts.get(scene_id)
+            if beat_count is not None and count > beat_count:
+                return f"plot_pattern_beats assigns {count} beats to {scene_id!r} with beat_count {beat_count}."
     return None
 
 
@@ -450,13 +618,24 @@ def _normalize_scene_output(output: SceneOutput) -> SceneOutput:
         update["chapter"] = _normalize_id(output.chapter)
     if output.location:
         update["location"] = _normalize_id(output.location)
+    if output.plot_pattern:
+        update["plot_pattern"] = _normalize_id(output.plot_pattern)
+    if output.plot_pattern_beat:
+        update["plot_pattern_beat"] = _normalize_id(output.plot_pattern_beat)
     if output.characters:
         update["characters"] = _normalize_id_list(output.characters)
     if output.world_fact_ids:
         update["world_fact_ids"] = _normalize_id_list(output.world_fact_ids)
     normalized_beats = []
     for beat in output.beats:
-        normalized_beats.append(beat.model_copy(update={"id": _normalize_id(beat.id)}))
+        normalized_beats.append(
+            beat.model_copy(
+                update={
+                    "id": _normalize_id(beat.id),
+                    "kind": _normalize_id(beat.kind),
+                }
+            )
+        )
     update["beats"] = normalized_beats
     return output.model_copy(update=update)
 
@@ -482,6 +661,135 @@ def _normalize_poem_plan_output(output: PoemPlanOutput) -> PoemPlanOutput:
 def _normalize_stanza_output(output: StanzaOutput) -> StanzaOutput:
     return output.model_copy(update={"id": _normalize_id(output.id)})
 
+
+def _normalize_plot_patterns_output(output: PlotPatternsOutput) -> PlotPatternsOutput:
+    normalized_patterns = []
+    for pattern in output.plot_patterns:
+        role_updates = []
+        for role in pattern.roles:
+            role_updates.append(role.model_copy(update={"id": _normalize_id(role.id)}))
+        beat_updates = []
+        for beat in pattern.required_beats:
+            beat_updates.append(beat.model_copy(update={"type": _normalize_id(beat.type)}))
+        normalized_patterns.append(
+            pattern.model_copy(
+                update={
+                    "id": _normalize_id(pattern.id),
+                    "roles": role_updates,
+                    "required_beats": beat_updates,
+                }
+            )
+        )
+    return output.model_copy(update={"plot_patterns": normalized_patterns})
+
+
+def _normalize_narrative_patterns_output(output: NarrativePatternsOutput) -> NarrativePatternsOutput:
+    normalized_patterns = []
+    for pattern in output.narrative_patterns:
+        role_updates = []
+        for role in pattern.roles:
+            role_updates.append(role.model_copy(update={"id": _normalize_id(role.id)}))
+        updates: dict[str, object] = {
+            "id": _normalize_id(pattern.id),
+            "roles": role_updates,
+        }
+        if pattern.plot_pattern:
+            updates["plot_pattern"] = _normalize_id(pattern.plot_pattern)
+        normalized_patterns.append(pattern.model_copy(update=updates))
+    return output.model_copy(update={"narrative_patterns": normalized_patterns})
+
+
+def _normalize_plot_pattern_assignment_output(
+    output: PlotPatternAssignmentOutput,
+) -> PlotPatternAssignmentOutput:
+    updates: dict[str, object] = {}
+    if output.plot_pattern:
+        updates["plot_pattern"] = _normalize_id(output.plot_pattern)
+    normalized_beats = []
+    for beat in output.plot_pattern_beats:
+        normalized_beats.append(
+            beat.model_copy(
+                update={
+                    "type": _normalize_id(beat.type),
+                    "scene": _normalize_id(beat.scene),
+                    "scene_beat": None,
+                }
+            )
+        )
+    if output.plot_pattern is None:
+        normalized_beats = []
+    updates["plot_pattern_beats"] = normalized_beats
+    return output.model_copy(update=updates)
+
+
+def _build_scene_beat_templates(
+    plot_outline: PlotOutlineOutput,
+    plot_patterns: list[PlotPattern],
+    assignment: PlotPatternAssignmentOutput,
+    rng: random.Random,
+    randomize: bool,
+) -> dict[str, SceneBeatTemplate]:
+    if not assignment.plot_pattern:
+        return {}
+    pattern = next((pattern for pattern in plot_patterns if pattern.id == assignment.plot_pattern), None)
+    if pattern is None:
+        return {}
+    required_order = [beat.type for beat in pattern.required_beats]
+    assignment_map = {beat.type: beat.scene for beat in assignment.plot_pattern_beats}
+    templates: dict[str, SceneBeatTemplate] = {}
+    for scene in plot_outline.scenes:
+        required_beats = [beat_type for beat_type in required_order if assignment_map.get(beat_type) == scene.id]
+        remaining = max(scene.beat_count - len(required_beats), 0)
+        gaps = len(required_beats) + 1
+        if randomize:
+            filler_counts = _random_partition(remaining, gaps, rng)
+        else:
+            filler_counts = [0] * gaps
+            filler_counts[-1] = remaining
+        beats: list[BeatTemplateItem] = []
+        for gap_index, filler_count in enumerate(filler_counts):
+            for _ in range(filler_count):
+                filler_kind = rng.choice(DEFAULT_FILLER_BEAT_KINDS) if randomize else DEFAULT_FILLER_BEAT_KINDS[0]
+                beats.append(BeatTemplateItem(kind=filler_kind, required=False, notes="filler"))
+            if gap_index < len(required_beats):
+                beat_kind = required_beats[gap_index]
+                beats.append(BeatTemplateItem(kind=beat_kind, required=True, plot_pattern_beat=beat_kind))
+        templates[scene.id] = SceneBeatTemplate(scene_id=scene.id, beat_count=scene.beat_count, beats=beats)
+    return templates
+
+
+def _order_plot_pattern_assignments(
+    assignment: PlotPatternAssignmentOutput,
+    plot_patterns: list[PlotPattern],
+) -> PlotPatternAssignmentOutput:
+    if not assignment.plot_pattern:
+        return assignment
+    pattern = next((pattern for pattern in plot_patterns if pattern.id == assignment.plot_pattern), None)
+    if pattern is None:
+        return assignment
+    assignment_map = {beat.type: beat for beat in assignment.plot_pattern_beats}
+    ordered_beats = [assignment_map[beat.type] for beat in pattern.required_beats if beat.type in assignment_map]
+    return assignment.model_copy(update={"plot_pattern_beats": ordered_beats})
+
+
+def _validate_scene_template(output: SceneOutput, template: SceneBeatTemplate | None) -> str | None:
+    if template is None:
+        return None
+    if len(template.beats) != template.beat_count:
+        return f"Scene {output.id!r} beat template length does not match beat_count."
+    if len(output.beats) != template.beat_count:
+        return f"Scene {output.id!r} must have {template.beat_count} beats, got {len(output.beats)}."
+    for index, template_item in enumerate(template.beats):
+        if not template_item.required:
+            continue
+        expected_kind = _normalize_id(template_item.kind)
+        actual_kind = _normalize_id(output.beats[index].kind)
+        if actual_kind != expected_kind:
+            return (
+                f"Scene {output.id!r} beat {index + 1} should be kind {expected_kind!r}, "
+                f"got {actual_kind!r}."
+            )
+    return None
 
 
 
@@ -525,6 +833,34 @@ def _write_plot(plot: Plot, config: ProjectConfig, output_dir: Path) -> None:
     save_yaml_file(output_dir / paths.plot, _dump_plot(plot))
 
 
+def _write_plot_patterns(
+    plot_patterns: list[PlotPattern],
+    config: ProjectConfig,
+    output_dir: Path,
+) -> None:
+    if not plot_patterns:
+        return
+    paths = config.paths or ProjectPaths()
+    save_yaml_file(
+        output_dir / paths.plot_patterns,
+        {"plot_patterns": [pattern.model_dump(exclude_none=True) for pattern in plot_patterns]},
+    )
+
+
+def _write_narrative_patterns(
+    narrative_patterns: list[NarrativePattern],
+    config: ProjectConfig,
+    output_dir: Path,
+) -> None:
+    if not narrative_patterns:
+        return
+    paths = config.paths or ProjectPaths()
+    save_yaml_file(
+        output_dir / paths.narrative_patterns,
+        {"narrative_patterns": [pattern.model_dump(exclude_none=True) for pattern in narrative_patterns]},
+    )
+
+
 def _style_hint(style: StyleOutput) -> str:
     parts = []
     if style.pov:
@@ -555,6 +891,36 @@ def _summarize_world_facts(facts: list[WorldFact]) -> str:
     return "\n".join(lines)
 
 
+def _summarize_plot_patterns(patterns: list[PlotPattern]) -> str:
+    lines = []
+    for pattern in patterns:
+        beat_types = "; ".join(
+            f"{beat.type}: {beat.description}" if beat.description else beat.type for beat in pattern.required_beats
+        )
+        role_ids = ", ".join(role.id for role in pattern.roles)
+        parts = [f"{pattern.id}: {pattern.name}", pattern.description]
+        if role_ids:
+            parts.append(f"roles: {role_ids}")
+        if beat_types:
+            parts.append(f"beats: {beat_types}")
+        lines.append(" | ".join(part for part in parts if part))
+    return "\n".join(lines)
+
+
+def _summarize_narrative_patterns(patterns: list[NarrativePattern]) -> str:
+    lines = []
+    for pattern in patterns:
+        parts = [f"{pattern.id}: {pattern.name}", pattern.description]
+        if pattern.plot_pattern:
+            parts.append(f"plot_pattern: {pattern.plot_pattern}")
+        if pattern.themes:
+            parts.append(f"themes: {', '.join(str(theme) for theme in pattern.themes)}")
+        if pattern.motifs:
+            parts.append(f"motifs: {', '.join(str(motif) for motif in pattern.motifs)}")
+        lines.append(" | ".join(part for part in parts if part))
+    return "\n".join(lines)
+
+
 def _summarize_outline_summaries(summaries: list[str]) -> str:
     return "\n".join(summary for summary in summaries if summary)
 
@@ -579,6 +945,51 @@ def _maybe_warn_range(
     warning = _soft_count_warning(label, count, count_range)
     if warning and progress:
         progress(f"Warning: {warning}")
+
+
+def _maybe_warn_pattern_conflicts(
+    progress: Callable[[str], None] | None,
+    selected_plot_pattern: str | None,
+    narrative_patterns: list[NarrativePattern],
+) -> None:
+    if not progress or not selected_plot_pattern or not narrative_patterns:
+        return
+    conflicts = [
+        pattern.id
+        for pattern in narrative_patterns
+        if pattern.plot_pattern and pattern.plot_pattern != selected_plot_pattern
+    ]
+    if conflicts:
+        progress(
+            "Warning: Narrative patterns reference different plot patterns than the selected plot pattern: "
+            f"{sorted(conflicts)!r}."
+        )
+
+
+def _maybe_warn_narrative_world_conflicts(
+    progress: Callable[[str], None] | None,
+    narrative_patterns: list[NarrativePattern],
+    world: WorldPlanOutput,
+) -> None:
+    if not progress or not narrative_patterns:
+        return
+    conflicts: list[str] = []
+    for pattern in narrative_patterns:
+        if pattern.setting and world.setting and pattern.setting.strip().lower() != world.setting.strip().lower():
+            conflicts.append(f"{pattern.id}: setting")
+        if (
+            pattern.time_period
+            and world.time_period
+            and pattern.time_period.strip().lower() != world.time_period.strip().lower()
+        ):
+            conflicts.append(f"{pattern.id}: time_period")
+        if pattern.tone and world.tone and pattern.tone.strip().lower() != world.tone.strip().lower():
+            conflicts.append(f"{pattern.id}: tone")
+    if conflicts:
+        progress(
+            "Warning: Narrative patterns differ from world metadata (setting/time_period/tone): "
+            f"{sorted(conflicts)!r}."
+        )
 
 
 def _extract_text_from_style(output: StyleOutput) -> str:
@@ -625,6 +1036,46 @@ def _extract_text_from_world_plan(output: WorldPlanOutput) -> str:
 def _extract_text_from_world_fact(output: WorldFactOutput) -> str:
     parts = [output.name]
     parts.extend(output.facts)
+    return "\n".join(part for part in parts if part)
+
+
+def _extract_text_from_plot_patterns(output: PlotPatternsOutput) -> str:
+    parts: list[str] = []
+    for pattern in output.plot_patterns:
+        parts.extend([pattern.name, pattern.description])
+        for role in pattern.roles:
+            parts.extend([role.id, role.description])
+        for beat in pattern.required_beats:
+            parts.extend([beat.type, beat.description])
+    return "\n".join(part for part in parts if part)
+
+
+def _extract_text_from_narrative_patterns(output: NarrativePatternsOutput) -> str:
+    parts: list[str] = []
+    for pattern in output.narrative_patterns:
+        parts.extend([pattern.name, pattern.description])
+        if pattern.plot_pattern:
+            parts.append(pattern.plot_pattern)
+        for role in pattern.roles:
+            parts.extend([role.id, role.description])
+        parts.extend(pattern.themes)
+        parts.extend(pattern.motifs)
+        if pattern.setting:
+            parts.append(pattern.setting)
+        if pattern.time_period:
+            parts.append(pattern.time_period)
+        if pattern.tone:
+            parts.append(pattern.tone)
+        parts.extend(pattern.notes)
+    return "\n".join(part for part in parts if part)
+
+
+def _extract_text_from_plot_pattern_assignment(output: PlotPatternAssignmentOutput) -> str:
+    parts: list[str] = []
+    if output.plot_pattern:
+        parts.append(output.plot_pattern)
+    for beat in output.plot_pattern_beats:
+        parts.extend([beat.type, beat.scene])
     return "\n".join(part for part in parts if part)
 
 
@@ -752,6 +1203,113 @@ async def _run_stage_with_validation(
         current_prompt = f"{user_prompt}\n\nFix this error:\n{error}"
 
 
+async def _run_stage_with_validation_or_warn(
+    *,
+    result_type: type[T],
+    system_prompt: str,
+    user_prompt: str,
+    config: LLMConfig,
+    expected_language: str | None,
+    extract_text: Callable[[T], str],
+    normalize: Callable[[T], T] | None,
+    validate: Callable[[T], str | None],
+    warning_label: str,
+    progress: Callable[[str], None] | None,
+    max_retries: int = 2,
+) -> T:
+    attempt = 0
+    current_prompt = user_prompt
+    last_output: T | None = None
+    last_error: str | None = None
+    while True:
+        error: str | None = None
+        try:
+            output = await _run_stage(
+                result_type,
+                system_prompt,
+                current_prompt,
+                config,
+                expected_language,
+                extract_text,
+            )
+            if normalize:
+                output = normalize(output)
+            last_output = output
+        except Exception as exc:
+            error = f"Output error: {exc}"
+        else:
+            error = validate(output)
+            if error is None:
+                return output
+        last_error = error
+        attempt += 1
+        if attempt > max_retries:
+            if progress and last_error:
+                progress(
+                    f"Warning: {warning_label} validation failed after {max_retries} retries: {last_error}"
+                )
+            if last_output is not None:
+                return last_output
+            raise CreateProjectError(f"Failed to generate valid output: {last_error}")
+        current_prompt = f"{user_prompt}\n\nFix this error:\n{error}"
+
+
+async def _run_stage_with_validation_and_warning(
+    *,
+    result_type: type[T],
+    system_prompt: str,
+    user_prompt: str,
+    config: LLMConfig,
+    expected_language: str | None,
+    extract_text: Callable[[T], str],
+    normalize: Callable[[T], T] | None,
+    validate: Callable[[T], str | None],
+    warn_validate: Callable[[T], str | None],
+    warning_label: str,
+    progress: Callable[[str], None] | None,
+    max_retries: int = 2,
+) -> T:
+    attempt = 0
+    current_prompt = user_prompt
+    last_output: T | None = None
+    while True:
+        strict_error: str | None = None
+        warn_error: str | None = None
+        try:
+            output = await _run_stage(
+                result_type,
+                system_prompt,
+                current_prompt,
+                config,
+                expected_language,
+                extract_text,
+            )
+            if normalize:
+                output = normalize(output)
+            last_output = output
+        except Exception as exc:
+            strict_error = f"Output error: {exc}"
+        else:
+            strict_error = validate(output)
+            if strict_error is None:
+                warn_error = warn_validate(output)
+                if warn_error is None:
+                    return output
+        attempt += 1
+        if attempt > max_retries:
+            if strict_error is not None:
+                raise CreateProjectError(f"Failed to generate valid output: {strict_error}")
+            if progress and warn_error:
+                progress(
+                    f"Warning: {warning_label} validation failed after {max_retries} retries: {warn_error}"
+                )
+            if last_output is not None:
+                return last_output
+            raise CreateProjectError("Failed to generate valid output.")
+        error = strict_error or warn_error
+        current_prompt = f"{user_prompt}\n\nFix this error:\n{error}"
+
+
 def _coerce_style(output: StyleOutput) -> Style | None:
     payload = output.model_dump(exclude_none=True, by_alias=True)
     if not payload:
@@ -772,13 +1330,27 @@ async def generate_project_from_idea(
     output_dir: Path,
     idea_language: str | None = None,
     progress: Callable[[str], None] | None = None,
+    options: CreateOptions | None = None,
 ) -> Project:
     """Generate a complete Fabulae project from an idea."""
     _validate_format(format_name)
     if not idea.strip():
         raise ValueError("Idea must not be empty.")
+    
+    if options is None:
+        options = CreateOptions()
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Write create options artifact for reproducibility
+    _write_artifact(
+        output_dir,
+        "create_options.yml",
+        {
+            "narrative_patterns_mode": options.narrative_patterns_mode,
+            "use_narrative_patterns_in_prompts": options.use_narrative_patterns_in_prompts,
+        },
+    )
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, idea_language, language_config)
     config_model = ProjectConfig(
@@ -981,6 +1553,118 @@ async def generate_project_from_idea(
         world = World.model_validate(world_payload)
     _write_world(world, config_model, output_dir)
 
+    plot_patterns: list[PlotPattern] = []
+    narrative_patterns: list[NarrativePattern] = []
+    if format_name in {"novel", "novella", "short-story"}:
+        if progress:
+            progress("Generating plot patterns...")
+        plot_pattern_range = _count_range(format_name, "plot_patterns")
+        plot_patterns_prompt = build_plot_patterns_prompt(format_name, style_hint or None, plot_pattern_range)
+        plot_patterns_user_prompt = _build_user_prompt(
+            idea,
+            format_name,
+            {
+                "Style": style_hint,
+                "Characters": _summarize_characters(characters),
+                "World": _summarize_world_facts(world_facts),
+                "Count Targets": (
+                    f"Plot patterns: {plot_pattern_range[0]}-{plot_pattern_range[1]}"
+                ),
+            },
+        )
+
+        def validate_plot_patterns(output: PlotPatternsOutput) -> str | None:
+            return _validate_plot_patterns_output(output, plot_pattern_range)
+
+        plot_patterns_output = await _run_stage_with_validation_and_warning(
+            result_type=PlotPatternsOutput,
+            system_prompt=plot_patterns_prompt,
+            user_prompt=plot_patterns_user_prompt,
+            config=config,
+            expected_language=expected_language,
+            extract_text=_extract_text_from_plot_patterns,
+            normalize=_normalize_plot_patterns_output,
+            validate=validate_plot_patterns,
+            warn_validate=_validate_plot_pattern_consistency,
+            warning_label="Plot pattern consistency",
+            progress=progress,
+        )
+        _maybe_warn_range(progress, "Plot pattern", len(plot_patterns_output.plot_patterns), plot_pattern_range)
+        plot_patterns = [
+            PlotPattern.model_validate(pattern.model_dump(exclude_none=True))
+            for pattern in plot_patterns_output.plot_patterns
+        ]
+        _write_artifact(
+            output_dir,
+            "plot_patterns.yml",
+            plot_patterns_output.model_dump(exclude_none=True),
+        )
+        _write_plot_patterns(plot_patterns, config_model, output_dir)
+
+        # Generate narrative patterns based on options
+        if options.narrative_patterns_mode != "off":
+            if progress:
+                progress("Generating narrative patterns...")
+            narrative_pattern_range = _count_range(format_name, "narrative_patterns")
+            narrative_patterns_prompt = build_narrative_patterns_prompt(
+                format_name, style_hint or None, narrative_pattern_range
+            )
+            narrative_patterns_user_prompt = _build_user_prompt(
+                idea,
+                format_name,
+                {
+                    "Style": style_hint,
+                    "Style Details": style_output.model_dump(exclude_none=True, by_alias=True),
+                    "Plot Patterns": _summarize_plot_patterns(plot_patterns),
+                    "Characters": _summarize_characters(characters),
+                    "World": _summarize_world_facts(world_facts),
+                    "Count Targets": (
+                        f"Narrative patterns: {narrative_pattern_range[0]}-{narrative_pattern_range[1]}"
+                    ),
+                },
+            )
+
+            def validate_narrative_patterns(output: NarrativePatternsOutput) -> str | None:
+                return _validate_narrative_patterns_output(
+                    output,
+                    narrative_pattern_range,
+                    {pattern.id for pattern in plot_patterns},
+                )
+
+            narrative_patterns_output = await _run_stage_with_validation(
+                result_type=NarrativePatternsOutput,
+                system_prompt=narrative_patterns_prompt,
+                user_prompt=narrative_patterns_user_prompt,
+                config=config,
+                expected_language=expected_language,
+                extract_text=_extract_text_from_narrative_patterns,
+                normalize=_normalize_narrative_patterns_output,
+                validate=validate_narrative_patterns,
+            )
+            _maybe_warn_range(
+                progress,
+                "Narrative pattern",
+                len(narrative_patterns_output.narrative_patterns),
+                narrative_pattern_range,
+            )
+            narrative_patterns = [
+                NarrativePattern.model_validate(pattern.model_dump(exclude_none=True))
+                for pattern in narrative_patterns_output.narrative_patterns
+            ]
+            if options.use_narrative_patterns_in_prompts:
+                _maybe_warn_narrative_world_conflicts(progress, narrative_patterns, world_plan_output)
+            # Always write to artifacts when generated
+            _write_artifact(
+                output_dir,
+                "narrative_patterns.yml",
+                narrative_patterns_output.model_dump(exclude_none=True),
+            )
+            # Only write to project root if mode is "project"
+            if options.narrative_patterns_mode == "project":
+                _write_narrative_patterns(narrative_patterns, config_model, output_dir)
+        else:
+            narrative_patterns = []
+
     plot: Plot
     if format_name in {"novel", "novella", "short-story"}:
         if progress:
@@ -992,15 +1676,19 @@ async def generate_project_from_idea(
         }
         beats_per_scene = FORMAT_BEATS_PER_SCENE[format_name]
         plot_prompt = build_plot_outline_prompt(format_name, style_hint or None, count_ranges, beats_per_scene)
-        plot_user_prompt = _build_user_prompt(
-            idea,
-            format_name,
-            {
-                "Style": style_output.model_dump(exclude_none=True),
-                "Characters": _summarize_characters(characters),
-                "World": _summarize_world_facts(world_facts),
-            },
-        )
+        
+        # Build plot outline context
+        plot_context: dict[str, object] = {
+            "Style": style_output.model_dump(exclude_none=True),
+            "Characters": _summarize_characters(characters),
+            "World": _summarize_world_facts(world_facts),
+            "Plot Patterns": _summarize_plot_patterns(plot_patterns),
+        }
+        # Only include narrative patterns if enabled and generated
+        if options.use_narrative_patterns_in_prompts and narrative_patterns:
+            plot_context["Narrative Patterns"] = _summarize_narrative_patterns(narrative_patterns)
+        
+        plot_user_prompt = _build_user_prompt(idea, format_name, plot_context)
 
         def validate_plot_outline(output: PlotOutlineOutput) -> str | None:
             return _validate_plot_outline_output(output)
@@ -1029,18 +1717,89 @@ async def generate_project_from_idea(
         )
         _write_artifact(output_dir, "plot_outline.yml", plot_outline_output.model_dump(exclude_none=True))
 
+        plot_pattern_assignment_output: PlotPatternAssignmentOutput | None = None
+        beat_templates: dict[str, SceneBeatTemplate] = {}
+        if plot_patterns:
+            if progress:
+                progress("Mapping plot pattern beats...")
+            assignment_prompt = build_plot_pattern_assignment_prompt(format_name, style_hint or None)
+            assignment_user_prompt = _build_user_prompt(
+                idea,
+                format_name,
+                {
+                    "Style": style_output.model_dump(exclude_none=True),
+                    "Plot Patterns": _summarize_plot_patterns(plot_patterns),
+                    "Plot Outline": plot_outline_output.model_dump(exclude_none=True),
+                },
+            )
+
+            available_plot_patterns = {pattern.id: pattern for pattern in plot_patterns}
+            scene_ids = {scene.id for scene in plot_outline_output.scenes}
+            scene_beat_counts = {scene.id: scene.beat_count for scene in plot_outline_output.scenes}
+
+            def validate_plot_pattern_assignment(output: PlotPatternAssignmentOutput) -> str | None:
+                return _validate_plot_pattern_assignment_output(
+                    output,
+                    available_plot_patterns,
+                    scene_ids,
+                    scene_beat_counts,
+                )
+
+            assignment_output: PlotPatternAssignmentOutput = await _run_stage_with_validation(
+                result_type=PlotPatternAssignmentOutput,
+                system_prompt=assignment_prompt,
+                user_prompt=assignment_user_prompt,
+                config=config,
+                expected_language=expected_language,
+                extract_text=_extract_text_from_plot_pattern_assignment,
+                normalize=_normalize_plot_pattern_assignment_output,
+                validate=validate_plot_pattern_assignment,
+            )
+            assignment_output = _order_plot_pattern_assignments(assignment_output, plot_patterns)
+            plot_pattern_assignment_output = assignment_output
+            _write_artifact(
+                output_dir,
+                "plot_pattern_assignments.yml",
+                assignment_output.model_dump(exclude_none=True),
+            )
+            _maybe_warn_pattern_conflicts(
+                progress if options.use_narrative_patterns_in_prompts else None,
+                assignment_output.plot_pattern,
+                narrative_patterns,
+            )
+            randomize_templates = config.seed is not None
+            beat_templates = _build_scene_beat_templates(
+                plot_outline_output,
+                plot_patterns,
+                assignment_output,
+                rng,
+                randomize_templates,
+            )
+            if beat_templates:
+                _write_artifact(
+                    output_dir,
+                    "scene_beat_templates.yml",
+                    {
+                        "scene_beat_templates": [
+                            template.model_dump(exclude_none=True) for template in beat_templates.values()
+                        ]
+                    },
+                )
+
         if progress:
             progress("Expanding scenes...")
         available_characters = {character.id for character in characters}
         available_world_facts = {fact.id for fact in world_facts}
         location_facts = [fact for fact in world_facts if fact.type == "location"]
         available_location_ids = {fact.id for fact in location_facts}
+        available_plot_patterns = {pattern.id: pattern for pattern in plot_patterns}
         available_character_summary = _summarize_characters(characters)
         available_location_summary = _summarize_world_facts(location_facts)
 
         scene_outputs: dict[str, Scene] = {}
         prior_scene_summaries: list[str] = []
         for scene_outline in plot_outline_output.scenes:
+            scene_template = beat_templates.get(scene_outline.id)
             scene_prompt = build_scene_prompt(
                 format_name,
                 style_hint or None,
@@ -1048,16 +1807,26 @@ async def generate_project_from_idea(
                 available_location_summary,
                 _summarize_outline_summaries(prior_scene_summaries),
             )
-            scene_user_prompt = _build_user_prompt(
-                idea,
-                format_name,
-                {
-                    "Scene Outline": scene_outline.model_dump(exclude_none=True),
-                    "Style": style_output.model_dump(exclude_none=True),
-                    "Characters": available_character_summary,
-                    "World": _summarize_world_facts(world_facts),
-                },
+            # Build scene context
+            scene_context: dict[str, object] = {
+                "Scene Outline": scene_outline.model_dump(exclude_none=True),
+                "Style": style_output.model_dump(exclude_none=True),
+                "Characters": available_character_summary,
+                "World": _summarize_world_facts(world_facts),
+                "Plot Patterns": _summarize_plot_patterns(plot_patterns),
+            }
+            # Only include narrative patterns if enabled and generated
+            if options.use_narrative_patterns_in_prompts and narrative_patterns:
+                scene_context["Narrative Patterns"] = _summarize_narrative_patterns(narrative_patterns)
+            scene_context["Plot Pattern Assignments"] = (
+                plot_pattern_assignment_output.model_dump(exclude_none=True)
+                if plot_pattern_assignment_output
+                else None
             )
+            if scene_template:
+                scene_context["Beat Template"] = scene_template.model_dump(exclude_none=True)
+            
+            scene_user_prompt = _build_user_prompt(idea, format_name, scene_context)
 
             def normalize_scene(output: SceneOutput, expected: OutlineSceneOutput = scene_outline) -> SceneOutput:
                 normalized = _normalize_scene_output(output)
@@ -1074,6 +1843,23 @@ async def generate_project_from_idea(
                     ]
                 if normalized.location and normalized.location not in available_location_ids:
                     updates["location"] = None
+                if normalized.plot_pattern:
+                    if normalized.plot_pattern not in available_plot_patterns:
+                        updates["plot_pattern"] = None
+                        updates["plot_pattern_beat"] = None
+                    else:
+                        updates["plot_pattern"] = normalized.plot_pattern
+                        if normalized.plot_pattern_beat:
+                            beat_types = {
+                                beat.type for beat in available_plot_patterns[normalized.plot_pattern].required_beats
+                            }
+                            updates["plot_pattern_beat"] = (
+                                normalized.plot_pattern_beat
+                                if normalized.plot_pattern_beat in beat_types
+                                else None
+                            )
+                elif normalized.plot_pattern_beat:
+                    updates["plot_pattern_beat"] = None
                 beat_updates = []
                 for index, beat in enumerate(normalized.beats, start=1):
                     beat_updates.append(
@@ -1082,16 +1868,23 @@ async def generate_project_from_idea(
                 updates["beats"] = beat_updates
                 return normalized.model_copy(update=updates)
 
-            def validate_scene(output: SceneOutput, expected: OutlineSceneOutput = scene_outline) -> str | None:
-                return _validate_scene_output(
+            def validate_scene(
+                output: SceneOutput,
+                expected: OutlineSceneOutput = scene_outline,
+                scene_template: SceneBeatTemplate | None = scene_template,
+            ) -> str | None:
+                error = _validate_scene_output(
                     output,
                     expected,
                     available_characters,
                     available_world_facts,
                     beats_per_scene,
                 )
+                if error:
+                    return error
+                return _validate_scene_template(output, scene_template)
 
-            scene_output = await _run_stage_with_validation(
+            scene_output = await _run_stage_with_validation_or_warn(
                 result_type=SceneOutput,
                 system_prompt=scene_prompt,
                 user_prompt=scene_user_prompt,
@@ -1100,6 +1893,8 @@ async def generate_project_from_idea(
                 extract_text=_extract_text_from_scene,
                 normalize=normalize_scene,
                 validate=validate_scene,
+                warning_label=f"Scene {scene_outline.id!r}",
+                progress=progress,
             )
             scene = Scene.model_validate(scene_output.model_dump(exclude_none=True))
             scene_outputs[scene.id] = scene
@@ -1120,6 +1915,16 @@ async def generate_project_from_idea(
             "stakes": plot_outline_output.stakes.model_dump(exclude_none=True)
             if plot_outline_output.stakes
             else None,
+            "plot_pattern": (
+                plot_pattern_assignment_output.plot_pattern
+                if plot_pattern_assignment_output
+                else None
+            ),
+            "plot_pattern_beats": (
+                [beat.model_dump(exclude_none=True) for beat in plot_pattern_assignment_output.plot_pattern_beats]
+                if plot_pattern_assignment_output
+                else []
+            ),
             "chapters": chapters,
             "scenes": [scene.model_dump(exclude_none=True) for scene in scenes],
             "scene_ids": None if plot_outline_output.chapters else plot_outline_output.scene_ids,
@@ -1319,6 +2124,8 @@ async def generate_project_from_idea(
         characters=characters,
         world=world,
         style=style,
+        plot_patterns=plot_patterns,
+        narrative_patterns=narrative_patterns,
     )
     _validate_project(project)
     _write_config(config_model, output_dir)
@@ -1332,6 +2139,7 @@ def generate_project_from_idea_sync(
     output_dir: Path,
     idea_language: str | None = None,
     progress: Callable[[str], None] | None = None,
+    options: CreateOptions | None = None,
 ) -> Project:
     """Synchronous wrapper for generate_project_from_idea."""
     return asyncio.run(
@@ -1342,6 +2150,7 @@ def generate_project_from_idea_sync(
             output_dir=output_dir,
             idea_language=idea_language,
             progress=progress,
+            options=options,
         )
     )
 

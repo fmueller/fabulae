@@ -19,11 +19,21 @@ from fabulae.features.create.schemas import (
     CharacterOutput,
     CharacterPlanItem,
     CharacterPlanOutput,
+    CreateOptions,
     FragmentOutput,
     FragmentPlanItem,
     FragmentPlanOutput,
+    NarrativePatternOutput,
+    NarrativePatternsOutput,
+    NarrativeRoleOutput,
     OutlineSceneOutput,
     PlotOutlineOutput,
+    PlotPatternAssignmentOutput,
+    PlotPatternBeatAssignmentOutput,
+    PlotPatternBeatOutput,
+    PlotPatternOutput,
+    PlotPatternRoleOutput,
+    PlotPatternsOutput,
     PoemPlanOutput,
     SceneOutput,
     StanzaOutput,
@@ -39,6 +49,7 @@ from fabulae.models import (
     Fragment,
     LiteratureFormat,
     Plot,
+    PlotPattern,
     Project,
     ProjectConfig,
     ProjectPaths,
@@ -118,6 +129,74 @@ def _world_fact_outputs(plan: WorldPlanOutput) -> list[WorldFactOutput]:
     ]
 
 
+def _plot_patterns() -> PlotPatternsOutput:
+    return PlotPatternsOutput(
+        plot_patterns=[
+            PlotPatternOutput(
+                id="three-act",
+                name="Three-Act",
+                description="Classic rise-fall arc.",
+                roles=[PlotPatternRoleOutput(id="protagonist", description="drives the central goal")],
+                required_beats=[
+                    PlotPatternBeatOutput(type="inciting-incident", description="the disruption"),
+                    PlotPatternBeatOutput(type="climax", description="final confrontation"),
+                ],
+            )
+        ]
+    )
+
+
+def test_plot_pattern_summary_includes_beat_descriptions() -> None:
+    plot_patterns_output = _plot_patterns()
+    patterns = [
+        PlotPattern.model_validate(pattern.model_dump(exclude_none=True))
+        for pattern in plot_patterns_output.plot_patterns
+    ]
+
+    summary = create_service._summarize_plot_patterns(patterns)
+
+    assert "inciting-incident: the disruption" in summary
+    assert "climax: final confrontation" in summary
+
+
+def _narrative_patterns(plot_patterns: PlotPatternsOutput) -> NarrativePatternsOutput:
+    plot_pattern_id = plot_patterns.plot_patterns[0].id if plot_patterns.plot_patterns else None
+    return NarrativePatternsOutput(
+        narrative_patterns=[
+            NarrativePatternOutput(
+                id="close-third",
+                name="Close Third",
+                description="Tight third-person with limited access.",
+                plot_pattern=plot_pattern_id,
+                roles=[NarrativeRoleOutput(id="observer", description="filters tone")],
+                themes=["identity"],
+                motifs=["mirrors"],
+                tone="noir",
+                notes=["track internal shifts"],
+            )
+        ]
+    )
+
+
+def _plot_pattern_assignment(
+    outline: PlotOutlineOutput,
+    plot_patterns: PlotPatternsOutput,
+) -> PlotPatternAssignmentOutput:
+    beat_types = [
+        beat.type
+        for beat in plot_patterns.plot_patterns[0].required_beats
+        if plot_patterns.plot_patterns
+    ]
+    assignments = []
+    for index, beat_type in enumerate(beat_types):
+        scene_id = outline.scenes[index % len(outline.scenes)].id
+        assignments.append(PlotPatternBeatAssignmentOutput(type=beat_type, scene=scene_id))
+    return PlotPatternAssignmentOutput(
+        plot_pattern=plot_patterns.plot_patterns[0].id if plot_patterns.plot_patterns else None,
+        plot_pattern_beats=assignments,
+    )
+
+
 def _plot_outline(format_name: Literal["novel", "novella", "short-story"]) -> PlotOutlineOutput:
     count_ranges = create_service.FORMAT_COUNT_RANGES[format_name]
     chapters_count = count_ranges["chapters"][0]
@@ -173,11 +252,30 @@ def _plot_outline(format_name: Literal["novel", "novella", "short-story"]) -> Pl
     )
 
 
-def _scene_outputs(outline: PlotOutlineOutput) -> list[SceneOutput]:
+def _scene_outputs(
+    outline: PlotOutlineOutput,
+    plot_patterns: PlotPatternsOutput | None = None,
+    assignment: PlotPatternAssignmentOutput | None = None,
+) -> list[SceneOutput]:
+    required_order: list[str] = []
+    assignment_map: dict[str, str] = {}
+    if plot_patterns and assignment and assignment.plot_pattern:
+        pattern = next(
+            (pattern for pattern in plot_patterns.plot_patterns if pattern.id == assignment.plot_pattern),
+            None,
+        )
+        if pattern:
+            required_order = [beat.type for beat in pattern.required_beats]
+            assignment_map = {beat.type: beat.scene for beat in assignment.plot_pattern_beats}
     outputs: list[SceneOutput] = []
     for scene in outline.scenes:
+        required_beats = [beat for beat in required_order if assignment_map.get(beat) == scene.id]
         beats = [
-            BeatOutput(id=f"{scene.id}-beat-{index+1:02d}", kind="setup", summary="Beat summary")
+            BeatOutput(
+                id=f"{scene.id}-beat-{index+1:02d}",
+                kind=(required_beats[index] if index < len(required_beats) else "setup"),
+                summary="Beat summary",
+            )
             for index in range(scene.beat_count)
         ]
         outputs.append(
@@ -278,8 +376,14 @@ def test_generate_project_from_idea_builds_project(
 
     if format_value in {"novel", "novella", "short-story"}:
         outline = _plot_outline(cast(Literal["novel", "novella", "short-story"], format_value))
+        plot_patterns = _plot_patterns()
+        narrative_patterns = _narrative_patterns(plot_patterns)
+        assignment = _plot_pattern_assignment(outline, plot_patterns)
+        outputs_by_type[PlotPatternsOutput] = [plot_patterns]
+        outputs_by_type[NarrativePatternsOutput] = [narrative_patterns]
         outputs_by_type[PlotOutlineOutput] = [outline]
-        outputs_by_type[SceneOutput] = cast(list[object], _scene_outputs(outline))
+        outputs_by_type[PlotPatternAssignmentOutput] = [assignment]
+        outputs_by_type[SceneOutput] = cast(list[object], _scene_outputs(outline, plot_patterns, assignment))
     elif format_value == "micro-prose":
         fragment_plan = _fragment_plan()
         outputs_by_type[FragmentPlanOutput] = [fragment_plan]
@@ -325,6 +429,7 @@ def test_create_command_reads_idea_from_file(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
+        options: object = None,
     ) -> Project:
         captured.append(idea)
         return _minimal_project(format_name)
@@ -353,6 +458,7 @@ def test_create_command_prompts_for_idea(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
+        options: object = None,
     ) -> Project:
         captured.append(idea)
         return _minimal_project(format_name)
@@ -401,6 +507,7 @@ def test_create_command_writes_format_to_plot(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
+        options: object = None,
     ) -> Project:
         return _minimal_project(format_name)
 
@@ -439,6 +546,7 @@ def test_create_command_passes_language_override(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
+        options: object = None,
     ) -> Project:
         captured.append(idea_language)
         return _minimal_project(format_name)
@@ -467,6 +575,7 @@ def test_create_command_passes_seed(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
+        options: object = None,
     ) -> Project:
         captured.append(config.seed)
         return _minimal_project(format_name)
@@ -489,6 +598,9 @@ def test_generate_project_writes_artifacts_and_language(
     character_plan = _character_plan("short-story")
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
@@ -496,8 +608,11 @@ def test_generate_project_writes_artifacts_and_language(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
-        SceneOutput: cast(list[object], _scene_outputs(outline)),
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
     }
 
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
@@ -510,6 +625,7 @@ def test_generate_project_writes_artifacts_and_language(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
+            options=CreateOptions(narrative_patterns_mode="artifact"),
         )
     )
 
@@ -521,8 +637,14 @@ def test_generate_project_writes_artifacts_and_language(
     assert (tmp_path / "characters.yml").exists()
     assert (tmp_path / "world.yml").exists()
     assert (tmp_path / "plot.yml").exists()
+    assert (tmp_path / "plot_patterns.yml").exists()
+    # narrative_patterns.yml is not written to project root by default (artifact mode)
+    assert not (tmp_path / "narrative_patterns.yml").exists()
     assert (tmp_path / ".fabulae-create" / "characters_plan.yml").exists()
     assert (tmp_path / ".fabulae-create" / "plot_outline.yml").exists()
+    assert (tmp_path / ".fabulae-create" / "plot_patterns.yml").exists()
+    assert (tmp_path / ".fabulae-create" / "narrative_patterns.yml").exists()
+    assert (tmp_path / ".fabulae-create" / "plot_pattern_assignments.yml").exists()
 
 
 def test_generate_project_retries_on_validation_error(
@@ -532,6 +654,9 @@ def test_generate_project_retries_on_validation_error(
     style_output = StyleOutput(language=None, pov="third")
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
 
     invalid_plan = CharacterPlanOutput(
         characters=[
@@ -558,8 +683,11 @@ def test_generate_project_retries_on_validation_error(
         ),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
-        SceneOutput: cast(list[object], _scene_outputs(outline)),
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
     }
 
     prompts: list[str] = []
@@ -592,58 +720,275 @@ def test_generate_project_retries_on_validation_error(
     assert any("Fix this error" in prompt for prompt in prompts)
 
 
+def test_plot_pattern_assignment_requires_required_beats(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    invalid_assignment = PlotPatternAssignmentOutput(
+        plot_pattern=plot_patterns.plot_patterns[0].id,
+        plot_pattern_beats=[
+            PlotPatternBeatAssignmentOutput(
+                type=plot_patterns.plot_patterns[0].required_beats[0].type,
+                scene=outline.scenes[0].id,
+            )
+        ],
+    )
+    valid_assignment = _plot_pattern_assignment(outline, plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [invalid_assignment, valid_assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, valid_assignment)),
+    }
+
+    prompts: list[str] = []
+
+    class DummyAgentWithPrompt(DummyAgent):
+        async def run(self, *args: object, **kwargs: object) -> DummyResult:
+            user_prompt = cast(str, args[0]) if args else cast(str, kwargs.get("user_prompt", ""))
+            prompts.append(user_prompt)
+            return DummyResult(self._output)
+
+    def fake_create_agent(result_type: type[object], _prompt: str, _config: LLMConfig) -> DummyAgentWithPrompt:
+        queue = outputs_by_type.get(result_type)
+        if not queue:
+            raise AssertionError(f"Unexpected output type or empty queue: {result_type}")
+        return DummyAgentWithPrompt(queue.pop(0))
+
+    monkeypatch.setattr(create_service, "create_agent", fake_create_agent)
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: (None, None))
+
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=CreateOptions(narrative_patterns_mode="artifact"),
+        )
+    )
+
+    assert any("Fix this error" in prompt for prompt in prompts)
+
+
+def test_plot_pattern_consistency_warns_after_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    invalid_plot_patterns = PlotPatternsOutput(
+        plot_patterns=[
+            PlotPatternOutput(
+                id="three-act",
+                name="Three-Act",
+                description="Classic rise-fall arc.",
+                roles=[PlotPatternRoleOutput(id="protagonist", description="drives the central goal")],
+                required_beats=[
+                    PlotPatternBeatOutput(type="inciting-incident", description="a shift"),
+                    PlotPatternBeatOutput(type="climax", description="a shift"),
+                ],
+            )
+        ]
+    )
+    assignment = _plot_pattern_assignment(outline, invalid_plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [invalid_plot_patterns, invalid_plot_patterns, invalid_plot_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, invalid_plot_patterns, assignment)),
+    }
+
+    def fake_create_agent(result_type: type[object], _prompt: str, _config: LLMConfig) -> DummyAgent:
+        queue = outputs_by_type.get(result_type)
+        if not queue:
+            raise AssertionError(f"Unexpected output type or empty queue: {result_type}")
+        return DummyAgent(queue.pop(0))
+
+    warnings: list[str] = []
+
+    monkeypatch.setattr(create_service, "create_agent", fake_create_agent)
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: (None, None))
+
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            progress=warnings.append,
+        )
+    )
+
+    assert any("Plot pattern consistency" in warning for warning in warnings)
+
+
+def test_narrative_pattern_id_conflict_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    conflict_id = plot_patterns.plot_patterns[0].id
+    invalid_narrative_patterns = NarrativePatternsOutput(
+        narrative_patterns=[
+            NarrativePatternOutput(
+                id=conflict_id,
+                name="Conflicting Pattern",
+                description="Conflicts with plot pattern id.",
+                plot_pattern=conflict_id,
+                roles=[NarrativeRoleOutput(id="observer", description="filters tone")],
+            )
+        ]
+    )
+    valid_narrative_patterns = _narrative_patterns(plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [invalid_narrative_patterns, valid_narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
+    }
+
+    prompts: list[str] = []
+
+    class DummyAgentWithPrompt(DummyAgent):
+        async def run(self, *args: object, **kwargs: object) -> DummyResult:
+            user_prompt = cast(str, args[0]) if args else cast(str, kwargs.get("user_prompt", ""))
+            prompts.append(user_prompt)
+            return DummyResult(self._output)
+
+    def fake_create_agent(result_type: type[object], _prompt: str, _config: LLMConfig) -> DummyAgentWithPrompt:
+        queue = outputs_by_type.get(result_type)
+        if not queue:
+            raise AssertionError(f"Unexpected output type or empty queue: {result_type}")
+        return DummyAgentWithPrompt(queue.pop(0))
+
+    monkeypatch.setattr(create_service, "create_agent", fake_create_agent)
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: (None, None))
+
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=CreateOptions(narrative_patterns_mode="artifact"),
+        )
+    )
+
+    assert any("Fix this error" in prompt for prompt in prompts)
+
+
 def test_generate_project_normalizes_ids(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    style_output = StyleOutput(language="de", pov="third")
+    style_output = StyleOutput(language="en", pov="third")
     character_plan = CharacterPlanOutput(
         characters=[
-            CharacterPlanItem(id="held", name="Held", role="protagonist"),
-            CharacterPlanItem(id="freund", name="Freund", role="ally"),
+            CharacterPlanItem(id="Hero One", name="Hero", role="protagonist"),
+            CharacterPlanItem(id="Side Friend", name="Friend", role="ally"),
         ]
     )
     character_outputs = [
-        CharacterOutput(id="held", name="Held", role="protagonist"),
-        CharacterOutput(id="freund", name="Freund", role="ally"),
+        CharacterOutput(id="Hero One", name="Hero", role="protagonist"),
+        CharacterOutput(id="Side Friend", name="Friend", role="ally"),
     ]
     world_plan = WorldPlanOutput(
         setting="Setting",
         facts=[
-            WorldFactPlanItem(id="dr-voß-labor", type="location", name="Dr. Voß Labor"),
-            WorldFactPlanItem(id="sensorische-hürden", type="object", name="Hürden"),
+            WorldFactPlanItem(id="Dr. Voss Lab", type="location", name="Dr. Voss Lab"),
+            WorldFactPlanItem(id="Sensory Hurdles", type="object", name="Hurdles"),
         ],
     )
     world_fact_outputs = [
-        WorldFactOutput(id="dr-voß-labor", type="location", name="Dr. Voß Labor"),
-        WorldFactOutput(id="sensorische-hürden", type="object", name="Hürden"),
+        WorldFactOutput(id="Dr. Voss Lab", type="location", name="Dr. Voss Lab"),
+        WorldFactOutput(id="Sensory Hurdles", type="object", name="Hurdles"),
     ]
     outline = PlotOutlineOutput(
         format="short-story",
         premise="A premise.",
         scenes=[
-            OutlineSceneOutput(id="szene-01", summary="Opening.", beat_count=3),
-            OutlineSceneOutput(id="szene-02", summary="Next.", beat_count=3),
+            OutlineSceneOutput(id="Scene One", summary="Opening.", beat_count=3),
+            OutlineSceneOutput(id="Scene Two", summary="Next.", beat_count=3),
         ],
-        scene_ids=["szene-01", "szene-02"],
+        scene_ids=["Scene One", "Scene Two"],
     )
+    plot_patterns = PlotPatternsOutput(
+        plot_patterns=[
+            PlotPatternOutput(
+                id="Hero Journey",
+                name="Hero Journey",
+                description="Classic arc.",
+                roles=[PlotPatternRoleOutput(id="narrator", description="narrates the tale")],
+                required_beats=[
+                    PlotPatternBeatOutput(type="call-to-adventure", description="call to adventure"),
+                    PlotPatternBeatOutput(type="return-home", description="return"),
+                ],
+            )
+        ]
+    )
+    narrative_patterns = NarrativePatternsOutput(
+        narrative_patterns=[
+            NarrativePatternOutput(
+                id="Poet Voice",
+                name="Poet Voice",
+                description="Poetic narrator.",
+                plot_pattern="Hero Journey",
+                roles=[NarrativeRoleOutput(id="observer", description="observes")],
+            )
+        ]
+    )
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
     scene_outputs = [
         SceneOutput(
-            id="szene-01",
+            id="Scene One",
             summary="Opening.",
-            location="dr-voß-labor",
-            world_fact_ids=["sensorische-hürden"],
+            location="Dr. Voss Lab",
+            world_fact_ids=["Sensory Hurdles"],
             beats=[
-                BeatOutput(id="beat-01", kind="setup"),
+                BeatOutput(id="beat-01", kind="call-to-adventure"),
                 BeatOutput(id="beat-02", kind="turn"),
                 BeatOutput(id="beat-03", kind="payoff"),
             ],
         ),
         SceneOutput(
-            id="szene-02",
+            id="Scene Two",
             summary="Next.",
             beats=[
-                BeatOutput(id="beat-04", kind="setup"),
+                BeatOutput(id="beat-04", kind="return-home"),
                 BeatOutput(id="beat-05", kind="turn"),
                 BeatOutput(id="beat-06", kind="payoff"),
             ],
@@ -656,31 +1001,47 @@ def test_generate_project_normalizes_ids(
         CharacterOutput: cast(list[object], character_outputs),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], world_fact_outputs),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
         SceneOutput: cast(list[object], scene_outputs),
     }
 
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
-    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("de", 0.9))
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
 
     format_value: LiteratureFormat = "short-story"
     asyncio.run(
         create_service.generate_project_from_idea(
-            "Eine Idee.",
+            "An idea.",
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
+            options=CreateOptions(narrative_patterns_mode="artifact"),
         )
     )
 
     world_data = load_yaml_file(tmp_path / "world.yml")
     plot_data = load_yaml_file(tmp_path / "plot.yml")
+    patterns_data = load_yaml_file(tmp_path / "plot_patterns.yml")
+    narrative_data = load_yaml_file(tmp_path / ".fabulae-create" / "narrative_patterns.yml")
     world_ids = {fact["id"] for fact in cast(list[dict[str, object]], world_data.get("facts", []))}
-    assert "dr-voss-labor" in world_ids
-    assert "sensorische-huerden" in world_ids
+    assert "dr-voss-lab" in world_ids
+    assert "sensory-hurdles" in world_ids
+    pattern_ids = {
+        pattern["id"]
+        for pattern in cast(list[dict[str, object]], patterns_data.get("plot_patterns", []))
+    }
+    assert "hero-journey" in pattern_ids
+    narrative_ids = {
+        pattern["id"]
+        for pattern in cast(list[dict[str, object]], narrative_data.get("narrative_patterns", []))
+    }
+    assert "poet-voice" in narrative_ids
     scenes = cast(list[dict[str, object]], plot_data["scenes"])
-    assert scenes[0]["location"] == "dr-voss-labor"
-    assert scenes[0]["world_fact_ids"] == ["sensorische-huerden"]
+    assert scenes[0]["location"] == "dr-voss-lab"
+    assert scenes[0]["world_fact_ids"] == ["sensory-hurdles"]
 
 
 def test_world_fact_generation_overrides_id_mismatch(
@@ -698,6 +1059,9 @@ def test_world_fact_generation_overrides_id_mismatch(
         facts=world_fact_outputs[0].facts,
     )
     outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
@@ -705,8 +1069,11 @@ def test_world_fact_generation_overrides_id_mismatch(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], world_fact_outputs),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
-        SceneOutput: cast(list[object], _scene_outputs(outline)),
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
     }
 
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
@@ -741,6 +1108,9 @@ def test_character_generation_overrides_id_mismatch(
     )
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
@@ -748,8 +1118,11 @@ def test_character_generation_overrides_id_mismatch(
         CharacterOutput: cast(list[object], character_outputs),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
-        SceneOutput: cast(list[object], _scene_outputs(outline)),
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
     }
 
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
@@ -780,7 +1153,10 @@ def test_scene_generation_overrides_id_mismatch(
     character_plan = _character_plan("short-story")
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
-    scene_outputs = _scene_outputs(outline)
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    scene_outputs = _scene_outputs(outline, plot_patterns, assignment)
     scene_outputs[0] = scene_outputs[0].model_copy(update={"id": "wrong-scene"})
 
     outputs_by_type: dict[type[object], list[object]] = {
@@ -789,7 +1165,10 @@ def test_scene_generation_overrides_id_mismatch(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
         SceneOutput: cast(list[object], scene_outputs),
     }
 
@@ -818,11 +1197,14 @@ def test_scene_generation_overrides_beat_ids(
     character_plan = _character_plan("short-story")
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
-    scene_outputs = _scene_outputs(outline)
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    scene_outputs = _scene_outputs(outline, plot_patterns, assignment)
     scene_outputs[0] = scene_outputs[0].model_copy(
         update={
             "beats": [
-                BeatOutput(id="wrong-beat-1", kind="setup"),
+                BeatOutput(id="wrong-beat-1", kind=plot_patterns.plot_patterns[0].required_beats[0].type),
                 BeatOutput(id="wrong-beat-2", kind="turn"),
                 BeatOutput(id="wrong-beat-3", kind="payoff"),
             ]
@@ -835,7 +1217,10 @@ def test_scene_generation_overrides_beat_ids(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
         SceneOutput: cast(list[object], scene_outputs),
     }
 
@@ -871,7 +1256,10 @@ def test_scene_generation_filters_unknown_characters(
     character_plan = _character_plan("short-story")
     world_plan = _world_plan("short-story")
     outline = _plot_outline("short-story")
-    scene_outputs = _scene_outputs(outline)
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    scene_outputs = _scene_outputs(outline, plot_patterns, assignment)
     scene_outputs[0] = scene_outputs[0].model_copy(
         update={"characters": [character_plan.characters[0].id, "unknown-char"]}
     )
@@ -882,7 +1270,10 @@ def test_scene_generation_filters_unknown_characters(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
         SceneOutput: cast(list[object], scene_outputs),
     }
 
@@ -1022,7 +1413,10 @@ def test_create_warns_but_does_not_fail_on_scene_count(
         ],
         scene_ids=[f"scene-{index+1:02d}" for index in range(12)],
     )
-    scene_outputs = _scene_outputs(outline)
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    scene_outputs = _scene_outputs(outline, plot_patterns, assignment)
     messages: list[str] = []
 
     outputs_by_type: dict[type[object], list[object]] = {
@@ -1031,7 +1425,10 @@ def test_create_warns_but_does_not_fail_on_scene_count(
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
         WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
         PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
         SceneOutput: cast(list[object], scene_outputs),
     }
 
@@ -1049,3 +1446,258 @@ def test_create_warns_but_does_not_fail_on_scene_count(
     )
 
     assert any("Warning:" in message for message in messages)
+
+
+def test_create_warns_on_narrative_world_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+    narrative_patterns = NarrativePatternsOutput(
+        narrative_patterns=[
+            NarrativePatternOutput(
+                id="noir-lens",
+                name="Noir Lens",
+                description="Hardboiled narration.",
+                plot_pattern=plot_patterns.plot_patterns[0].id,
+                roles=[NarrativeRoleOutput(id="observer", description="dry commentary")],
+                tone="bright",
+            )
+        ]
+    )
+    scene_outputs = _scene_outputs(outline, plot_patterns, assignment)
+    messages: list[str] = []
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], scene_outputs),
+    }
+
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
+
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            progress=messages.append,
+            options=CreateOptions(
+                narrative_patterns_mode="artifact",
+                use_narrative_patterns_in_prompts=True,
+            ),
+        )
+    )
+
+    assert any("Narrative patterns differ from world metadata" in message for message in messages)
+
+
+def test_create_narrative_patterns_off_does_not_write_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that narrative_patterns_mode='off' does not generate or write narrative patterns."""
+    from fabulae.features.create.schemas import CreateOptions
+
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        # No NarrativePatternsOutput in queue - should not be requested
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
+    }
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
+
+    options = CreateOptions(narrative_patterns_mode="off")
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=options,
+        )
+    )
+
+    # Verify no narrative patterns files exist
+    assert not (tmp_path / "narrative_patterns.yml").exists()
+    assert not (tmp_path / ".fabulae-create" / "narrative_patterns.yml").exists()
+
+
+def test_create_narrative_patterns_artifact_writes_only_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that narrative_patterns_mode='artifact' writes only to .fabulae-create/."""
+    from fabulae.features.create.schemas import CreateOptions
+
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
+    }
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
+
+    options = CreateOptions(narrative_patterns_mode="artifact")
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=options,
+        )
+    )
+
+    # Verify artifact exists but root file does not
+    assert (tmp_path / ".fabulae-create" / "narrative_patterns.yml").exists()
+    assert not (tmp_path / "narrative_patterns.yml").exists()
+
+
+def test_create_narrative_patterns_project_writes_both(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that narrative_patterns_mode='project' writes to both locations."""
+    from fabulae.features.create.schemas import CreateOptions
+
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
+    }
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
+
+    options = CreateOptions(narrative_patterns_mode="project")
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=options,
+        )
+    )
+
+    # Verify both files exist
+    assert (tmp_path / ".fabulae-create" / "narrative_patterns.yml").exists()
+    assert (tmp_path / "narrative_patterns.yml").exists()
+
+
+def test_create_use_narrative_patterns_in_prompts_controls_prompt_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that use_narrative_patterns_in_prompts controls whether patterns appear in prompts."""
+    from fabulae.features.create.schemas import CreateOptions
+
+    style_output = StyleOutput(language="en", pov="third")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline = _plot_outline("short-story")
+    plot_patterns = _plot_patterns()
+    narrative_patterns = _narrative_patterns(plot_patterns)
+    assignment = _plot_pattern_assignment(outline, plot_patterns)
+
+    captured_user_prompts: list[str] = []
+
+    class CapturingAgent(DummyAgent):
+        async def run(self, *_args: object, **_kwargs: object) -> DummyResult:
+            if _args:
+                captured_user_prompts.append(str(_args[0]))
+            return DummyResult(self._output)
+
+    def capture_agent(result_type: type[object], _prompt: str, _config: LLMConfig) -> CapturingAgent:
+        queue = outputs_by_type.get(result_type)
+        if not queue:
+            raise AssertionError(f"Unexpected output type or empty queue: {result_type}")
+        return CapturingAgent(queue.pop(0))
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        PlotPatternsOutput: [plot_patterns],
+        NarrativePatternsOutput: [narrative_patterns],
+        PlotOutlineOutput: [outline],
+        PlotPatternAssignmentOutput: [assignment],
+        SceneOutput: cast(list[object], _scene_outputs(outline, plot_patterns, assignment)),
+    }
+    monkeypatch.setattr(create_service, "create_agent", capture_agent)
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
+
+    # Test with use_narrative_patterns_in_prompts=True
+    options = CreateOptions(narrative_patterns_mode="artifact", use_narrative_patterns_in_prompts=True)
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "An idea.",
+            "short-story",
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=options,
+        )
+    )
+
+    # Check that narrative patterns appear in user prompts when enabled
+    assert any("Narrative Patterns" in p for p in captured_user_prompts)

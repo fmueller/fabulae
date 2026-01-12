@@ -42,8 +42,8 @@ Key rules:
 - Scene locations are optional; if set, must reference a `world.fact` with type `location`.
 - Scenes can have a `time` field for temporal context (e.g., "dawn", "three years later").
 - Explicit scene order (via `chapter.scene_ids` or `plot.scene_ids`) overrides file order.
-- Plot patterns describe plot structure; narrative patterns bundle plot patterns with theme/world cues.
-- `plot_patterns.yml` and `narrative_patterns.yml` are optional; omit them if you do not use patterns.
+- Plot patterns describe plot structure (operational constraints); narrative patterns are optional creative scaffolding that bundle voice, themes, and world cues.
+- `plot_patterns.yml` is optional; omit if you do not use patterns. `narrative_patterns.yml` is typically generated as an artifact only (see `fabulae create` options).
 
 Templates:
 - `templates/novel` – Novel with chapters, scenes, and beats
@@ -57,6 +57,7 @@ Templates:
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
 - `fabulae init [--format FORMAT] <dir>` scaffolds a new project from a template.
+- `fabulae create [OPTIONS] <dir>` generates a complete project from an idea using LLM.
 
 ### Initializing a project
 
@@ -72,6 +73,31 @@ fabulae init -f micro-prose my-flash-fiction
 ```
 
 Available formats: `novel`, `novella`, `short-story`, `micro-prose`, `poem`
+
+### Creating a project from an idea
+
+```bash
+# Generate a project with default settings (narrative patterns as artifacts only)
+fabulae create --idea "A detective story in a cyberpunk city" my-story
+
+# Generate without narrative patterns
+fabulae create --idea "A love story" --narrative-patterns off my-romance
+
+# Generate narrative patterns and save to project root
+fabulae create --idea "An epic fantasy" --narrative-patterns project my-fantasy
+
+# Use narrative patterns to steer generation (requires patterns to be generated)
+fabulae create --idea "A noir thriller" \
+  --narrative-patterns artifact \
+  --use-narrative-patterns-in-prompts \
+  my-noir
+```
+
+**Narrative patterns options:**
+- `--narrative-patterns off` – Do not generate narrative patterns
+- `--narrative-patterns artifact` (default) – Generate and save to `.fabulae-create/` only
+- `--narrative-patterns project` – Generate and save to both `.fabulae-create/` and project root
+- `--use-narrative-patterns-in-prompts` – Include narrative patterns in plot/scene generation prompts (optional guidance, not requirements)
 
 ## Development
 

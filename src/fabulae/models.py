@@ -325,7 +325,14 @@ def save_yaml_file(path: Path, data: dict[str, object]) -> None:
     """Save a dictionary to a YAML file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
-        yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        yaml.dump(
+            data,
+            f,
+            Dumper=yaml.SafeDumper,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+        )
 
 
 def _dump_plot(plot: Plot) -> dict[str, object]:

@@ -10,6 +10,7 @@ import typer
 from pydantic import ValidationError
 
 from fabulae.cli_options import model_option, seed_option, temperature_option
+from fabulae.features.create.schemas import CreateOptions, NarrativePatternsMode
 from fabulae.features.create.service import (
     CreateProjectError,
     generate_project_from_idea_sync,
@@ -68,6 +69,28 @@ def register_create_command(app: typer.Typer) -> None:
             bool,
             typer.Option("--force", help="Overwrite existing directory."),
         ] = False,
+        narrative_patterns: Annotated[
+            NarrativePatternsMode,
+            typer.Option(
+                "--narrative-patterns",
+                help=(
+                    "Control narrative pattern generation: "
+                    "'off' = do not generate (default), "
+                    "'artifact' = generate and save to .fabulae-create/ only, "
+                    "'project' = generate and save to both .fabulae-create/ and project root."
+                ),
+            ),
+        ] = "off",
+        use_narrative_patterns_in_prompts: Annotated[
+            bool,
+            typer.Option(
+                "--use-narrative-patterns-in-prompts",
+                help=(
+                    "Include narrative patterns in prompt context for plot outline and scene expansion. "
+                    "Only meaningful if --narrative-patterns is not 'off'. Default: off."
+                ),
+            ),
+        ] = False,
     ) -> None:
         format_value = _validate_format(format_name)
         if directory.exists() and directory.is_file():
@@ -82,6 +105,10 @@ def register_create_command(app: typer.Typer) -> None:
 
         directory.mkdir(parents=True, exist_ok=True)
         config = resolve_config(model, None, None, temperature, seed)
+        create_options = CreateOptions(
+            narrative_patterns_mode=narrative_patterns,
+            use_narrative_patterns_in_prompts=use_narrative_patterns_in_prompts,
+        )
         try:
             project = generate_project_from_idea_sync(
                 idea_text,
@@ -90,6 +117,7 @@ def register_create_command(app: typer.Typer) -> None:
                 output_dir=directory,
                 idea_language=language_code,
                 progress=typer.echo,
+                options=create_options,
             )
         except (CreateProjectError, ValidationError, ValueError) as exc:
             typer.echo(f"Create failed: {exc}")

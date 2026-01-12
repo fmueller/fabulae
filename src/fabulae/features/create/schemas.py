@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+NarrativePatternsMode = Literal["off", "artifact", "project"]
+
+
+@dataclass
+class CreateOptions:
+    """Configuration options for create command behavior."""
+
+    narrative_patterns_mode: NarrativePatternsMode = "off"
+    use_narrative_patterns_in_prompts: bool = False
 
 
 class CharacterOutput(BaseModel):
@@ -86,6 +97,19 @@ class BeatOutput(BaseModel):
     constraints: list[str] = Field(default_factory=list)
 
 
+class BeatTemplateItem(BaseModel):
+    kind: str
+    required: bool = False
+    plot_pattern_beat: str | None = None
+    notes: str | None = None
+
+
+class SceneBeatTemplate(BaseModel):
+    scene_id: str
+    beat_count: int = Field(default=1, ge=1)
+    beats: list[BeatTemplateItem] = Field(default_factory=list)
+
+
 class SceneOutput(BaseModel):
     id: str
     chapter: str | None = None
@@ -138,6 +162,58 @@ class PlotPatternBeatAssignmentOutput(BaseModel):
     scene: str
     scene_beat: str | None = None
     notes: str | None = None
+
+
+class PlotPatternRoleOutput(BaseModel):
+    id: str
+    description: str
+    required: bool = True
+
+
+class PlotPatternBeatOutput(BaseModel):
+    type: str
+    description: str
+
+
+class PlotPatternOutput(BaseModel):
+    id: str
+    name: str
+    description: str
+    roles: list[PlotPatternRoleOutput] = Field(default_factory=list)
+    required_beats: list[PlotPatternBeatOutput] = Field(default_factory=list)
+
+
+class PlotPatternsOutput(BaseModel):
+    plot_patterns: list[PlotPatternOutput] = Field(default_factory=list)
+
+
+class PlotPatternAssignmentOutput(BaseModel):
+    plot_pattern: str | None = None
+    plot_pattern_beats: list[PlotPatternBeatAssignmentOutput] = Field(default_factory=list)
+
+
+class NarrativeRoleOutput(BaseModel):
+    id: str
+    description: str
+    required: bool = True
+
+
+class NarrativePatternOutput(BaseModel):
+    id: str
+    name: str
+    description: str
+    plot_pattern: str | None = None
+    roles: list[NarrativeRoleOutput] = Field(default_factory=list)
+    themes: list[str] = Field(default_factory=list)
+    motifs: list[str] = Field(default_factory=list)
+    setting: str | None = None
+    time_period: str | None = None
+    tone: str | None = None
+    notes: list[str] = Field(default_factory=list)
+
+
+class NarrativePatternsOutput(BaseModel):
+    narrative_patterns: list[NarrativePatternOutput] = Field(default_factory=list)
 
 
 class PlotOutput(BaseModel):
