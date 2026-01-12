@@ -107,6 +107,7 @@ fabulae create --idea "A noir thriller" \
 git clone https://github.com/fmueller/fabulae.git
 cd fabulae
 uv sync --locked --all-extras --dev
+uv run pre-commit install
 ```
 
 ### Running from source
