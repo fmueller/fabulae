@@ -8,6 +8,7 @@ import typer
 from pydantic import ValidationError
 
 from fabulae.features.create.cli import register_create_command
+from fabulae.features.create.shapes_cli import register_shapes_commands
 from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
 
@@ -26,6 +27,7 @@ def app_callback(ctx: typer.Context) -> None:
 
 app.command(name="version", help="Display the current version.")(version_command)
 register_create_command(app)
+register_shapes_commands(app)
 
 
 DEFAULT_PROJECT_PATH = Path(".")
@@ -33,9 +35,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
 
 
 @app.command(name="validate", help="Validate a Fabulae project directory.")
-def validate_command(
-    path: Annotated[Path, typer.Argument(help="Project directory.")] = DEFAULT_PROJECT_PATH
-) -> None:
+def validate_command(path: Annotated[Path, typer.Argument(help="Project directory.")] = DEFAULT_PROJECT_PATH) -> None:
     """Validate a Fabulae project and report errors."""
     try:
         load_project(path)
@@ -43,9 +43,6 @@ def validate_command(
         typer.echo(f"Validation failed: {exc}")
         raise typer.Exit(code=1) from exc
     typer.echo("Validation OK.")
-
-
-
 
 
 @app.command(name="init", help="Initialize a new Fabulae project from a template.")

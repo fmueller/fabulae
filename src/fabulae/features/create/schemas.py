@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,17 +17,24 @@ class CreateOptions:
 
     narrative_patterns_mode: NarrativePatternsMode = "off"
     use_narrative_patterns_in_prompts: bool = False
+    shape_id: str | None = None
+    shape_file: Path | None = None
+    variation: float = 0.5
+    seed: int | None = None
+    enrich: bool = True
 
 
 class CharacterOutput(BaseModel):
-    id: str
-    name: str
-    role: str | None = None
-    desire: str | None = None
-    need: str | None = None
-    flaw: str | None = None
-    secret: str | None = None
-    traits: list[str] = Field(default_factory=list)
+    """A character in the narrative."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'character-01'). Use assigned ID exactly.")
+    name: str = Field(description="Character's name.")
+    role: str | None = Field(default=None, description="Role: 'protagonist', 'antagonist', 'mentor', etc.")
+    desire: str | None = Field(default=None, description="What the character consciously wants.")
+    need: str | None = Field(default=None, description="What the character truly needs (often unknown to them).")
+    flaw: str | None = Field(default=None, description="Character's primary weakness or flaw.")
+    secret: str | None = Field(default=None, description="Hidden information about the character.")
+    traits: list[str] = Field(default_factory=list, description="Personality traits (e.g., 'curious', 'impulsive').")
 
 
 class CharacterBatchOutput(BaseModel):
@@ -34,10 +42,12 @@ class CharacterBatchOutput(BaseModel):
 
 
 class CharacterPlanItem(BaseModel):
-    id: str
-    name: str
-    role: str | None = None
-    purpose: str | None = None
+    """A brief character outline for the cast list."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'character-01').")
+    name: str = Field(description="Character's name.")
+    role: str | None = Field(default=None, description="Role: 'protagonist', 'antagonist', etc.")
+    purpose: str | None = Field(default=None, description="Brief description of character's purpose in the story.")
 
 
 class CharacterPlanOutput(BaseModel):
@@ -45,10 +55,14 @@ class CharacterPlanOutput(BaseModel):
 
 
 class WorldFactOutput(BaseModel):
-    id: str
-    type: Literal["location", "culture", "history", "rule", "object"]
-    name: str
-    facts: list[str] = Field(default_factory=list)
+    """A world-building fact or location."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'location-01'). Use assigned ID exactly.")
+    type: Literal["location", "culture", "history", "rule", "object"] = Field(
+        description="Type: 'location' (places), 'culture', 'history', 'rule', 'object'."
+    )
+    name: str = Field(description="Name of the location or concept.")
+    facts: list[str] = Field(default_factory=list, description="List of specific details about this element.")
 
 
 class WorldOutput(BaseModel):
@@ -86,15 +100,17 @@ class StakesOutput(BaseModel):
 
 
 class BeatOutput(BaseModel):
-    id: str
-    kind: str
-    summary: str | None = None
-    target_words: int | None = Field(default=None, ge=1)
-    goal: str | None = None
-    conflict: str | None = None
-    outcome: str | None = None
-    pace: str | None = None
-    constraints: list[str] = Field(default_factory=list)
+    """A single beat (story moment) within a scene."""
+
+    id: str = Field(description="ID format: {scene_id}-beat-{nn} (e.g., 'scene-01-beat-01').")
+    kind: str = Field(description="Type: 'setup', 'turn', 'escalation', 'resolution', 'bridge', 'complication'.")
+    summary: str | None = Field(default=None, description="Brief description of what happens in this beat.")
+    target_words: int | None = Field(default=None, ge=1, description="Target word count for this beat.")
+    goal: str | None = Field(default=None, description="What the POV character wants to achieve.")
+    conflict: str | None = Field(default=None, description="What obstacle or tension exists.")
+    outcome: str | None = Field(default=None, description="How the beat resolves (success, failure, complication).")
+    pace: str | None = Field(default=None, description="Pacing note (e.g., 'fast', 'slow', 'tense').")
+    constraints: list[str] = Field(default_factory=list, description="Writing constraints for this beat.")
 
 
 class BeatTemplateItem(BaseModel):
@@ -111,109 +127,58 @@ class SceneBeatTemplate(BaseModel):
 
 
 class SceneOutput(BaseModel):
-    id: str
-    chapter: str | None = None
-    location: str | None = None
-    time: str | None = None
-    characters: list[str] = Field(default_factory=list)
-    world_fact_ids: list[str] = Field(default_factory=list)
-    plot_pattern: str | None = None
-    plot_pattern_beat: str | None = None
-    summary: str | None = None
-    goal: str | None = None
-    conflict: str | None = None
-    outcome: str | None = None
-    beats: list[BeatOutput] = Field(default_factory=list)
+    """A fully expanded scene with beats."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01'). Use assigned ID exactly.")
+    chapter: str | None = Field(default=None, description="Chapter ID this scene belongs to (e.g., 'chapter-01').")
+    location: str | None = Field(default=None, description="Location ID (e.g., 'location-01'). Must be valid.")
+    time: str | None = Field(default=None, description="Time of day (e.g., 'night', 'dawn').")
+    characters: list[str] = Field(default_factory=list, description="Character IDs in this scene. Use only valid IDs.")
+    world_fact_ids: list[str] = Field(default_factory=list, description="World fact IDs relevant to this scene.")
+    summary: str | None = Field(default=None, description="Brief summary of the scene's events.")
+    goal: str | None = Field(default=None, description="What the protagonist wants to achieve in this scene.")
+    conflict: str | None = Field(default=None, description="The obstacle or tension in this scene.")
+    outcome: str | None = Field(default=None, description="How the scene resolves (success, failure, complication).")
+    beats: list[BeatOutput] = Field(default_factory=list, description="Beats list. MUST match beat_count exactly.")
 
 
 class OutlineSceneOutput(BaseModel):
-    id: str
-    chapter: str | None = None
-    summary: str | None = None
-    goal: str | None = None
-    conflict: str | None = None
-    outcome: str | None = None
-    beat_count: int = Field(default=1, ge=1)
+    """A scene outline with planned beat count."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01').")
+    chapter: str | None = Field(default=None, description="Chapter ID (required when chapters exist).")
+    summary: str | None = Field(default=None, description="Brief summary of the scene's events.")
+    goal: str | None = Field(default=None, description="What the protagonist wants to achieve.")
+    conflict: str | None = Field(default=None, description="The obstacle or tension in this scene.")
+    outcome: str | None = Field(default=None, description="How the scene resolves.")
+    beat_count: int = Field(default=1, ge=1, description="Number of beats. Must be within beats-per-scene range.")
 
 
 class ChapterOutput(BaseModel):
-    id: str
-    title: str | None = None
-    summary: str | None = None
-    scene_ids: list[str] | None = None
+    """A chapter in the narrative."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'chapter-01').")
+    title: str | None = Field(default=None, description="Chapter title.")
+    summary: str | None = Field(default=None, description="Brief summary of the chapter.")
+    scene_ids: list[str] | None = Field(default=None, description="Scene IDs in this chapter. Must list all scenes.")
 
 
 class FragmentOutput(BaseModel):
-    id: str
-    content: str
-    target_words: int | None = Field(default=None, ge=1)
-    notes: str | None = None
+    """A micro-prose fragment."""
+
+    id: str = Field(description="Unique lowercase-hyphenated ID (e.g., 'fragment-01'). Use the assigned ID exactly.")
+    content: str = Field(description="The actual prose content of this fragment.")
+    target_words: int | None = Field(default=None, ge=1, description="Target word count.")
+    notes: str | None = Field(default=None, description="Optional notes about this fragment.")
 
 
 class StanzaOutput(BaseModel):
-    id: str
-    lines: list[str] = Field(default_factory=list)
-    meter: str | None = None
-    rhyme_scheme: str | None = None
+    """A stanza in a poem."""
 
-
-class PlotPatternBeatAssignmentOutput(BaseModel):
-    type: str
-    scene: str
-    scene_beat: str | None = None
-    notes: str | None = None
-
-
-class PlotPatternRoleOutput(BaseModel):
-    id: str
-    description: str
-    required: bool = True
-
-
-class PlotPatternBeatOutput(BaseModel):
-    type: str
-    description: str
-
-
-class PlotPatternOutput(BaseModel):
-    id: str
-    name: str
-    description: str
-    roles: list[PlotPatternRoleOutput] = Field(default_factory=list)
-    required_beats: list[PlotPatternBeatOutput] = Field(default_factory=list)
-
-
-class PlotPatternsOutput(BaseModel):
-    plot_patterns: list[PlotPatternOutput] = Field(default_factory=list)
-
-
-class PlotPatternAssignmentOutput(BaseModel):
-    plot_pattern: str | None = None
-    plot_pattern_beats: list[PlotPatternBeatAssignmentOutput] = Field(default_factory=list)
-
-
-class NarrativeRoleOutput(BaseModel):
-    id: str
-    description: str
-    required: bool = True
-
-
-class NarrativePatternOutput(BaseModel):
-    id: str
-    name: str
-    description: str
-    plot_pattern: str | None = None
-    roles: list[NarrativeRoleOutput] = Field(default_factory=list)
-    themes: list[str] = Field(default_factory=list)
-    motifs: list[str] = Field(default_factory=list)
-    setting: str | None = None
-    time_period: str | None = None
-    tone: str | None = None
-    notes: list[str] = Field(default_factory=list)
-
-
-class NarrativePatternsOutput(BaseModel):
-    narrative_patterns: list[NarrativePatternOutput] = Field(default_factory=list)
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'stanza-01'). Use assigned ID exactly.")
+    lines: list[str] = Field(default_factory=list, description="Lines in stanza. MUST have exactly line_count lines.")
+    meter: str | None = Field(default=None, description="Meter pattern (e.g., 'iambic pentameter').")
+    rhyme_scheme: str | None = Field(default=None, description="Rhyme scheme (e.g., 'ABAB').")
 
 
 class PlotOutput(BaseModel):
@@ -223,8 +188,6 @@ class PlotOutput(BaseModel):
     themes: list[str] = Field(default_factory=list)
     hook: HookOutput | None = None
     stakes: StakesOutput | None = None
-    plot_pattern: str | None = None
-    plot_pattern_beats: list[PlotPatternBeatAssignmentOutput] = Field(default_factory=list)
     chapters: list[ChapterOutput] = Field(default_factory=list)
     scenes: list[SceneOutput] = Field(default_factory=list)
     scene_ids: list[str] | None = None
@@ -279,11 +242,58 @@ class PoemPlanOutput(BaseModel):
 
 
 class StyleOutput(BaseModel):
+    """Narrative style configuration."""
+
     model_config = ConfigDict(populate_by_name=True)
 
-    language: str | None = None
-    pov: str | None = None
-    tense: str | None = None
-    voice: str | None = None
-    register_: str | None = Field(default=None, alias="register")
-    constraints: list[str] = Field(default_factory=list)
+    language: str | None = Field(default=None, description="ISO 639-1 language code (e.g., 'en', 'de', 'fr').")
+    pov: str | None = Field(default=None, description="POV: 'first', 'second', 'third', or 'third-omniscient'.")
+    tense: str | None = Field(default=None, description="Narrative tense: 'past', 'present', or 'future'.")
+    voice: str | None = Field(default=None, description="Narrative voice (e.g., 'observant', 'intimate', 'detached').")
+    register_: str | None = Field(default=None, alias="register", description="Register: 'formal', 'informal'.")
+    constraints: list[str] = Field(default_factory=list, description="Writing constraints.")
+
+
+class ChapterContentOutput(BaseModel):
+    id: str
+    title: str | None = None
+    summary: str | None = None
+
+
+class SceneContentOutput(BaseModel):
+    id: str
+    chapter_id: str | None = None
+    title: str | None = None
+    summary: str | None = None
+    beat_count: int = Field(ge=1)
+
+
+class OutlineContentOutput(BaseModel):
+    chapters: list[ChapterContentOutput] = Field(default_factory=list)
+    scenes: list[SceneContentOutput] = Field(default_factory=list)
+
+
+class SubplotAddition(BaseModel):
+    """A subplot seed or addition to weave into the narrative."""
+
+    description: str
+    involved_characters: list[str] = Field(default_factory=list)
+    scenes_to_modify: list[str] = Field(default_factory=list)
+
+
+class ForeshadowingElement(BaseModel):
+    """A foreshadowing element to weave into the narrative."""
+
+    description: str
+    setup_scene: str | None = None
+    payoff_scene: str | None = None
+
+
+class EnrichmentOutput(BaseModel):
+    """Output schema for narrative enrichment suggestions."""
+
+    new_characters: list[CharacterOutput] = Field(default_factory=list)
+    new_locations: list[WorldFactOutput] = Field(default_factory=list)
+    new_world_facts: list[WorldFactOutput] = Field(default_factory=list)
+    subplot_additions: list[SubplotAddition] = Field(default_factory=list)
+    foreshadowing_elements: list[ForeshadowingElement] = Field(default_factory=list)

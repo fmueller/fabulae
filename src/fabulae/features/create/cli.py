@@ -91,12 +91,67 @@ def register_create_command(app: typer.Typer) -> None:
                 ),
             ),
         ] = False,
+        shape: Annotated[
+            str | None,
+            typer.Option(
+                "--shape",
+                help=(
+                    "Story shape to use (e.g., 'betrayal-arc', 'heros-journey'). "
+                    "Use 'fabulae shapes' to list available shapes."
+                ),
+            ),
+        ] = None,
+        shape_file: Annotated[
+            Path | None,
+            typer.Option(
+                "--shape-file",
+                help="Path to a custom story shape YAML file.",
+            ),
+        ] = None,
+        variation: Annotated[
+            float,
+            typer.Option(
+                "--variation",
+                min=0.0,
+                max=1.0,
+                help="Variation level for narrative elements (0.0 = minimal, 1.0 = maximum)",
+            ),
+        ] = 0.5,
+        enrich: Annotated[
+            bool,
+            typer.Option(
+                "--enrich/--no-enrich",
+                help="Enable/disable narrative enrichment (new characters, subplots, foreshadowing). Default: enabled.",
+            ),
+        ] = True,
     ) -> None:
         format_value = _validate_format(format_name)
         if directory.exists() and directory.is_file():
             raise typer.BadParameter(f"Target path is a file: {directory}")
         if directory.exists() and not force:
             raise typer.BadParameter(f"Target directory already exists: {directory}")
+
+        # Validate shape flags
+        if shape and shape_file:
+            raise typer.BadParameter(
+                "Cannot specify both --shape and --shape-file. "
+                "Use --shape for built-in shapes or --shape-file for custom shapes."
+            )
+
+        if shape_file and not shape_file.exists():
+            raise typer.BadParameter(f"Shape file not found: {shape_file}")
+
+        # Validate shape ID exists before starting generation
+        if shape:
+            from fabulae.features.create.shapes.loader import get_shape_ids
+
+            available_ids = get_shape_ids()
+            if shape not in available_ids:
+                available = ", ".join(sorted(available_ids))
+                raise typer.BadParameter(
+                    f"Unknown shape: {shape}. Available shapes: {available}. "
+                    "Use 'fabulae shapes' to list all available shapes."
+                )
 
         idea_text = _resolve_idea(idea)
         language_code = _validate_language(language)
@@ -108,6 +163,10 @@ def register_create_command(app: typer.Typer) -> None:
         create_options = CreateOptions(
             narrative_patterns_mode=narrative_patterns,
             use_narrative_patterns_in_prompts=use_narrative_patterns_in_prompts,
+            shape_id=shape,
+            shape_file=shape_file,
+            variation=variation,
+            enrich=enrich,
         )
         try:
             project = generate_project_from_idea_sync(

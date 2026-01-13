@@ -1,0 +1,342 @@
+# Hero's Journey Story Shape
+# Based on Joseph Campbell's monomyth and Christopher Vogler's adaptation
+#
+# This is the classic transformational arc where a hero leaves their ordinary world,
+# faces trials in a special world, and returns transformed. It works for adventure,
+# fantasy, coming-of-age, and many other genres.
+
+id: heros-journey
+name: "Hero's Journey"
+description: >
+  The classic monomyth structure where a protagonist leaves their ordinary world,
+  ventures into the unknown, faces transformative trials, and returns with new wisdom
+  or power. This universal pattern underlies countless myths, legends, and modern stories.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# These define the archetypal roles that characters should fill.
+# Some may be merged or left unfilled depending on story needs.
+
+character_slots:
+  - slot: hero
+    needs: >
+      The protagonist who undergoes transformation. Must have a clear flaw or
+      limitation at the start, face meaningful challenges, and emerge changed.
+      Should be relatable and capable of growth.
+    optional: false
+
+  - slot: mentor
+    needs: >
+      A wise figure who prepares the hero for the journey. Provides training,
+      gifts, or crucial advice. Often represents the hero's potential future self.
+      May be supernatural, elderly, or simply more experienced.
+    can_merge_with:
+      - herald
+      - ally
+    optional: true
+
+  - slot: herald
+    needs: >
+      The character or force that announces the need for change. Delivers the
+      call to adventure and disrupts the hero's ordinary world. Can be an
+      antagonist, a messenger, or even an internal realization.
+    can_merge_with:
+      - mentor
+      - shadow
+    optional: true
+
+  - slot: threshold-guardian
+    needs: >
+      Characters who test the hero's commitment at boundaries between worlds.
+      They are obstacles that must be overcome, outsmarted, or converted. Not
+      necessarily evil—they ensure only the worthy pass.
+    can_merge_with:
+      - ally
+      - shapeshifter
+    optional: true
+
+  - slot: shapeshifter
+    needs: >
+      A character whose loyalty or nature is uncertain. Creates doubt and
+      suspense. Their true allegiance may shift or be revealed at a crucial
+      moment. Often a romantic interest or close companion with hidden depths.
+    can_merge_with:
+      - ally
+      - shadow
+    optional: true
+
+  - slot: shadow
+    needs: >
+      The primary antagonist or opposing force. Represents what the hero could
+      become if they fail to grow, or embodies the hero's greatest fear. Must
+      be a worthy opponent that forces the hero to their limits.
+    optional: false
+
+  - slot: ally
+    needs: >
+      Companions who assist the hero on the journey. Provide support, comic
+      relief, or complementary skills. Their friendship may be tested during
+      the ordeal. Can represent aspects of the hero's personality.
+    can_merge_with:
+      - mentor
+      - shapeshifter
+      - threshold-guardian
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that embody the journey's stages.
+
+setting_slots:
+  - slot: ordinary-world
+    needs: >
+      The hero's familiar, everyday environment before the adventure begins.
+      Should feel limited or confining in some way, establishing what the hero
+      stands to lose and what drives them to leave.
+    used_in:
+      - ordinary-world-establishment
+      - call-to-adventure
+      - return-with-elixir
+    optional: false
+
+  - slot: threshold
+    needs: >
+      The boundary between ordinary and special worlds. A physical or symbolic
+      crossing point that marks the point of no return. Often guarded or
+      dangerous, representing the commitment required.
+    used_in:
+      - crossing-threshold
+      - return-threshold
+    optional: false
+
+  - slot: special-world
+    needs: >
+      The unfamiliar realm of adventure where different rules apply. Should
+      contrast sharply with the ordinary world—more dangerous, magical, or
+      simply foreign. The hero is a fish out of water here.
+    used_in:
+      - tests-allies-enemies
+      - approach-innermost-cave
+    optional: false
+
+  - slot: innermost-cave
+    needs: >
+      The most dangerous location where the supreme ordeal occurs. The symbolic
+      or literal heart of the special world where the shadow dwells. Entry
+      requires the hero to face their greatest fear.
+    used_in:
+      - approach-innermost-cave
+      - ordeal
+      - reward
+    optional: false
+
+  - slot: resurrection-ground
+    needs: >
+      The location of the final climactic confrontation. Where the hero must
+      prove their transformation by facing death (literal or symbolic) one last
+      time. Often the boundary between worlds again.
+    used_in:
+      - resurrection
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define this shape.
+
+required_beats:
+  - type: ordinary-world-establishment
+    description: >
+      Establish the hero in their everyday life before change arrives. Show
+      their flaws, desires, and the world they are about to leave. Create
+      sympathy and plant seeds for later transformation.
+    position: early
+    flexibility: flexible
+
+  - type: call-to-adventure
+    description: >
+      The hero receives a challenge, quest, or demand for change. Something
+      disrupts their ordinary world and presents an opportunity or threat.
+      The stakes of refusing should be clear.
+    position: early
+    flexibility: fixed
+
+  - type: refusal-of-call
+    description: >
+      The hero hesitates or outright refuses the call. Fear, obligation, or
+      doubt holds them back. This demonstrates what they stand to lose and
+      makes their eventual commitment more meaningful.
+    position: early
+    flexibility: flexible
+
+  - type: meeting-mentor
+    description: >
+      The hero encounters a guide who provides wisdom, training, or magical
+      aid. This figure helps prepare them for the journey ahead and often
+      gives a gift that will prove essential later.
+    position: early
+    flexibility: flexible
+
+  - type: crossing-threshold
+    description: >
+      The hero commits to the adventure and crosses into the special world.
+      There is no going back. They leave behind the familiar and enter the
+      unknown, often facing a guardian or test at the boundary.
+    position: early
+    flexibility: fixed
+
+  - type: tests-allies-enemies
+    description: >
+      In the special world, the hero faces challenges and learns its rules.
+      They make allies, confront enemies, and develop skills needed for the
+      ordeal. Each test prepares them for what lies ahead.
+    position: middle
+    flexibility: very-flexible
+
+  - type: approach-innermost-cave
+    description: >
+      The hero and allies prepare for the major challenge. They reach the
+      dangerous place where the object of the quest lies. Tension builds as
+      they plan or steel themselves for what comes next.
+    position: middle
+    flexibility: flexible
+
+  - type: ordeal
+    description: >
+      The hero faces their greatest fear or the story's central confrontation.
+      A near-death experience (literal or symbolic) that forces transformation.
+      The hero must die to their old self to be reborn.
+    position: late
+    flexibility: fixed
+
+  - type: reward
+    description: >
+      Having survived death, the hero claims the treasure—the object of the
+      quest, special knowledge, or reconciliation. This is a moment of
+      celebration before the final challenges of the return.
+    position: late
+    flexibility: flexible
+
+  - type: return-threshold
+    description: >
+      The hero begins the journey home, often pursued or facing new dangers.
+      The special world does not release its visitors easily. The hero must
+      choose to return and accept responsibility.
+    position: late
+    flexibility: flexible
+
+  - type: resurrection
+    description: >
+      A final test where the hero must use everything they have learned.
+      They face death one more time and emerge purified, transformed into
+      a true hero. This is the climax of the internal transformation.
+    position: climax
+    flexibility: fixed
+
+  - type: return-with-elixir
+    description: >
+      The hero returns to the ordinary world, bringing something of value—
+      wisdom, treasure, or healing. They are changed, and their return changes
+      the ordinary world as well. Full circle with growth.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: mentor-death
+    description: >
+      The mentor dies or is incapacitated, forcing the hero to continue alone.
+      A powerful emotional beat that raises stakes and proves the hero has
+      internalized the mentor's teachings.
+    probability: 0.4
+    position: middle
+
+  - type: ally-betrayal
+    description: >
+      An apparent ally reveals hidden motives or is forced to betray the hero.
+      Creates doubt, raises stakes, and tests the hero's judgment. The
+      shapeshifter archetype manifesting.
+    probability: 0.3
+    position: middle
+
+  - type: false-victory
+    description: >
+      The hero appears to win before the true ordeal. Creates a moment of
+      relief followed by devastating reversal. Demonstrates that the hero
+      is not yet ready for the real challenge.
+    probability: 0.35
+    position: middle
+
+  - type: rescue-from-without
+    description: >
+      The hero needs help from allies to escape the innermost cave after the
+      ordeal. Shows that transformation includes learning to accept help.
+      Validates the alliances formed during tests.
+    probability: 0.5
+    position: late
+
+  - type: temptation-to-stay
+    description: >
+      The hero is tempted to remain in the special world rather than return.
+      A romantic interest, power, or comfort makes returning seem less
+      appealing than what was gained on the journey.
+    probability: 0.35
+    position: late
+
+  - type: shadow-redeemed
+    description: >
+      The antagonist is not destroyed but transformed or redeemed. The hero's
+      growth allows them to see the humanity in their enemy. A more nuanced
+      resolution than simple victory.
+    probability: 0.25
+    position: climax
+
+  - type: circular-opening
+    description: >
+      The story opens with a flash-forward to the return, then circles back
+      to show how we got there. Creates dramatic irony and emphasizes the
+      transformation theme.
+    probability: 0.2
+    position: early
+
+  - type: multiple-thresholds
+    description: >
+      The hero crosses several thresholds, each leading to a deeper level
+      of the special world. Nested structure that escalates danger and
+      transformation incrementally.
+    probability: 0.3
+    position: middle
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - transformation
+  - courage
+  - sacrifice
+  - self-discovery
+  - coming-of-age
+  - death-and-rebirth
+  - facing-fear
+
+motifs:
+  - threshold-crossing
+  - descent-and-return
+  - the-gift
+  - death-and-rebirth
+  - the-shadow-self
+  - trials-by-threes
+  - the-road-back
+
+tone: >
+  Epic and mythic, with a balance of external adventure and internal
+  transformation. The tone should convey both the danger of the journey
+  and the triumph of growth. Wonder at the unknown mixing with the
+  gravity of what the hero must sacrifice to become who they need to be.

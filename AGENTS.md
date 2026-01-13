@@ -5,6 +5,7 @@
 - `src/fabulae/main.py` is the CLI wiring only; keep business logic in feature slices.
 - `src/fabulae/models.py` remains the core domain models and validation.
 - `src/fabulae/features/` holds vertical slices (create, build, check, doctor, entities, tui).
+- `src/fabulae/data/` contains static data assets like story shapes used by the create feature.
 - `src/fabulae/llm/` contains shared LLM config, agent factory, and connectivity helpers.
 - `src/fabulae/prompts/` contains shared prompt helpers; each feature slice owns its own `prompts.py`.
 - `tests/` holds pytest suites; unit tests live under `tests/unit/` and should mirror the feature slices under `tests/unit/features/`.
@@ -44,5 +45,6 @@
 
 ## Configuration & Templates
 
-- YAML project files live at the project root when used by the CLI (see `templates/basic/`).
+- YAML project files live at the project root when used by the CLI (see `templates/`).
+- Templates exist for each format: `novel/`, `novella/`, `short-story/`, `micro-prose/`, `poem/`.
 - Scene ordering rules: explicit `chapter.scene_ids` or `plot.scene_ids` override file order.

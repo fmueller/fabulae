@@ -1,0 +1,308 @@
+# Transformation Story Shape
+# A narrative of profound personal metamorphosis from one state of being to another
+#
+# This shape captures the internal journey of fundamental change—whether chosen or
+# forced, physical or psychological, liberating or devastating. The protagonist
+# becomes genuinely different, not merely improved or educated. Works for literary
+# fiction, fantasy, horror, speculative fiction, and deeply personal character studies.
+
+id: transformation
+name: "Transformation"
+description: >
+  A narrative centered on profound metamorphosis where the protagonist undergoes
+  fundamental change in their identity, nature, or circumstances. Unlike coming-of-age
+  (which is growth) or redemption (which is moral recovery), transformation is about
+  becoming something genuinely other than what one was. The change may be physical,
+  psychological, social, or spiritual—but it reshapes the protagonist's essential self.
+  This is the story of crossing from one state of being into another.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a transformation narrative.
+
+character_slots:
+  - slot: transforming-protagonist
+    needs: >
+      The central character undergoing fundamental change. Must begin in a clearly
+      defined state that will be irrevocably altered. Should have enough depth that
+      we understand both what they are losing and what they might become. Their
+      resistance and eventual acceptance (or continued struggle) drives the narrative.
+    optional: false
+
+  - slot: catalyst-figure
+    needs: >
+      A character or force that initiates or enables the transformation. May be an
+      agent of change (mentor, tempter, infector) or simply someone who creates the
+      conditions for metamorphosis. Their relationship with the protagonist shapes
+      the transformation's meaning—gift, curse, test, or necessity.
+    can_merge_with:
+      - guide
+      - antagonist
+    optional: true
+
+  - slot: guide
+    needs: >
+      Someone who has undergone similar transformation or understands its nature.
+      They provide guidance, warnings, or simply proof that survival is possible.
+      May be supportive or cautionary, present throughout or encountered briefly
+      at crucial moments.
+    can_merge_with:
+      - catalyst-figure
+      - mirror-character
+    optional: true
+
+  - slot: anchor-figure
+    needs: >
+      A character who represents what the protagonist was or the world they are
+      leaving behind. Their presence highlights the growing distance between the
+      protagonist's past and future selves. May be a loved one who cannot follow,
+      an old friend who no longer recognizes them, or anyone who embodies the
+      former normal.
+    can_merge_with:
+      - witness
+    optional: true
+
+  - slot: witness
+    needs: >
+      Someone who observes the protagonist's transformation from outside. They
+      register the changes the protagonist may not fully see, react to the
+      emerging new self, and provide perspective on how the transformation
+      appears to others.
+    can_merge_with:
+      - anchor-figure
+      - mirror-character
+    optional: true
+
+  - slot: mirror-character
+    needs: >
+      A character who represents what the protagonist might become—for better or
+      worse. They embody a possible future, showing the protagonist (and reader)
+      where the transformation could lead. May be embraced as aspiration or
+      feared as warning.
+    can_merge_with:
+      - guide
+      - witness
+    optional: true
+
+  - slot: antagonist
+    needs: >
+      A force or character that opposes the transformation or threatens the
+      protagonist during their vulnerable transitional state. May seek to prevent
+      change, exploit the protagonist's weakness, or represent the dangers of
+      the new state. The antagonist tests whether the transformation will succeed.
+    can_merge_with:
+      - catalyst-figure
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that mark the stages of transformation.
+
+setting_slots:
+  - slot: origin-state
+    needs: >
+      A location embodying the protagonist's initial condition. The familiar world
+      before transformation begins. Its qualities—comfort or constraint, safety or
+      stagnation—establish what is being left behind and why change becomes necessary
+      or possible.
+    used_in:
+      - stasis
+      - catalyst
+      - emergence
+    optional: false
+
+  - slot: liminal-space
+    needs: >
+      A transitional location where transformation occurs—neither the old world nor
+      the new. A threshold zone where normal rules are suspended and change becomes
+      possible. May be physical (a hospital, a forest, a foreign land) or conceptual
+      (isolation, crisis, ritual).
+    used_in:
+      - resistance
+      - struggle
+      - surrender
+    optional: false
+
+  - slot: crucible
+    needs: >
+      The location of the transformation's most intense phase. A space of pressure,
+      confrontation, or revelation where the protagonist's resistance finally breaks
+      or their will finally commits. The change becomes irreversible here.
+    used_in:
+      - struggle
+      - surrender
+    optional: true
+
+  - slot: emergence-ground
+    needs: >
+      A location where the transformed self first encounters the world. May be the
+      origin-state revisited with new eyes, a new environment suited to the changed
+      protagonist, or a space between worlds where the transformation's meaning
+      becomes clear.
+    used_in:
+      - emergence
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the transformation arc.
+
+required_beats:
+  - type: stasis
+    description: >
+      Establish the protagonist in their current state. Show who they are, what
+      defines them, and what—consciously or not—is insufficient, unstable, or
+      ready for change. Plant the seeds of transformation in the cracks of the
+      ordinary. The reader must understand what will be lost.
+    position: early
+    flexibility: flexible
+
+  - type: catalyst
+    description: >
+      Something initiates the transformation. An event, encounter, choice, or
+      circumstance that disrupts stasis and begins the process of change. The
+      protagonist may not recognize it as the beginning, but their old equilibrium
+      is broken. The transformation has started whether they accept it or not.
+    position: early
+    flexibility: fixed
+
+  - type: resistance
+    description: >
+      The protagonist fights against the transformation. They attempt to maintain
+      their old identity, reverse the change, or deny what is happening. This
+      resistance may be futile, heroic, or understandable—but it demonstrates
+      what the old self means to them and the cost of letting go.
+    position: middle
+    flexibility: flexible
+
+  - type: struggle
+    description: >
+      The transformation intensifies despite (or because of) resistance. The
+      protagonist experiences the liminal state—no longer who they were, not yet
+      who they will become. This is often the darkest and most disorienting phase,
+      where identity itself becomes uncertain.
+    position: middle
+    flexibility: very-flexible
+
+  - type: surrender
+    description: >
+      The protagonist stops fighting the transformation. This may be defeat,
+      acceptance, embrace, or simply exhaustion—but resistance ends. The old self
+      releases its grip, making space for what comes next. This is the moment of
+      letting go, of dying to become.
+    position: late
+    flexibility: fixed
+
+  - type: emergence
+    description: >
+      The transformed self appears. The protagonist exists in their new state—
+      changed in ways both chosen and unchosen, expected and surprising. This is
+      not necessarily triumph; it is arrival. The transformation is complete, and
+      its meaning can finally be assessed.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: physical-transformation
+    description: >
+      The transformation includes visible, physical change. The body itself becomes
+      other—through metamorphosis, illness, enhancement, or decay. Internal change
+      made external and undeniable.
+    probability: 0.35
+    position: middle
+
+  - type: transformation-reversal-attempt
+    description: >
+      The protagonist attempts to reverse the transformation after it has significantly
+      progressed. The attempt may partially succeed, completely fail, or reveal that
+      return is no longer desired.
+    probability: 0.3
+    position: middle
+
+  - type: transformation-accelerator
+    description: >
+      An event or choice dramatically speeds up the transformation. A crisis that
+      strips away gradual adjustment, forcing the protagonist through stages they
+      might have navigated slowly.
+    probability: 0.4
+    position: middle
+
+  - type: parallel-transformation
+    description: >
+      Another character undergoes transformation alongside the protagonist. Their
+      parallel journey illuminates the protagonist's path—through contrast,
+      competition, or companionship.
+    probability: 0.25
+    position: middle
+
+  - type: transformation-contagion
+    description: >
+      The protagonist's transformation affects others, spreading change beyond
+      their individual experience. They become an agent of transformation
+      themselves, intentionally or not.
+    probability: 0.2
+    position: late
+
+  - type: incomplete-transformation
+    description: >
+      The transformation does not fully complete. The protagonist exists in a
+      hybrid or unfinished state—neither fully old nor fully new. This may be
+      tragic, liberating, or simply realistic.
+    probability: 0.25
+    position: climax
+
+  - type: return-to-origin
+    description: >
+      The transformed protagonist returns to where they began, encountering old
+      places, people, or situations with their new self. The contrast reveals
+      how much has changed.
+    probability: 0.4
+    position: climax
+
+  - type: transformation-cost
+    description: >
+      The transformation requires or causes significant loss. Something precious
+      must be sacrificed for change to occur—a relationship, a capability, a
+      memory, or a part of the old self that was genuinely valuable.
+    probability: 0.5
+    position: late
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - metamorphosis
+  - identity
+  - impermanence
+  - surrender
+  - rebirth
+  - loss
+  - becoming
+  - acceptance
+
+motifs:
+  - cocoons-and-shells
+  - mirrors-and-reflections
+  - shedding-skin
+  - thresholds-and-doors
+  - dissolution-and-reformation
+  - before-and-after
+  - the-stranger-in-the-mirror
+  - names-and-naming
+
+tone: >
+  Intimate and often unsettling, capturing the disorientation and vulnerability
+  of fundamental change. The tone acknowledges both the terror and the potential
+  liberation of becoming other than what one was. There is grief for the old self
+  and uncertainty about the new—but also the strange freedom of release. The
+  narrative voice understands that transformation is not improvement or decline
+  but translation into a different mode of being.

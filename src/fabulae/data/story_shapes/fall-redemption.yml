@@ -1,0 +1,306 @@
+# Fall and Redemption Story Shape
+# The arc of a character who falls from grace and finds their way back
+#
+# This shape traces the trajectory of moral failure and recovery. A character
+# begins in a position of status or virtue, is tempted, falls, hits rock bottom,
+# and through effort and grace, climbs back toward redemption. Works for dramas,
+# tragedies-turned-triumph, addiction narratives, and stories of moral recovery.
+
+id: fall-redemption
+name: "Fall and Redemption"
+description: >
+  A narrative arc following a character's descent from a position of status,
+  virtue, or stability through temptation and failure to rock bottom, then
+  tracing their difficult climb back toward redemption. This shape explores
+  the fragility of virtue, the consequences of poor choices, and the possibility
+  of recovery and grace. The focus is on internal transformation rather than
+  external victory.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a fall and redemption narrative.
+
+character_slots:
+  - slot: fallen-protagonist
+    needs: >
+      The central character who experiences the fall. Must begin in a position
+      of relative status, virtue, or stability—something meaningful to lose.
+      Should have a visible flaw or vulnerability that makes their fall believable.
+      Their journey requires genuine struggle and transformation to earn redemption.
+    optional: false
+
+  - slot: tempter
+    needs: >
+      The character, circumstance, or force that presents the temptation leading
+      to the fall. May be a person with their own agenda, an opportunity too good
+      to resist, or an internal demon made external. Should represent what the
+      protagonist secretly desires or fears. May be sympathetic or villainous.
+    can_merge_with:
+      - enabler
+    optional: true
+
+  - slot: enabler
+    needs: >
+      Someone who facilitates or excuses the protagonist's descent. May be a
+      friend who looks the other way, a system that rewards bad behavior, or a
+      partner in wrongdoing. Their presence makes the fall easier and the
+      consequences worse. Often faces their own reckoning.
+    can_merge_with:
+      - tempter
+      - witness
+    optional: true
+
+  - slot: witness
+    needs: >
+      A character who observes the protagonist's fall and its consequences.
+      May be a family member, friend, colleague, or victim. Their perspective
+      provides external measure of the protagonist's descent and eventual climb.
+      Their judgment or forgiveness carries weight in the resolution.
+    can_merge_with:
+      - victim
+      - redeemer
+    optional: true
+
+  - slot: victim
+    needs: >
+      Someone harmed by the protagonist's fall—directly through their actions
+      or indirectly through their neglect. Their suffering makes the fall
+      concrete and the need for redemption urgent. May be a loved one, an
+      innocent bystander, or a subordinate who trusted the protagonist.
+    can_merge_with:
+      - witness
+    optional: true
+
+  - slot: redeemer
+    needs: >
+      A character who offers help, hope, or the opportunity for redemption.
+      May be a mentor figure, a forgiving victim, a spiritual guide, or simply
+      someone who sees the protagonist's potential for good. Their faith in the
+      protagonist provides a path back from the bottom.
+    can_merge_with:
+      - witness
+      - victim
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that embody the stages of fall and recovery.
+
+setting_slots:
+  - slot: heights
+    needs: >
+      The location associated with the protagonist's initial status or virtue.
+      A place of success, respect, or stability. Its meaning will be transformed
+      by the fall—from home to exile, from throne to prison, from sanctuary to
+      shame.
+    used_in:
+      - status
+      - temptation
+      - redemption
+    optional: false
+
+  - slot: descent-space
+    needs: >
+      The environment where the fall takes place. May be a gradual slide through
+      increasingly compromised spaces or a single catastrophic location. Should
+      feel different from the heights—more chaotic, morally ambiguous, or
+      corrupting.
+    used_in:
+      - fall
+      - bottom
+    optional: false
+
+  - slot: bottom
+    needs: >
+      The lowest point—physical, emotional, or moral. A place of isolation,
+      degradation, or confrontation with consequences. Should be stark and
+      undeniable, stripping away pretense and forcing honesty.
+    used_in:
+      - bottom
+      - catalyst
+    optional: false
+
+  - slot: recovery-ground
+    needs: >
+      The space where redemption is worked toward. May be a treatment center,
+      a humble new beginning, a place of service, or a return to origins. Should
+      feel different from both heights and bottom—simpler, more honest, requiring
+      daily effort.
+    used_in:
+      - climb
+      - redemption
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the fall and redemption arc.
+
+required_beats:
+  - type: status
+    description: >
+      Establish the protagonist in their position of status, virtue, or stability.
+      Show what they have to lose—reputation, relationships, self-respect, or
+      material success. Plant seeds of the vulnerability that will be exploited.
+      The audience should care about preserving what will be lost.
+    position: early
+    flexibility: flexible
+
+  - type: temptation
+    description: >
+      The protagonist encounters what will lead to their fall. A shortcut, a
+      forbidden pleasure, a chance to exercise hidden desires, or a moment of
+      weakness. The temptation should be understandable—not cartoonishly evil
+      but genuinely appealing or seemingly justified.
+    position: early
+    flexibility: fixed
+
+  - type: fall
+    description: >
+      The protagonist succumbs and begins their descent. This may be a single
+      catastrophic choice or a series of compromises. Each step takes them
+      further from who they were. They may rationalize, deny, or embrace the
+      fall, but the direction is clear.
+    position: middle
+    flexibility: very-flexible
+
+  - type: bottom
+    description: >
+      The protagonist reaches their lowest point. Everything they had is lost
+      or endangered. They can no longer deny the consequences of their choices.
+      This is the moment of crisis—physical, emotional, spiritual—where
+      continuation on the current path becomes impossible.
+    position: late
+    flexibility: fixed
+
+  - type: catalyst
+    description: >
+      Something breaks through the protagonist's defenses and sparks change.
+      May be an intervention, a moment of clarity, hitting a wall, or an
+      unexpected act of grace. This is the turning point—not yet redemption,
+      but the first real step away from the bottom.
+    position: late
+    flexibility: flexible
+
+  - type: climb
+    description: >
+      The difficult work of recovery and change. The protagonist takes concrete
+      steps toward redemption—making amends, changing behavior, facing consequences,
+      rebuilding what was lost. This is not a quick fix but a struggle, with
+      setbacks and small victories.
+    position: climax
+    flexibility: very-flexible
+
+  - type: redemption
+    description: >
+      The protagonist achieves some form of redemption—not necessarily restoration
+      of what was lost, but genuine transformation. They are not the same person
+      who fell, but someone who has integrated that experience into a changed self.
+      The redemption should feel earned, not given.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: early-warning
+    description: >
+      Someone warns the protagonist about the path they are taking before the
+      fall is complete. The protagonist ignores or rationalizes away the warning,
+      making their responsibility clearer.
+    probability: 0.4
+    position: early
+
+  - type: false-bottom
+    description: >
+      The protagonist thinks they have hit bottom but falls further. What seemed
+      like the worst moment was just a way station. Raises stakes and emphasizes
+      the depth of the fall.
+    probability: 0.3
+    position: middle
+
+  - type: partial-redemption-rejected
+    description: >
+      The protagonist has an opportunity for easy or partial redemption but
+      rejects it or it is taken away. This tests their commitment and ensures
+      the final redemption is not too easily achieved.
+    probability: 0.35
+    position: late
+
+  - type: victim-confrontation
+    description: >
+      The protagonist must face someone they harmed during their fall. This
+      confrontation forces accountability and may or may not result in
+      forgiveness. The outcome affects the nature of redemption possible.
+    probability: 0.5
+    position: late
+
+  - type: enabler-fall
+    description: >
+      An enabler or companion in the protagonist's fall suffers their own
+      catastrophic consequences. This provides a mirror for the protagonist
+      and urgency for their own recovery.
+    probability: 0.35
+    position: middle
+
+  - type: relapse-risk
+    description: >
+      During the climb, the protagonist faces a moment where falling back would
+      be easy. They must consciously choose recovery over the familiar pattern
+      of self-destruction.
+    probability: 0.45
+    position: climax
+
+  - type: incomplete-redemption
+    description: >
+      The protagonist achieves internal transformation but cannot undo all
+      consequences. Some losses are permanent. Redemption is real but not
+      a return to the original state—it is something different and perhaps
+      more honest.
+    probability: 0.4
+    position: climax
+
+  - type: public-accountability
+    description: >
+      The protagonist's fall and redemption become public knowledge. They must
+      face social judgment—condemnation, skepticism, or surprising support—as
+      part of their journey back.
+    probability: 0.3
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - redemption
+  - forgiveness
+  - consequences
+  - transformation
+  - grace
+  - accountability
+  - humility
+  - second-chances
+
+motifs:
+  - descent-and-ascent
+  - rock-bottom
+  - the-mirror
+  - bridges-burned
+  - hands-extended
+  - daily-struggle
+  - scars-and-healing
+  - before-and-after
+
+tone: >
+  Unflinching about the reality of failure while holding space for hope.
+  The tone avoids both cheap grace (redemption without cost) and nihilism
+  (no possibility of recovery). It takes seriously both the harm caused and
+  the possibility of genuine change. The narrative voice understands that
+  redemption is a process, not a moment—that the climb is as important as
+  reaching the top, and that the person who arrives is not the person who fell.

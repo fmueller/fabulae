@@ -1,0 +1,349 @@
+# Romance Arc Story Shape
+# The journey of two people discovering love through attraction, obstacles, and union
+#
+# This shape captures the emotional arc of romantic connection—from the spark of
+# initial meeting through the complications that test that connection to the
+# resolution that affirms or redefines it. Works for romance novels, romantic
+# subplots, literary fiction with love stories, and character-driven narratives.
+
+id: romance-arc
+name: "Romance Arc"
+description: >
+  A narrative structure built around the development of romantic love between
+  two characters. The arc traces the initial encounter, the growth of attraction,
+  the obstacles that threaten connection, the crisis that forces honest reckoning,
+  and the resolution—whether union, renewed commitment, or poignant separation.
+  This shape focuses on emotional vulnerability, the risk of loving, and the
+  transformative power of intimate connection.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a romance narrative.
+
+character_slots:
+  - slot: lover-a
+    needs: >
+      One of the two central characters whose romantic journey drives the story.
+      Must be capable of genuine emotional vulnerability and growth. Should have
+      clear desires, fears, and internal obstacles to love that will be challenged
+      by the relationship. Their arc should show transformation through connection—
+      learning to trust, to risk, to see themselves and love differently.
+    optional: false
+
+  - slot: lover-b
+    needs: >
+      The other central character in the romantic pairing. Must complement
+      lover-a in ways that create both attraction and friction. Should have their
+      own complete emotional life, desires, and obstacles—not merely exist to
+      fulfill lover-a's journey. The chemistry between them should feel specific
+      and earned, built on genuine compatibility and challenge.
+    optional: false
+
+  - slot: rival
+    needs: >
+      A character who competes for the romantic attention of one of the lovers,
+      or whose presence threatens the developing relationship. May be a former
+      partner, a new suitor, or someone whose claim seems more socially appropriate.
+      Creates external pressure that tests the lovers' commitment. Should be more
+      than a simple obstacle—their appeal should be understandable.
+    can_merge_with:
+      - antagonist
+    optional: true
+
+  - slot: confidant
+    needs: >
+      A trusted friend or advisor to one or both lovers who provides perspective
+      on the developing relationship. May offer encouragement, voice concerns,
+      or serve as a sounding board for doubts and desires. Their outside view
+      helps externalize the internal romantic conflict. May push the lovers
+      together or, if they see problems, urge caution.
+    can_merge_with:
+      - matchmaker
+    optional: true
+
+  - slot: matchmaker
+    needs: >
+      A character who actively works to bring the lovers together—whether through
+      direct intervention, creating opportunities for connection, or removing
+      obstacles. May be well-meaning but misguided, or perceptive about what
+      the lovers need. Their efforts may succeed or backfire, but they add
+      momentum to the romantic plot.
+    can_merge_with:
+      - confidant
+    optional: true
+
+  - slot: antagonist
+    needs: >
+      A character or force that actively opposes the romantic union—a disapproving
+      family member, a social structure that forbids the relationship, or someone
+      whose interests conflict with the lovers being together. Their opposition
+      creates stakes and tests whether the love is strong enough to overcome
+      external pressure.
+    can_merge_with:
+      - rival
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that mark the stages of romantic development.
+
+setting_slots:
+  - slot: meeting-place
+    needs: >
+      The location where the lovers first encounter each other or first become
+      aware of each other as romantic possibilities. This place gains significance
+      as the origin point of their story. May be charged with the energy of
+      possibility, accident, or fate. Often revisited in memory or reality.
+    used_in:
+      - meet
+      - attraction
+      - union
+    optional: false
+
+  - slot: intimacy-space
+    needs: >
+      A private location where the lovers can be alone together, away from
+      social pressures and observation. Where vulnerability becomes possible,
+      conversations deepen, and physical or emotional intimacy develops.
+      May be a home, a secret spot, or any space that feels protected.
+    used_in:
+      - attraction
+      - declaration
+      - union
+    optional: false
+
+  - slot: social-arena
+    needs: >
+      A public space where the lovers interact under the gaze of others.
+      Social events, workplaces, community gatherings where their relationship
+      is visible and subject to judgment or comment. The tension between
+      public performance and private feeling plays out here.
+    used_in:
+      - meet
+      - obstacle
+      - crisis
+    optional: true
+
+  - slot: separation-place
+    needs: >
+      A location associated with distance or conflict between the lovers.
+      Where misunderstandings occur, painful conversations happen, or physical
+      separation is imposed. This space embodies the threat to the relationship
+      and the pain of disconnection.
+    used_in:
+      - obstacle
+      - crisis
+    optional: true
+
+  - slot: union-space
+    needs: >
+      The location where the lovers come together definitively—whether in
+      physical reunion, emotional declaration, or committed choice. This space
+      should feel significant, either through its meaning to the characters
+      or through contrast with earlier separation. Where love is affirmed.
+    used_in:
+      - declaration
+      - union
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the romance arc.
+
+required_beats:
+  - type: meet
+    description: >
+      The lovers encounter each other in a way that creates the possibility of
+      romance. This may be a first meeting, a reencounter after time apart, or
+      a moment when an existing relationship shifts into romantic potential.
+      First impressions are formed—attraction, curiosity, resistance, or a
+      combination. The spark is struck, even if not yet recognized.
+    position: early
+    flexibility: fixed
+
+  - type: attraction
+    description: >
+      The connection between the lovers deepens. They discover compatibility,
+      feel drawn together, begin to see each other more fully. This may involve
+      banter, shared experiences, growing physical awareness, or emotional
+      resonance. The relationship moves beyond initial impression toward
+      genuine interest.
+    position: early
+    flexibility: flexible
+
+  - type: obstacle
+    description: >
+      Something threatens the developing relationship. External barriers
+      (social disapproval, circumstances, rivals) or internal resistance
+      (fear of vulnerability, past wounds, misunderstanding) create distance
+      or doubt. The easy path to union is blocked, forcing the lovers to
+      choose whether to fight for connection.
+    position: middle
+    flexibility: flexible
+
+  - type: deepening
+    description: >
+      Despite obstacles, the lovers continue to connect. Vulnerability
+      increases. They begin to see each other's flaws and fears, not just
+      their attractive surfaces. Trust is tested and built. The relationship
+      becomes more real, more risky, more valuable.
+    position: middle
+    flexibility: very-flexible
+
+  - type: crisis
+    description: >
+      The relationship faces its greatest threat. A revelation, betrayal,
+      misunderstanding, or external force pushes the lovers to the breaking
+      point. It seems the relationship cannot survive. All the obstacles
+      converge into a moment that demands choice—fight for love or let it go.
+    position: late
+    flexibility: fixed
+
+  - type: declaration
+    description: >
+      One or both lovers express their true feelings openly. The walls come
+      down. What has been subtext becomes text. This declaration may be verbal,
+      through action, or through sacrifice. It represents the emotional climax
+      where vulnerability is fully embraced.
+    position: late
+    flexibility: flexible
+
+  - type: union
+    description: >
+      The lovers come together in acknowledged commitment. This may be
+      physical union, emotional resolution, mutual declaration, or a clear
+      choice to build a future together. The obstacles have been overcome
+      or accepted. The relationship has proven stronger than the forces
+      against it. Love is affirmed.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: enemies-to-lovers
+    description: >
+      The lovers begin with genuine antagonism, dislike, or opposition. Their
+      journey requires overcoming not just obstacles but their own negative
+      first impressions and the friction between them. The reversal from
+      animosity to love creates satisfying transformation.
+    probability: 0.35
+    position: early
+
+  - type: second-chance
+    description: >
+      The lovers have a romantic history—a past relationship, a missed
+      opportunity, or unresolved feelings. The story explores whether they
+      can overcome what separated them before and build something new with
+      the wisdom of experience.
+    probability: 0.25
+    position: early
+
+  - type: forbidden-love
+    description: >
+      Social structures, family expectations, or circumstances make the
+      relationship taboo or dangerous. The lovers must choose between love
+      and other loyalties. The stakes extend beyond personal happiness to
+      social consequences.
+    probability: 0.3
+    position: middle
+
+  - type: love-triangle
+    description: >
+      A third party complicates the romantic equation. One lover must choose
+      between two possibilities, or both lovers face competition. The triangle
+      creates comparison, jealousy, and forces clarity about what is truly wanted.
+    probability: 0.35
+    position: middle
+
+  - type: mistaken-identity
+    description: >
+      Misunderstanding about who someone is—their identity, intentions, or
+      situation—creates complications. The revelation of truth becomes a
+      test of whether love can survive the collapse of initial assumptions.
+    probability: 0.2
+    position: middle
+
+  - type: grand-gesture
+    description: >
+      One lover makes a dramatic, public, or costly demonstration of their
+      feelings. This gesture forces vulnerability and raises stakes. Its
+      success or failure becomes a turning point in the relationship.
+    probability: 0.4
+    position: late
+
+  - type: separation-period
+    description: >
+      The lovers are physically separated for a significant time. Distance
+      tests whether the connection is real or merely proximity. Reunion
+      becomes a moment of truth about whether love has survived absence.
+    probability: 0.3
+    position: late
+
+  - type: sacrifice
+    description: >
+      One lover gives up something significant for the other or for the
+      relationship—career, home, pride, or safety. The sacrifice demonstrates
+      the depth of commitment and the value placed on love over other goods.
+    probability: 0.35
+    position: climax
+
+  - type: incomplete-union
+    description: >
+      The story ends with promise rather than completion—a beginning rather
+      than a happy ending fully realized. The lovers choose each other but
+      the future remains uncertain, emphasizing that love is an ongoing
+      choice rather than a destination.
+    probability: 0.2
+    position: climax
+
+  - type: bittersweet-ending
+    description: >
+      The lovers cannot be together despite their feelings, or they choose
+      to part. The love was real but circumstances or incompatibilities
+      prove insurmountable. The ending honors the love while acknowledging
+      its impossibility.
+    probability: 0.15
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - love
+  - vulnerability
+  - trust
+  - desire
+  - commitment
+  - transformation
+  - choice
+  - intimacy
+  - acceptance
+  - risk
+
+motifs:
+  - first-meetings
+  - stolen-glances
+  - near-misses
+  - barriers-and-thresholds
+  - hands-touching
+  - letters-and-messages
+  - rain-and-weather
+  - dancing
+  - homecoming
+
+tone: >
+  Emotionally engaged and attuned to the nuances of attraction and connection.
+  The tone balances the exhilaration of new love with the complexity of real
+  relationships—the fears, the miscommunications, the work of truly knowing
+  another person. Whether the ending is triumphant or bittersweet, the narrative
+  takes love seriously as a transformative force and the risk of loving as a
+  genuine act of courage. Romantic without being naive; hopeful without ignoring
+  the real obstacles to connection.

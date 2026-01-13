@@ -65,3 +65,9 @@ select = [
     "SIM",
     "I",
 ]
+
+[tool.setuptools.package-data]
+fabulae = [
+    "data/**/*.yml",
+    "data/**/*.yaml",
+]

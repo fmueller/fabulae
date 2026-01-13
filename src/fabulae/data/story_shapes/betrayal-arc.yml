@@ -1,0 +1,286 @@
+# Betrayal Arc Story Shape
+# A focused narrative structure centered on trust broken and its consequences
+#
+# This shape explores the psychological dynamics of betrayal—the establishment of
+# trust, the growing doubts, the shattering revelation, and the aftermath.
+# Works for thrillers, dramas, literary fiction, and character studies.
+
+id: betrayal-arc
+name: "Betrayal Arc"
+description: >
+  A narrative structure built around the breaking of trust between characters.
+  The arc traces the establishment of a meaningful bond, the gradual or sudden
+  revelation of betrayal, and the emotional and practical consequences that follow.
+  This shape focuses on the psychological journey of the betrayed and the moral
+  complexity of the betrayer.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a betrayal narrative.
+
+character_slots:
+  - slot: protagonist
+    needs: >
+      The central character who experiences the betrayal. Must be capable of
+      deep trust and vulnerability. Their world should be meaningfully disrupted
+      by the betrayal, forcing them to reassess relationships and beliefs. Should
+      have something valuable that makes their trust worth betraying.
+    optional: false
+
+  - slot: betrayer
+    needs: >
+      The character who breaks trust. Must have a comprehensible (though not
+      necessarily sympathetic) reason for their betrayal—ambition, fear, ideology,
+      desperation, or conflicting loyalties. Should be close enough to the protagonist
+      to make the betrayal devastating. Their humanity should be visible even in treachery.
+    optional: false
+
+  - slot: witness
+    needs: >
+      A character who observes or discovers the betrayal, potentially before
+      the protagonist does. May try to warn the protagonist, may be complicit,
+      or may be forced into silence. Their knowledge creates dramatic tension
+      and moral complexity.
+    can_merge_with:
+      - ally
+      - confessor
+    optional: true
+
+  - slot: ally
+    needs: >
+      A loyal character who helps the protagonist process or respond to the
+      betrayal. May help investigate, provide emotional support, or aid in
+      confrontation. Their steadfastness contrasts with the betrayer's treachery.
+    can_merge_with:
+      - witness
+      - confessor
+    optional: true
+
+  - slot: confessor
+    needs: >
+      Someone the protagonist can open up to about their suspicions or pain.
+      May be a friend, therapist, mentor, or stranger. Allows for externalization
+      of the protagonist's internal struggle and provides perspective.
+    can_merge_with:
+      - ally
+      - witness
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that embody the stages of betrayal.
+
+setting_slots:
+  - slot: trust-space
+    needs: >
+      A location associated with the bond between protagonist and betrayer.
+      A place where trust was built, promises made, or intimacy shared. Its
+      meaning transforms after the revelation—from sanctuary to crime scene.
+    used_in:
+      - trust-building
+      - seeds-of-doubt
+      - aftermath
+    optional: false
+
+  - slot: revelation-space
+    needs: >
+      The location where the betrayal is discovered or revealed. May be
+      public or private, planned or accidental. The setting should amplify
+      the emotional impact—either through ironic contrast or through
+      appropriate darkness.
+    used_in:
+      - revelation
+      - confrontation
+    optional: false
+
+  - slot: confrontation-space
+    needs: >
+      Where protagonist and betrayer face each other after the truth emerges.
+      May be the same as revelation-space or deliberately chosen. Should allow
+      for the full expression of emotion—accusation, defense, silence, violence,
+      or reconciliation attempt.
+    used_in:
+      - confrontation
+      - aftermath
+    optional: true
+
+  - slot: refuge
+    needs: >
+      A place where the protagonist retreats to process the betrayal. A space
+      of safety, solitude, or new beginnings. May be physical (a new apartment,
+      a childhood home) or emotional (a friend's house, a bar).
+    used_in:
+      - aftermath
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the betrayal arc.
+
+required_beats:
+  - type: trust-building
+    description: >
+      Establish the bond between protagonist and betrayer. Show why the protagonist
+      trusts this person—shared history, demonstrated loyalty, emotional intimacy,
+      or professional dependence. The trust must feel earned and valuable so its
+      loss will be devastating.
+    position: early
+    flexibility: flexible
+
+  - type: investment
+    description: >
+      The protagonist makes a significant commitment based on their trust.
+      This raises the stakes—a business partnership, shared secret, emotional
+      vulnerability, or major life decision that depends on the betrayer's
+      loyalty. What they stand to lose becomes concrete.
+    position: early
+    flexibility: flexible
+
+  - type: seeds-of-doubt
+    description: >
+      Small inconsistencies or warnings that the protagonist notices but
+      dismisses. A lie that doesn't quite add up, unexplained absences, a
+      change in behavior. These create dramatic irony for the reader and
+      set up the revelation.
+    position: middle
+    flexibility: very-flexible
+
+  - type: growing-suspicion
+    description: >
+      The protagonist can no longer ignore the warning signs. They begin to
+      investigate or question, fighting against their desire to believe in
+      the betrayer. The psychological toll of uncertainty—wanting to trust
+      but fearing the truth.
+    position: middle
+    flexibility: flexible
+
+  - type: revelation
+    description: >
+      The betrayal is confirmed. The protagonist discovers proof, catches
+      the betrayer, or is told directly. This is the shattering moment when
+      the truth can no longer be denied. The protagonist's world fundamentally
+      shifts.
+    position: late
+    flexibility: fixed
+
+  - type: confrontation
+    description: >
+      The protagonist faces the betrayer with the truth. Accusations, denials,
+      explanations, or justifications are exchanged. The betrayer's motivations
+      are revealed or remain mysterious. The relationship is transformed—
+      broken, complicated, or surprisingly resilient.
+    position: climax
+    flexibility: fixed
+
+  - type: aftermath
+    description: >
+      The consequences of the betrayal play out. The protagonist must decide
+      how to move forward—revenge, forgiveness, severance, or uneasy coexistence.
+      The world is different now; trust itself has been redefined for the
+      protagonist.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: early-revelation
+    description: >
+      The audience learns of the betrayal before the protagonist does.
+      Creates dramatic irony and shifts focus to watching the protagonist
+      approach a truth the reader already knows.
+    probability: 0.3
+    position: early
+
+  - type: protagonist-complicity
+    description: >
+      The protagonist is partly responsible for the betrayal—through their
+      own failures, demands, or earlier betrayals. Complicates the moral
+      dynamics and prevents simple victim/villain framing.
+    probability: 0.25
+    position: middle
+
+  - type: false-accusation
+    description: >
+      The protagonist wrongly suspects someone of betrayal before discovering
+      the true betrayer. Misdirection that increases tension and potentially
+      damages innocent relationships.
+    probability: 0.35
+    position: middle
+
+  - type: betrayer-perspective
+    description: >
+      Scenes from the betrayer's point of view reveal their internal conflict,
+      justifications, or remorse. Humanizes the antagonist and adds moral
+      complexity.
+    probability: 0.4
+    position: middle
+
+  - type: double-betrayal
+    description: >
+      Another betrayal is revealed—the betrayer was themselves betrayed, or
+      a third party's treachery complicates the picture. Adds layers to the
+      central dynamic.
+    probability: 0.2
+    position: late
+
+  - type: unexpected-defender
+    description: >
+      Someone the protagonist considered an enemy becomes an ally after the
+      betrayal, offering help or information. Subverts expectations about
+      trust and loyalty.
+    probability: 0.3
+    position: late
+
+  - type: reconciliation-attempt
+    description: >
+      The betrayer attempts to make amends or explain. Whether accepted or
+      rejected, this attempt forces the protagonist to actively choose their
+      response rather than simply react.
+    probability: 0.45
+    position: climax
+
+  - type: incomplete-revelation
+    description: >
+      The full truth of the betrayal remains partially hidden. Some questions
+      are never answered, reflecting the messiness of real relationships and
+      the limits of understanding others.
+    probability: 0.25
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - trust
+  - deception
+  - loyalty
+  - vulnerability
+  - self-knowledge
+  - forgiveness
+  - justice
+  - identity
+
+motifs:
+  - masks-and-faces
+  - secrets
+  - promises-broken
+  - patterns-of-behavior
+  - the-missing-piece
+  - before-and-after
+  - mirrors-and-doubles
+
+tone: >
+  Psychologically intense and emotionally complex. The tone balances the
+  protagonist's pain with the betrayer's humanity, avoiding simple melodrama.
+  Suspense builds through emotional rather than physical danger. The narrative
+  voice understands that betrayal reveals as much about the betrayed as the
+  betrayer—their blind spots, their needs, their capacity for either
+  bitterness or grace.

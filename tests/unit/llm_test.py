@@ -83,11 +83,13 @@ def test_create_agent_uses_config(monkeypatch: pytest.MonkeyPatch) -> None:
             output_type: type[BaseModel],
             system_prompt: str,
             model_settings: dict[str, float] | None = None,
+            retries: int = 2,
         ) -> None:
             self.model = model
             self.output_type = output_type
             self.system_prompt = system_prompt
             self.model_settings = model_settings
+            self.retries = retries
 
     monkeypatch.setattr(llm, "OpenAIProvider", DummyProvider)
     monkeypatch.setattr(llm, "OpenAIModel", DummyOpenAIModel)

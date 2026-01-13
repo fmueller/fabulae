@@ -1,0 +1,368 @@
+# Forbidden Knowledge Story Shape
+# A narrative structure centered on the dangerous pursuit of hidden truths
+#
+# This shape explores the human drive to know what should remain unknown—the
+# seduction of secrets, the price of enlightenment, and the transformation that
+# forbidden understanding brings. Works for horror, science fiction, literary
+# fiction, thrillers, and any narrative examining the costs of knowledge.
+
+id: forbidden-knowledge
+name: "Forbidden Knowledge"
+description: >
+  A narrative structure built around the pursuit and acquisition of dangerous
+  knowledge. The arc traces the initial spark of curiosity, the thrilling
+  discovery, the growing obsession, the inevitable corruption that follows,
+  the moment of choice when consequences become clear, and the aftermath of
+  knowing what cannot be unknown. This shape focuses on the psychological
+  and spiritual transformation of a seeker who crosses boundaries meant to
+  protect humanity from itself.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a forbidden knowledge narrative.
+
+character_slots:
+  - slot: seeker
+    needs: >
+      The protagonist driven to uncover forbidden knowledge. Must possess
+      intelligence, curiosity, and a compelling reason to pursue dangerous
+      truths—ambition, grief, idealism, or obsessive need to understand.
+      Should have enough arrogance or desperation to believe they can handle
+      what destroyed others. Their transformation from curious to corrupted
+      is the story's spine.
+    optional: false
+
+  - slot: guardian
+    needs: >
+      A character who warns against or protects the forbidden knowledge.
+      May be a mentor who once sought the same truth, an institution that
+      safeguards secrets, or a supernatural force. Their warnings go unheeded
+      but prove prescient. Their relationship with the seeker—whether
+      adversarial or protective—creates moral complexity.
+    can_merge_with:
+      - predecessor
+      - confidant
+    optional: false
+
+  - slot: predecessor
+    needs: >
+      Someone who sought the same knowledge before and paid the price.
+      May be a historical figure, a recent victim, or someone the seeker
+      personally knew. Their fate is a warning that the seeker ignores or
+      believes they can avoid. Their story haunts the narrative.
+    can_merge_with:
+      - guardian
+    optional: true
+
+  - slot: enabler
+    needs: >
+      A character who facilitates the seeker's access to forbidden knowledge,
+      whether knowingly or not. May be a corruptor who benefits from the
+      seeker's fall, an innocent provider of crucial information, or a
+      fellow traveler on the same dark path. Their motivations complicate
+      the moral landscape.
+    can_merge_with:
+      - tempter
+      - confidant
+    optional: true
+
+  - slot: tempter
+    needs: >
+      A force or character that actively seduces the seeker toward dangerous
+      knowledge. May be supernatural, may be an aspect of the seeker's own
+      psyche, or may be a human agent of darker powers. Offers justifications,
+      minimizes dangers, and appeals to the seeker's weaknesses and virtues alike.
+    can_merge_with:
+      - enabler
+    optional: true
+
+  - slot: confidant
+    needs: >
+      Someone the seeker trusts with their discoveries. May try to pull them
+      back from the brink, may be drawn into the obsession themselves, or
+      may become a victim of the seeker's transformation. Represents the
+      human connections the seeker risks losing. Their reactions measure
+      the seeker's change.
+    can_merge_with:
+      - guardian
+      - enabler
+    optional: true
+
+  - slot: innocent
+    needs: >
+      A character endangered by the seeker's pursuit—through direct harm,
+      exposure to dangerous knowledge, or the seeker's corrupted actions.
+      May be a loved one, a dependent, or a bystander. Their vulnerability
+      raises the stakes of the seeker's choices and provides a mirror for
+      what the seeker once was.
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that embody the journey toward forbidden knowledge.
+
+setting_slots:
+  - slot: threshold
+    needs: >
+      The boundary between ordinary existence and the realm of forbidden
+      knowledge. May be a physical location (a restricted archive, an
+      abandoned laboratory, a sacred site) or a symbolic space. Crossing
+      it is a point of no return. Its nature should reflect the kind of
+      knowledge being sought.
+    used_in:
+      - curiosity
+      - discovery
+    optional: false
+
+  - slot: source
+    needs: >
+      The location where the forbidden knowledge resides or originates.
+      A library of banned texts, a research facility, a ritual site, or
+      a place where reality is thin. Should feel both compelling and
+      dangerous. Its atmosphere intensifies as the seeker delves deeper.
+    used_in:
+      - discovery
+      - obsession
+      - corruption
+    optional: false
+
+  - slot: sanctuary
+    needs: >
+      A place of normalcy and human connection that the seeker retreats
+      to—at first for rest, later to hide changes, eventually abandoned.
+      Home, workplace, or social space. Its gradual estrangement mirrors
+      the seeker's transformation. What was comfortable becomes alienating.
+    used_in:
+      - curiosity
+      - obsession
+      - choice
+    optional: true
+
+  - slot: crucible
+    needs: >
+      The location where the seeker faces the full implications of their
+      pursuit. Where choice becomes unavoidable and transformation accelerates
+      or is arrested. May be the deepest chamber of the source, a confrontation
+      space, or an internal landscape made manifest.
+    used_in:
+      - corruption
+      - choice
+      - consequence
+    optional: false
+
+  - slot: aftermath-space
+    needs: >
+      The world as it exists after the seeker's journey through forbidden
+      knowledge. May be transformed, may appear unchanged while everything
+      is different, or may be a new location entirely. Should reflect what
+      has been lost, gained, or irrevocably altered.
+    used_in:
+      - consequence
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the forbidden knowledge arc.
+
+required_beats:
+  - type: curiosity
+    description: >
+      The seeker encounters something that sparks dangerous curiosity. A
+      fragment of forbidden knowledge, an unexplained phenomenon, a gap
+      in official narratives, or a personal loss that demands impossible
+      answers. The world reveals itself to have hidden depths. The seeker
+      feels the first pull toward what they should not know.
+    position: early
+    flexibility: fixed
+
+  - type: discovery
+    description: >
+      The seeker gains initial access to forbidden knowledge. The first
+      revelation is intoxicating—confirming that reality is larger and
+      stranger than believed. Success encourages deeper pursuit. The
+      knowledge seems manageable, even beneficial. Warning signs are
+      dismissed or unrecognized. The seeker crosses the threshold.
+    position: early
+    flexibility: flexible
+
+  - type: obsession
+    description: >
+      The pursuit of knowledge consumes the seeker. Normal life recedes;
+      relationships strain; self-care deteriorates. The seeker cannot stop
+      even when they want to. Each revelation demands another. The boundaries
+      between seeker and knowledge begin to blur. Others notice the change.
+    position: middle
+    flexibility: very-flexible
+
+  - type: corruption
+    description: >
+      The forbidden knowledge begins to change the seeker fundamentally.
+      This may be psychological, spiritual, physical, or all three. The
+      seeker crosses moral lines they would never have crossed before.
+      What once horrified them becomes acceptable, even desirable. The
+      transformation may be gradual or sudden, but it is undeniable.
+    position: middle
+    flexibility: flexible
+
+  - type: choice
+    description: >
+      The seeker faces a moment of clarity where the full cost becomes
+      visible. They must choose: continue deeper into forbidden knowledge
+      and complete their transformation, or attempt to turn back and
+      live with what they already know. Both paths have terrible costs.
+      The choice reveals what the seeker truly values.
+    position: late
+    flexibility: fixed
+
+  - type: consequence
+    description: >
+      The results of the seeker's choice play out. If they pressed on,
+      what have they become? If they retreated, what haunts them? The
+      forbidden knowledge cannot be unlearned; the seeker cannot return
+      to who they were. The world is different now—perhaps only for them,
+      perhaps for everyone. Some prices are paid forever.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: tragic-predecessor
+    description: >
+      The seeker has a deep personal connection to someone destroyed by
+      the same forbidden knowledge. Their pursuit is driven by love, grief,
+      or a desire to understand what happened. The predecessor's fate is
+      both warning and goad.
+    probability: 0.4
+    position: early
+
+  - type: institutional-conspiracy
+    description: >
+      Powerful institutions actively suppress the forbidden knowledge.
+      The seeker must contend not just with the knowledge itself but with
+      forces determined to maintain secrecy. What they're hiding may be
+      protection or self-interest.
+    probability: 0.35
+    position: early
+
+  - type: false-enlightenment
+    description: >
+      Early discoveries seem to offer clarity and power without cost.
+      The seeker believes they have found the safe path to forbidden
+      knowledge, that they are special enough to avoid corruption.
+      This illusion makes the eventual fall more devastating.
+    probability: 0.45
+    position: middle
+
+  - type: corrupted-guide
+    description: >
+      Someone who initially seems to be a protective guardian reveals
+      themselves to be serving the forbidden knowledge—leading seekers
+      to it rather than away. Their apparent wisdom was manipulation.
+    probability: 0.25
+    position: middle
+
+  - type: knowledge-as-entity
+    description: >
+      The forbidden knowledge is not merely information but something
+      that acts with apparent intention. It wants to be known, seeks
+      out seekers, and seems to guide events toward revelation. The
+      seeker may be chosen rather than choosing.
+    probability: 0.3
+    position: middle
+
+  - type: partial-resistance
+    description: >
+      The seeker maintains a core of themselves uncorrupted, fighting
+      against the knowledge's influence even as they pursue it. This
+      internal battle creates hope for redemption but also prolongs
+      suffering. Victory is possible but costly.
+    probability: 0.35
+    position: late
+
+  - type: collateral-corruption
+    description: >
+      The seeker's pursuit endangers or corrupts those close to them.
+      The forbidden knowledge spreads through proximity, or the seeker's
+      transformed nature harms innocents. Others pay for the seeker's
+      choices, raising the moral stakes.
+    probability: 0.4
+    position: late
+
+  - type: incomplete-knowledge
+    description: >
+      The seeker obtains the forbidden knowledge but cannot fully
+      comprehend it. They are changed by what they've touched but
+      cannot even claim understanding as compensation. The corruption
+      comes without the promised enlightenment.
+    probability: 0.25
+    position: climax
+
+  - type: redemptive-sacrifice
+    description: >
+      The seeker finds a way to use their corruption for good—destroying
+      the source of forbidden knowledge, protecting others from their
+      fate, or accepting personal destruction to prevent wider harm.
+      Damnation becomes salvation through sacrifice.
+    probability: 0.3
+    position: climax
+
+  - type: cycle-continuation
+    description: >
+      The story ends with another potential seeker beginning the same
+      journey. The seeker has become a guardian, a predecessor, or an
+      enabler for the next cycle. The forbidden knowledge will find
+      new seekers. The pattern repeats.
+    probability: 0.35
+    position: climax
+
+  - type: false-escape
+    description: >
+      The seeker believes they have escaped the corruption, only to
+      discover it has taken root more subtly than they realized.
+      Apparent victory reveals itself as deeper defeat. The knowledge
+      works on longer timescales than human perception.
+    probability: 0.2
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - knowledge
+  - hubris
+  - transformation
+  - corruption
+  - sacrifice
+  - boundaries
+  - power
+  - identity
+  - temptation
+  - irreversibility
+
+motifs:
+  - thresholds-and-doors
+  - eyes-and-seeing
+  - mirrors-and-reflections
+  - descent-and-depth
+  - light-and-darkness
+  - marks-and-stains
+  - echoes-and-repetition
+  - hunger-and-consumption
+  - masks-and-true-faces
+
+tone: >
+  Seductive and unsettling, building from intellectual curiosity to existential
+  dread. The tone should capture both the genuine allure of forbidden knowledge—
+  the sense that understanding matters, that truth is worth pursuing—and the
+  creeping horror of transformation. The narrative voice understands why the
+  seeker cannot stop, even as it recognizes the cost. Tension builds not through
+  surprise but through inevitability: we watch someone walk knowingly toward
+  their undoing, and we understand why they cannot turn back.

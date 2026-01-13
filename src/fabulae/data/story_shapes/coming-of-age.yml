@@ -1,0 +1,314 @@
+# Coming of Age Story Shape
+# The quintessential narrative of growth from youth to maturity
+#
+# This shape captures the universal transition from innocence to experience,
+# where a young protagonist faces challenges that force them to shed their
+# childhood worldview and emerge with hard-won wisdom. Works for literary
+# fiction, YA, bildungsroman, and character-driven narratives.
+
+id: coming-of-age
+name: "Coming of Age"
+description: >
+  A transformational narrative centered on a young protagonist's journey from
+  innocence to maturity. Through encounters with the world's complexities—
+  failure, loss, moral ambiguity, and self-discovery—the protagonist sheds
+  their naive assumptions and develops a more nuanced understanding of
+  themselves and their place in the world. This is the story of becoming.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a coming-of-age narrative.
+
+character_slots:
+  - slot: young-protagonist
+    needs: >
+      The central character on the threshold between childhood and adulthood.
+      Must begin with some form of innocence, naivety, or incomplete
+      understanding of the world. Should have authentic desires and fears
+      appropriate to their age. Their growth must feel earned through struggle,
+      not merely the passage of time.
+    optional: false
+
+  - slot: guide-figure
+    needs: >
+      An older character who provides wisdom, perspective, or an example to
+      follow (or reject). May be a parent, teacher, mentor, or even an
+      unlikely guide like a stranger or outsider. Their role is to illuminate
+      possibilities—not to solve the protagonist's problems for them.
+    can_merge_with:
+      - parent-figure
+    optional: true
+
+  - slot: peer
+    needs: >
+      A character of similar age who serves as companion, rival, or mirror
+      to the protagonist. Through this relationship, the protagonist sees
+      alternative paths of growth, tests their evolving identity, and
+      experiences the complexities of connection. May be a friend, love
+      interest, or both.
+    can_merge_with:
+      - rival
+    optional: true
+
+  - slot: antagonist
+    needs: >
+      A character or force that challenges the protagonist's growth. May be
+      a bully, an authority figure, a toxic relationship, or even the
+      protagonist's own fears and limitations. The antagonist represents
+      obstacles to maturation that must be overcome, escaped, or understood.
+    can_merge_with:
+      - rival
+      - parent-figure
+    optional: true
+
+  - slot: parent-figure
+    needs: >
+      A parental presence whose relationship with the protagonist shapes their
+      journey. May be supportive, absent, flawed, or oppressive. The protagonist's
+      relationship with this figure often must be renegotiated as they mature,
+      moving from dependence toward a more equal standing.
+    can_merge_with:
+      - guide-figure
+      - antagonist
+    optional: true
+
+  - slot: rival
+    needs: >
+      Someone who competes with or opposes the protagonist, forcing them to
+      define themselves. The rivalry may be friendly or hostile, but it pushes
+      the protagonist to grow. Often represents an alternative path the
+      protagonist might have taken.
+    can_merge_with:
+      - peer
+      - antagonist
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that mark the stages of growth.
+
+setting_slots:
+  - slot: sanctuary
+    needs: >
+      A place associated with the protagonist's childhood innocence—home,
+      a familiar neighborhood, a school. This is the known world that must
+      eventually be left behind or seen with new eyes. Its comfort becomes
+      constraint as the protagonist grows.
+    used_in:
+      - innocence
+      - challenge
+      - maturity
+    optional: false
+
+  - slot: testing-ground
+    needs: >
+      A location where the protagonist faces challenges that force growth.
+      May be a new school, a summer job, a different social circle, or any
+      space where old assumptions fail. The rules here are different from
+      the sanctuary.
+    used_in:
+      - challenge
+      - failure
+      - growth
+    optional: false
+
+  - slot: wilderness
+    needs: >
+      A physical or emotional space of solitude where the protagonist confronts
+      themselves. Away from social pressures and familiar contexts, they must
+      reckon with who they are becoming. May be literal (a forest, an empty
+      house) or metaphorical (isolation, alienation).
+    used_in:
+      - failure
+      - growth
+    optional: true
+
+  - slot: threshold-space
+    needs: >
+      A liminal location marking the boundary between childhood and adulthood.
+      A place of transition—graduation, a journey, a significant first
+      experience. Here the protagonist crosses from one phase of life to another.
+    used_in:
+      - growth
+      - maturity
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the coming-of-age arc.
+
+required_beats:
+  - type: innocence
+    description: >
+      Establish the protagonist in their state of youthful naivety. Show their
+      incomplete understanding of the world—whether idealistic, sheltered,
+      self-centered, or simply inexperienced. This innocence is not necessarily
+      happiness; it is limitation that the protagonist does not yet recognize.
+    position: early
+    flexibility: flexible
+
+  - type: disruption
+    description: >
+      Something intrudes upon the protagonist's innocent world. A change in
+      circumstances, a new arrival, a revealed truth, or an irresistible
+      desire pulls them toward unfamiliar territory. The comfortable equilibrium
+      is disturbed.
+    position: early
+    flexibility: fixed
+
+  - type: challenge
+    description: >
+      The protagonist faces a significant test of their developing identity.
+      A situation that demands more than childhood resources can provide—social
+      pressure, moral complexity, responsibility, or confrontation with
+      difficult truths about the world or themselves.
+    position: middle
+    flexibility: flexible
+
+  - type: failure
+    description: >
+      The protagonist falls short, makes a serious mistake, or suffers a
+      painful loss. This is not a minor setback but a genuine defeat that
+      forces confrontation with their limitations. Innocence cannot protect
+      them from consequence.
+    position: middle
+    flexibility: fixed
+
+  - type: reckoning
+    description: >
+      In the aftermath of failure, the protagonist must face uncomfortable
+      truths. They see clearly what they could not see before—about themselves,
+      others, or the world. This is often painful, marked by shame, grief,
+      or disillusionment.
+    position: middle
+    flexibility: flexible
+
+  - type: growth
+    description: >
+      The protagonist begins to change. Armed with hard-won understanding,
+      they make different choices, take responsibility, or develop new
+      capabilities. This is not instant transformation but the visible
+      beginning of becoming someone new.
+    position: late
+    flexibility: flexible
+
+  - type: test-of-growth
+    description: >
+      A situation that echoes the earlier failure, giving the protagonist
+      a chance to demonstrate their development. They face a similar challenge
+      with different resources, proving that the growth is real and earned.
+    position: late
+    flexibility: very-flexible
+
+  - type: maturity
+    description: >
+      The protagonist arrives at a new equilibrium. They are no longer the
+      innocent they were, but they have not merely become cynical or hardened.
+      They hold complexity—loss and hope, knowledge and wonder, independence
+      and connection. They have come of age.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: loss-of-guide
+    description: >
+      The guide figure dies, leaves, or is revealed to be flawed. The protagonist
+      must continue without the support they relied upon, accelerating their
+      journey toward independence.
+    probability: 0.35
+    position: middle
+
+  - type: betrayal-by-peer
+    description: >
+      A trusted peer betrays the protagonist or reveals unexpected depths.
+      This forces the protagonist to recalibrate their understanding of
+      relationships and trust.
+    probability: 0.3
+    position: middle
+
+  - type: moral-complexity
+    description: >
+      The protagonist discovers that someone they considered good has flaws,
+      or someone they considered bad has humanity. The simple categories of
+      childhood prove inadequate.
+    probability: 0.5
+    position: middle
+
+  - type: first-love
+    description: >
+      A romantic relationship that teaches the protagonist about vulnerability,
+      desire, and the complexity of intimate connection. May end or evolve,
+      but leaves the protagonist changed.
+    probability: 0.45
+    position: middle
+
+  - type: encounter-with-death
+    description: >
+      The protagonist confronts mortality directly—through the death of someone
+      they know, a near-death experience, or witnessing death. This forces
+      reckoning with life's fragility and preciousness.
+    probability: 0.3
+    position: late
+
+  - type: leaving-home
+    description: >
+      A physical departure from the childhood sanctuary. The protagonist must
+      navigate independence, creating distance from their origins that enables
+      new perspective on who they are.
+    probability: 0.4
+    position: late
+
+  - type: reconciliation-with-past
+    description: >
+      The protagonist makes peace with something from their childhood—a parent,
+      a place, a version of themselves. Growth includes integrating the past
+      rather than merely escaping it.
+    probability: 0.35
+    position: climax
+
+  - type: passing-wisdom-forward
+    description: >
+      The protagonist, now mature, offers guidance to someone younger. The
+      cycle continues. This demonstrates that maturity includes responsibility
+      to those who follow.
+    probability: 0.25
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - identity
+  - innocence-and-experience
+  - responsibility
+  - belonging
+  - independence
+  - loss
+  - self-discovery
+  - acceptance
+
+motifs:
+  - firsts-and-lasts
+  - mirrors-and-reflections
+  - seasons-and-cycles
+  - thresholds-and-doorways
+  - masks-and-true-faces
+  - inherited-objects
+  - scars-and-marks
+
+tone: >
+  Emotionally honest and observant, capturing the intensity of youth's
+  experiences while maintaining perspective. The tone balances empathy for
+  the protagonist's struggles with awareness that growth requires pain. There
+  is both grief for lost innocence and hope in the protagonist's capacity
+  for change. The narrative voice understands that becoming is a continuous
+  process—this is one chapter in a lifetime of growth.

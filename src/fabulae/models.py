@@ -14,9 +14,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 def _validate_id(value: str) -> str:
     """Validate that an ID is lowercase with hyphens, no spaces."""
     if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", value):
-        raise ValueError(
-            f"ID must be lowercase alphanumeric with hyphens, no spaces: {value!r}"
-        )
+        raise ValueError(f"ID must be lowercase alphanumeric with hyphens, no spaces: {value!r}")
     return value
 
 
@@ -92,64 +90,6 @@ class World(BaseModel):
     facts: list[WorldFact] = Field(default_factory=list)
 
 
-class PlotPatternRole(BaseModel):
-    """An abstract role within a plot pattern."""
-
-    id: EntityId
-    description: str
-    required: bool = True
-
-
-class PlotPatternBeat(BaseModel):
-    """A required beat in a plot pattern."""
-
-    type: str = Field(min_length=1)
-    description: str
-
-
-class PlotPattern(BaseModel):
-    """A reusable plot structure pattern (writer-native alternative to microplots)."""
-
-    id: EntityId
-    name: str
-    description: str
-    roles: list[PlotPatternRole] = Field(default_factory=list)
-    required_beats: list[PlotPatternBeat] = Field(default_factory=list)
-
-
-class PlotPatternBeatAssignment(BaseModel):
-    """Map a plot pattern beat to a scene (and optional scene beat)."""
-
-    type: str = Field(min_length=1)
-    scene: EntityId
-    scene_beat: EntityId | None = None
-    notes: str | None = None
-
-
-class NarrativeRole(BaseModel):
-    """An abstract role within a narrative pattern."""
-
-    id: EntityId
-    description: str
-    required: bool = True
-
-
-class NarrativePattern(BaseModel):
-    """A reusable narrative system bundling plot, theme, and world cues."""
-
-    id: EntityId
-    name: str
-    description: str
-    plot_pattern: EntityId | None = None
-    roles: list[NarrativeRole] = Field(default_factory=list)
-    themes: list[SemanticValue] = Field(default_factory=list)
-    motifs: list[SemanticValue] = Field(default_factory=list)
-    setting: str | None = None
-    time_period: str | None = None
-    tone: str | None = None
-    notes: list[str] = Field(default_factory=list)
-
-
 class Beat(BaseModel):
     """A dramatic beat inside a scene."""
 
@@ -173,8 +113,6 @@ class Scene(BaseModel):
     time: str | None = None
     characters: list[EntityId] = Field(default_factory=list)
     world_fact_ids: list[EntityId] = Field(default_factory=list)
-    plot_pattern: EntityId | None = None
-    plot_pattern_beat: str | None = None
     summary: str | None = None
     goal: str | None = None
     conflict: str | None = None
@@ -229,8 +167,6 @@ class Plot(BaseModel):
     stakes: Stakes | None = None
 
     # Prose formats (novel, novella, short-story)
-    plot_pattern: EntityId | None = None
-    plot_pattern_beats: list[PlotPatternBeatAssignment] = Field(default_factory=list)
     chapters: list[Chapter] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
     scene_ids: list[EntityId] | None = None
@@ -259,6 +195,57 @@ class Style(BaseModel):
     constraints: list[str] = Field(default_factory=list)
 
 
+class CharacterSlot(BaseModel):
+    """A character slot in a story shape that must be filled."""
+
+    slot: str = Field(min_length=1)
+    needs: str = Field(min_length=1)
+    can_merge_with: list[str] = Field(default_factory=list)
+    optional: bool = False
+
+
+class SettingSlot(BaseModel):
+    """A setting/location slot in a story shape."""
+
+    slot: str = Field(min_length=1)
+    needs: str = Field(min_length=1)
+    used_in: list[str] = Field(default_factory=list)
+    optional: bool = False
+
+
+class RequiredBeat(BaseModel):
+    """A required beat in a story shape."""
+
+    type: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    position: Literal["early", "middle", "late", "climax", "anywhere"] = "anywhere"
+    flexibility: Literal["fixed", "flexible", "very-flexible"] = "flexible"
+
+
+class VariationPoint(BaseModel):
+    """A point of variation in a story shape."""
+
+    type: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    probability: float = Field(ge=0.0, le=1.0)
+    position: Literal["early", "middle", "late", "climax", "anywhere"] = "anywhere"
+
+
+class StoryShape(BaseModel):
+    """A reusable story structure pattern defining slots, beats, and variation points."""
+
+    id: EntityId
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    character_slots: list[CharacterSlot] = Field(default_factory=list)
+    setting_slots: list[SettingSlot] = Field(default_factory=list)
+    required_beats: list[RequiredBeat] = Field(default_factory=list)
+    variation_points: list[VariationPoint] = Field(default_factory=list)
+    themes: list[str] = Field(default_factory=list)
+    motifs: list[str] = Field(default_factory=list)
+    tone: str | None = None
+
+
 class ProjectPaths(BaseModel):
     """Configurable file paths for project data."""
 
@@ -266,8 +253,6 @@ class ProjectPaths(BaseModel):
     characters: str = "characters.yml"
     world: str = "world.yml"
     style: str = "style.yml"
-    plot_patterns: str = "plot_patterns.yml"
-    narrative_patterns: str = "narrative_patterns.yml"
 
 
 class ProjectDefaults(BaseModel):
@@ -291,18 +276,6 @@ class CharactersFile(BaseModel):
     characters: list[Character] = Field(default_factory=list)
 
 
-class PlotPatternsFile(BaseModel):
-    """Wrapper for plot_patterns.yml."""
-
-    plot_patterns: list[PlotPattern] = Field(default_factory=list)
-
-
-class NarrativePatternsFile(BaseModel):
-    """Wrapper for narrative_patterns.yml."""
-
-    narrative_patterns: list[NarrativePattern] = Field(default_factory=list)
-
-
 class Project(BaseModel):
     """Fully loaded Fabulae project."""
 
@@ -311,8 +284,6 @@ class Project(BaseModel):
     characters: list[Character] = Field(default_factory=list)
     world: World | None = None
     style: Style | None = None
-    plot_patterns: list[PlotPattern] = Field(default_factory=list)
-    narrative_patterns: list[NarrativePattern] = Field(default_factory=list)
 
 
 def load_yaml_file(path: Path) -> dict[str, object]:
@@ -351,12 +322,6 @@ def _validate_unique_ids(project: Project) -> None:
     if project.world:
         for fact in project.world.facts:
             id_sources[fact.id].append("world_fact")
-
-    for pattern in project.plot_patterns:
-        id_sources[pattern.id].append("plot_pattern")
-
-    for narrative_pattern in project.narrative_patterns:
-        id_sources[narrative_pattern.id].append("narrative_pattern")
 
     for chapter in project.plot.chapters:
         id_sources[chapter.id].append("chapter")
@@ -405,13 +370,9 @@ def _validate_scene_order(plot: Plot) -> None:
             missing = set(chapter_scene_ids) - set(chapter.scene_ids)
             extra = set(chapter.scene_ids) - set(chapter_scene_ids)
             if extra:
-                raise ValueError(
-                    f"Chapter {chapter.id!r} references unknown scenes: {sorted(extra)!r}."
-                )
+                raise ValueError(f"Chapter {chapter.id!r} references unknown scenes: {sorted(extra)!r}.")
             if missing:
-                raise ValueError(
-                    f"Chapter {chapter.id!r} does not list all scenes: {sorted(missing)!r}."
-                )
+                raise ValueError(f"Chapter {chapter.id!r} does not list all scenes: {sorted(missing)!r}.")
     else:
         if any(scene.chapter is not None for scene in plot.scenes):
             raise ValueError("Scenes must not reference chapters when no chapters are defined.")
@@ -429,44 +390,13 @@ def _validate_scene_order(plot: Plot) -> None:
 
 def _validate_references(project: Project) -> None:
     characters = {character.id for character in project.characters}
-    patterns = {pattern.id: pattern for pattern in project.plot_patterns}
     world_facts = {fact.id: fact for fact in project.world.facts} if project.world else {}
-    scene_map = {scene.id: scene for scene in project.plot.scenes}
-
-    if project.plot.plot_pattern and project.plot.plot_pattern not in patterns:
-        raise ValueError(
-            f"Plot references unknown plot pattern {project.plot.plot_pattern!r}."
-        )
-
-    if project.plot.plot_pattern_beats and not project.plot.plot_pattern:
-        raise ValueError("plot.plot_pattern_beats requires plot.plot_pattern to be set.")
-
-    if project.plot.plot_pattern and project.plot.plot_pattern_beats:
-        beat_types = {beat.type for beat in patterns[project.plot.plot_pattern].required_beats}
-        for assignment in project.plot.plot_pattern_beats:
-            if assignment.type not in beat_types:
-                raise ValueError(
-                    f"Plot references unknown plot pattern beat {assignment.type!r}."
-                )
-            if assignment.scene not in scene_map:
-                raise ValueError(
-                    f"Plot plot_pattern_beats references unknown scene {assignment.scene!r}."
-                )
-            if assignment.scene_beat:
-                scene_beat_ids = {beat.id for beat in scene_map[assignment.scene].beats}
-                if assignment.scene_beat not in scene_beat_ids:
-                    raise ValueError(
-                        f"Plot plot_pattern_beats references unknown scene beat "
-                        f"{assignment.scene_beat!r} in scene {assignment.scene!r}."
-                    )
 
     for scene in project.plot.scenes:
         if scene.characters:
             missing_chars = set(scene.characters) - characters
             if missing_chars:
-                raise ValueError(
-                    f"Scene {scene.id!r} references unknown characters: {sorted(missing_chars)!r}."
-                )
+                raise ValueError(f"Scene {scene.id!r} references unknown characters: {sorted(missing_chars)!r}.")
 
         if scene.location:
             if not world_facts:
@@ -474,9 +404,7 @@ def _validate_references(project: Project) -> None:
                     f"Scene {scene.id!r} references location {scene.location!r} but world facts are missing."
                 )
             if scene.location not in world_facts:
-                raise ValueError(
-                    f"Scene {scene.id!r} references unknown location {scene.location!r}."
-                )
+                raise ValueError(f"Scene {scene.id!r} references unknown location {scene.location!r}.")
             if world_facts[scene.location].type != "location":
                 raise ValueError(
                     f"Scene {scene.id!r} location {scene.location!r} is not a world fact of type 'location'."
@@ -485,33 +413,7 @@ def _validate_references(project: Project) -> None:
         if scene.world_fact_ids:
             missing_facts = set(scene.world_fact_ids) - set(world_facts)
             if missing_facts:
-                raise ValueError(
-                    f"Scene {scene.id!r} references unknown world facts: {sorted(missing_facts)!r}."
-                )
-
-        if scene.plot_pattern_beat and not scene.plot_pattern:
-            raise ValueError(
-                f"Scene {scene.id!r} defines plot_pattern_beat without plot_pattern."
-            )
-        if scene.plot_pattern:
-            if scene.plot_pattern not in patterns:
-                raise ValueError(
-                    f"Scene {scene.id!r} references unknown plot pattern {scene.plot_pattern!r}."
-                )
-            if scene.plot_pattern_beat:
-                beat_types = {beat.type for beat in patterns[scene.plot_pattern].required_beats}
-                if scene.plot_pattern_beat not in beat_types:
-                    raise ValueError(
-                        f"Scene {scene.id!r} references unknown plot pattern beat "
-                        f"{scene.plot_pattern_beat!r}."
-                    )
-
-    for pattern in project.narrative_patterns:
-        if pattern.plot_pattern and pattern.plot_pattern not in patterns:
-            raise ValueError(
-                f"Narrative pattern {pattern.id!r} references unknown plot pattern "
-                f"{pattern.plot_pattern!r}."
-            )
+                raise ValueError(f"Scene {scene.id!r} references unknown world facts: {sorted(missing_facts)!r}.")
 
 
 def _validate_format(plot: Plot) -> None:
@@ -522,29 +424,20 @@ def _validate_format(plot: Plot) -> None:
     has_prose = bool(plot.chapters or plot.scenes)
     has_micro_prose = bool(plot.fragments)
     has_poetry = bool(plot.stanzas or plot.lines)
-    has_plot_pattern = bool(plot.plot_pattern or plot.plot_pattern_beats)
 
     if fmt in prose_formats:
         if has_micro_prose:
-            raise ValueError(
-                f"Format {fmt!r} should not have fragments (use scenes/chapters instead)."
-            )
+            raise ValueError(f"Format {fmt!r} should not have fragments (use scenes/chapters instead).")
         if has_poetry:
-            raise ValueError(
-                f"Format {fmt!r} should not have stanzas/lines (use scenes/chapters instead)."
-            )
+            raise ValueError(f"Format {fmt!r} should not have stanzas/lines (use scenes/chapters instead).")
         if not plot.scenes:
             raise ValueError(f"Format {fmt!r} requires at least one scene.")
 
     elif fmt == "micro-prose":
         if has_prose or plot.scene_ids:
-            raise ValueError(
-                "Format 'micro-prose' should use fragments, not scenes/chapters."
-            )
+            raise ValueError("Format 'micro-prose' should use fragments, not scenes/chapters.")
         if has_poetry:
             raise ValueError("Format 'micro-prose' should not have stanzas/lines.")
-        if has_plot_pattern:
-            raise ValueError("Format 'micro-prose' should not define plot patterns.")
         if not has_micro_prose:
             raise ValueError("Format 'micro-prose' requires at least one fragment.")
 
@@ -553,8 +446,6 @@ def _validate_format(plot: Plot) -> None:
             raise ValueError("Format 'poem' should not have scenes/chapters.")
         if has_micro_prose:
             raise ValueError("Format 'poem' should not have fragments.")
-        if has_plot_pattern:
-            raise ValueError("Format 'poem' should not define plot patterns.")
         if not has_poetry:
             raise ValueError("Format 'poem' requires stanzas or lines.")
 
@@ -594,28 +485,12 @@ def load_project(path: Path) -> Project:
     style_path = path / paths.style
     style = Style.model_validate(load_yaml_file(style_path)) if style_path.exists() else None
 
-    patterns_path = path / paths.plot_patterns
-    plot_patterns: list[PlotPattern] = []
-    if patterns_path.exists():
-        patterns_data = PlotPatternsFile.model_validate(load_yaml_file(patterns_path))
-        plot_patterns = patterns_data.plot_patterns
-
-    narrative_patterns_path = path / paths.narrative_patterns
-    narrative_patterns: list[NarrativePattern] = []
-    if narrative_patterns_path.exists():
-        narrative_patterns_data = NarrativePatternsFile.model_validate(
-            load_yaml_file(narrative_patterns_path)
-        )
-        narrative_patterns = narrative_patterns_data.narrative_patterns
-
     project = Project(
         config=config,
         plot=plot,
         characters=characters,
         world=world,
         style=style,
-        plot_patterns=plot_patterns,
-        narrative_patterns=narrative_patterns,
     )
     _validate_project(project)
     return project
@@ -645,19 +520,3 @@ def save_project(project: Project, path: Path) -> None:
     if project.style:
         style_path = path / paths.style
         save_yaml_file(style_path, project.style.model_dump(exclude_none=True, by_alias=True))
-
-    if project.plot_patterns:
-        patterns_path = path / paths.plot_patterns
-        save_yaml_file(
-            patterns_path,
-            PlotPatternsFile(plot_patterns=project.plot_patterns).model_dump(exclude_none=True),
-        )
-
-    if project.narrative_patterns:
-        narrative_patterns_path = path / paths.narrative_patterns
-        save_yaml_file(
-            narrative_patterns_path,
-            NarrativePatternsFile(narrative_patterns=project.narrative_patterns).model_dump(
-                exclude_none=True
-            ),
-        )

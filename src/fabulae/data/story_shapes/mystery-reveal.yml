@@ -1,0 +1,341 @@
+# Mystery Reveal Story Shape
+# A narrative structure centered on investigation, discovery, and truth revealed
+#
+# This shape explores the journey from ignorance to knowledge through investigation,
+# false leads, and the satisfying (or unsettling) moment of revelation.
+# Works for detective fiction, thrillers, literary mysteries, and any narrative
+# where uncovering hidden truth drives the plot.
+
+id: mystery-reveal
+name: "Mystery Reveal"
+description: >
+  A narrative structure built around the investigation and revelation of hidden
+  truth. The arc traces the discovery of a mystery, the gathering of clues, the
+  navigating of misdirection, and the moment when truth emerges. This shape
+  focuses on the intellectual and emotional journey of uncovering what has been
+  concealed, and the consequences of that revelation for all involved.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a mystery narrative.
+
+character_slots:
+  - slot: investigator
+    needs: >
+      The central character who pursues the truth. Must possess curiosity,
+      observational skills, and determination. May be a professional detective,
+      an amateur sleuth, or simply someone compelled by circumstances to seek
+      answers. Their investment in finding the truth should be both intellectual
+      and personal. Their flaws and blind spots should affect their investigation.
+    optional: false
+
+  - slot: suspect
+    needs: >
+      A character who appears guilty or is implicated in the mystery. May be
+      innocent or guilty, but their behavior or circumstances draw suspicion.
+      Should have apparent motive, means, or opportunity. Their secrets—whether
+      related to the central mystery or not—create tension and misdirection.
+    optional: false
+
+  - slot: victim
+    needs: >
+      The person affected by the crime, transgression, or secret at the heart
+      of the mystery. May be deceased, missing, or suffering in some way. Their
+      past, relationships, and secrets are excavated through investigation.
+      Even absent, they should feel like a full character whose life mattered.
+    can_merge_with:
+      - investigator
+      - witness
+    optional: false
+
+  - slot: witness
+    needs: >
+      Someone who possesses crucial information—whether they know it or not.
+      May be reluctant to speak, traumatized, unreliable, or protecting someone.
+      Their testimony is a piece of the puzzle, but extracting and interpreting
+      it requires skill. May have their own agenda.
+    can_merge_with:
+      - suspect
+      - confidant
+    optional: true
+
+  - slot: confidant
+    needs: >
+      A character the investigator can think aloud with. Provides a sounding
+      board for theories, a source of alternative perspectives, and emotional
+      support during the investigation. May be a partner, friend, or colleague.
+      Their presence allows internal reasoning to become external dialogue.
+    can_merge_with:
+      - witness
+    optional: true
+
+  - slot: obstructor
+    needs: >
+      Someone who impedes the investigation, whether deliberately or through
+      institutional process. May be protecting guilty parties, guarding their
+      own secrets, or simply following rules that conflict with truth-seeking.
+      Creates friction and forces the investigator to work around obstacles.
+    can_merge_with:
+      - suspect
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that define the mystery's world and investigation.
+
+setting_slots:
+  - slot: crime-scene
+    needs: >
+      The location where the central mystery event occurred. Rich with physical
+      evidence and atmosphere. The investigator returns here mentally or
+      physically throughout the story. Details of this space become crucial
+      clues. Its nature reflects the mystery's tone—whether gritty, elegant,
+      mundane, or exotic.
+    used_in:
+      - hook
+      - investigation
+      - clues
+      - revelation
+    optional: false
+
+  - slot: investigation-hub
+    needs: >
+      The investigator's base of operations. Where evidence is gathered, theories
+      are developed, and progress is tracked. May be an office, home, or improvised
+      space. Should reflect the investigator's character and methods. A place
+      where thinking happens.
+    used_in:
+      - investigation
+      - clues
+      - red-herring
+    optional: false
+
+  - slot: witness-territory
+    needs: >
+      Where witnesses and suspects are encountered. Interview rooms, homes, workplaces,
+      or public spaces where conversations reveal information. Each location should
+      give context about the person being questioned. Power dynamics shift based
+      on whose territory is used.
+    used_in:
+      - investigation
+      - clues
+      - red-herring
+    optional: true
+
+  - slot: revelation-space
+    needs: >
+      The location where the truth finally emerges. May be dramatic (confrontation
+      at the scene of the crime) or quiet (a moment of realization). Should have
+      symbolic resonance with the mystery's themes. The setting should enhance
+      the impact of the revelation.
+    used_in:
+      - revelation
+      - resolution
+    optional: false
+
+  - slot: hidden-place
+    needs: >
+      A location concealing secrets—physical evidence, a person, or crucial
+      information. Its discovery is a turning point. May be a literal hidden
+      room, a forgotten location, or a place whose significance was overlooked.
+      Finding it requires insight or luck.
+    used_in:
+      - clues
+      - revelation
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the mystery reveal arc.
+
+required_beats:
+  - type: hook
+    description: >
+      The mystery presents itself. A crime, disappearance, inexplicable event,
+      or troubling discovery draws the investigator in. The stakes are established—
+      what is at risk if the truth remains hidden. The reader is given enough
+      information to become invested but not enough to solve the puzzle.
+    position: early
+    flexibility: fixed
+
+  - type: investigation
+    description: >
+      The investigator begins systematic pursuit of the truth. Methods are
+      established—whether procedural, intuitive, or unconventional. Initial
+      leads are followed. The world of the mystery expands as characters
+      and locations are introduced. The investigator's competence is demonstrated.
+    position: early
+    flexibility: flexible
+
+  - type: clues
+    description: >
+      Meaningful evidence emerges—physical, testimonial, or circumstantial.
+      Some clues are obvious; others are subtle and require interpretation.
+      The investigator begins constructing theories. Patterns emerge, though
+      their significance may not be immediately clear. The reader should be
+      given fair access to key information.
+    position: middle
+    flexibility: very-flexible
+
+  - type: red-herring
+    description: >
+      False leads draw attention away from the truth. A plausible but incorrect
+      theory develops. A suspect seems guilty. Evidence points in the wrong
+      direction. This misdirection should be fair—based on genuine ambiguity
+      rather than authorial cheating. The investigator must recognize their
+      error and adjust.
+    position: middle
+    flexibility: flexible
+
+  - type: complication
+    description: >
+      The investigation hits a major obstacle. A witness refuses to talk, evidence
+      disappears, the investigator is removed from the case, or a new crime
+      raises the stakes. Progress seems blocked. The investigator must find
+      new approaches or uncover hidden resources.
+    position: middle
+    flexibility: flexible
+
+  - type: revelation
+    description: >
+      The truth emerges. The investigator finally sees how the pieces fit
+      together. This may come through a final clue, a confession, a moment of
+      insight, or the perpetrator's exposure. The solution should feel both
+      surprising and inevitable—earned by the investigation that preceded it.
+    position: late
+    flexibility: fixed
+
+  - type: resolution
+    description: >
+      The consequences of the truth unfold. Justice may or may not be served.
+      The victim is given meaning. The investigator processes what they have
+      learned—about the case and perhaps about themselves. The world has been
+      changed by the revelation. Some questions may remain unanswered.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: unreliable-witness
+    description: >
+      A key witness provides testimony that is later revealed to be false,
+      misremembered, or deliberately misleading. Forces the investigator to
+      reassess what they thought they knew. Raises questions about memory,
+      perception, and truth.
+    probability: 0.4
+    position: middle
+
+  - type: investigator-connection
+    description: >
+      The investigator has a personal connection to the mystery—knowing the
+      victim, having history with a suspect, or discovering the case mirrors
+      their own past. Raises stakes and potentially compromises objectivity.
+    probability: 0.35
+    position: early
+
+  - type: second-crime
+    description: >
+      Another crime occurs during the investigation—either related to the
+      original mystery (someone silenced, evidence destroyed) or revealing
+      a pattern. Raises stakes and provides new avenues of investigation.
+    probability: 0.3
+    position: middle
+
+  - type: false-solution
+    description: >
+      The investigator announces a solution that appears to wrap up the case,
+      only for new evidence to prove it wrong. Forces complete reassessment
+      and raises tension for the true revelation.
+    probability: 0.25
+    position: late
+
+  - type: sympathetic-culprit
+    description: >
+      The guilty party, once revealed, evokes understanding or even sympathy.
+      Their motives were comprehensible, their circumstances tragic. Complicates
+      the satisfaction of solution and raises questions about justice.
+    probability: 0.4
+    position: climax
+
+  - type: institutional-cover-up
+    description: >
+      Powerful forces are working to suppress the truth. The investigator
+      faces opposition not just from the guilty party but from systems
+      protecting them. Success requires exposing not just individual guilt
+      but systemic complicity.
+    probability: 0.25
+    position: middle
+
+  - type: partial-truth
+    description: >
+      The full truth cannot be proven or revealed. The investigator knows
+      what happened but cannot demonstrate it publicly. Resolution must
+      come through acceptance of uncertainty or extra-legal means.
+    probability: 0.2
+    position: climax
+
+  - type: investigator-culpability
+    description: >
+      The investigator bears some responsibility for the events they are
+      investigating—through past actions, negligence, or choices made during
+      the investigation itself. Self-knowledge becomes part of the revelation.
+    probability: 0.15
+    position: late
+
+  - type: witness-becomes-suspect
+    description: >
+      Someone initially helpful to the investigation is revealed to have
+      hidden involvement. Betrayal of trust compounds the mystery's impact.
+      Forces the investigator to question their judgment.
+    probability: 0.35
+    position: middle
+
+  - type: cold-case-connection
+    description: >
+      The current mystery connects to an older, unsolved case. Patterns emerge
+      across time. The investigation expands to include the past, potentially
+      revealing buried institutional failures or serial wrongdoing.
+    probability: 0.2
+    position: middle
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - truth
+  - justice
+  - deception
+  - perception
+  - guilt
+  - innocence
+  - obsession
+  - closure
+  - memory
+  - trust
+
+motifs:
+  - hidden-evidence
+  - locked-doors
+  - masks-and-identities
+  - time-pressure
+  - the-missing-piece
+  - patterns-and-connections
+  - witnesses-and-testimony
+  - the-past-resurfacing
+
+tone: >
+  Intellectually engaging and emotionally resonant. The tone balances puzzle-solving
+  satisfaction with genuine stakes for the characters involved. Suspense builds
+  through accumulation of detail rather than mere withholding. The narrative
+  respects the reader's intelligence while maintaining mystery. Whether the
+  resolution brings closure or opens new questions, the journey of investigation
+  should feel meaningful—revealing truths about human nature alongside the
+  solution to the specific puzzle.

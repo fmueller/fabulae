@@ -97,22 +97,10 @@ def resolve_config(
     """Resolve configuration with precedence: CLI > FABULAE_* > OPENAI_* > defaults."""
     model = cli_model or _read_env_str("FABULAE_LLM_MODEL") or DEFAULT_MODEL
     base_url = (
-        cli_base_url
-        or _read_env_str("FABULAE_LLM_BASE_URL")
-        or _read_env_str("OPENAI_BASE_URL")
-        or DEFAULT_BASE_URL
+        cli_base_url or _read_env_str("FABULAE_LLM_BASE_URL") or _read_env_str("OPENAI_BASE_URL") or DEFAULT_BASE_URL
     )
-    api_key = (
-        cli_api_key
-        or _read_env_str("FABULAE_LLM_API_KEY")
-        or _read_env_str("OPENAI_API_KEY")
-        or DEFAULT_API_KEY
-    )
-    temperature = (
-        cli_temperature
-        if cli_temperature is not None
-        else _read_env_float("FABULAE_LLM_TEMPERATURE")
-    )
+    api_key = cli_api_key or _read_env_str("FABULAE_LLM_API_KEY") or _read_env_str("OPENAI_API_KEY") or DEFAULT_API_KEY
+    temperature = cli_temperature if cli_temperature is not None else _read_env_float("FABULAE_LLM_TEMPERATURE")
     if temperature is None:
         temperature = DEFAULT_TEMPERATURE
     seed = cli_seed if cli_seed is not None else _read_env_int("FABULAE_LLM_SEED")
@@ -134,17 +122,32 @@ class FakeAgent(Generic[T]):
 
     async def run(self, *_args: Any, **_kwargs: Any) -> Any:
         raise RuntimeError(
-            f"LLM calls are disabled in tests ({FAKE_LLM_ENV}=1). "
-            "Provide a fake agent or stub the call."
+            f"LLM calls are disabled in tests ({FAKE_LLM_ENV}=1). Provide a fake agent or stub the call."
         )
+
+
+DEFAULT_RETRIES = 2
 
 
 def create_agent(
     result_type: type[T],
     system_prompt: str,
     config: LLMConfig | None = None,
+    *,
+    retries: int = DEFAULT_RETRIES,
 ) -> Any:
-    """Create a Pydantic AI agent configured for OpenAI-compatible providers."""
+    """Create a Pydantic AI agent configured for OpenAI-compatible providers.
+
+    Args:
+        result_type: The Pydantic model type for structured output.
+        system_prompt: The system prompt for the agent.
+        config: Optional LLM configuration.
+        retries: Number of retries on validation failure (default: 2).
+            Pydantic AI automatically sends validation errors back to the LLM.
+
+    Returns:
+        A configured Pydantic AI Agent.
+    """
     resolved = config or LLMConfig()
     if os.getenv(FAKE_LLM_ENV) == "1":
         return cast(
@@ -170,6 +173,7 @@ def create_agent(
             output_type=result_type,
             system_prompt=system_prompt,
             model_settings=cast(Any, model_settings),
+            retries=retries,
         ),
     )
 
@@ -212,9 +216,7 @@ async def run_test_prompt(
     prompt: str | None = None,
 ) -> LLMTestPromptResult:
     """Run a minimal structured prompt to validate end-to-end LLM execution."""
-    system_prompt = (
-        "You are a connectivity test. Reply with the exact user message in the echo field."
-    )
+    system_prompt = "You are a connectivity test. Reply with the exact user message in the echo field."
     user_prompt = prompt or "fabulae"
     agent = create_agent(LLMTestPromptResult, system_prompt, config)
     result = await agent.run(user_prompt)
@@ -260,6 +262,7 @@ __all__ = [
     "DEFAULT_API_KEY",
     "DEFAULT_BASE_URL",
     "DEFAULT_MODEL",
+    "DEFAULT_RETRIES",
     "DEFAULT_TEMPERATURE",
     "FAKE_LLM_ENV",
     "FakeAgent",

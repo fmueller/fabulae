@@ -1,0 +1,332 @@
+# Revenge Quest Story Shape
+# A primal narrative of justice sought through personal action
+#
+# This shape explores the consuming nature of vengeance—the wrong that demands
+# answer, the vow that binds, the pursuit that transforms hunter and hunted,
+# and the reckoning that changes everything. Works for thrillers, westerns,
+# noir, tragedy, and explorations of justice versus retribution.
+
+id: revenge-quest
+name: "Revenge Quest"
+description: >
+  A narrative driven by the protagonist's pursuit of vengeance for a grievous
+  wrong. The arc traces the inciting injury, the commitment to retribution,
+  the hunt that consumes, the moral and personal costs along the way, and the
+  climactic confrontation that may bring satisfaction, emptiness, or
+  transformation. This shape interrogates the nature of justice, the price
+  of obsession, and whether vengeance can ever truly heal.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a revenge narrative.
+
+character_slots:
+  - slot: avenger
+    needs: >
+      The protagonist who seeks vengeance. Must have experienced or witnessed
+      a profound wrong that cannot be undone—murder, betrayal, violation, or
+      destruction of something precious. Their desire for revenge must be
+      comprehensible and, at least initially, sympathetic. The journey will
+      test whether they can retain their humanity while pursuing inhumanity.
+    optional: false
+
+  - slot: target
+    needs: >
+      The person or entity responsible for the original wrong. Must be guilty,
+      though the degree of culpability may be complicated. Should be formidable
+      enough to make the pursuit dangerous and uncertain. Their humanity,
+      however monstrous their actions, should be visible—making the final
+      reckoning morally complex rather than simple.
+    optional: false
+
+  - slot: innocent-victim
+    needs: >
+      The person whose suffering sparked the revenge quest. May be the avenger
+      themselves, a loved one, or a stranger whose fate moved the protagonist.
+      Their memory drives the quest—the avenger carries them as motivation,
+      justification, or burden. May appear in flashbacks or haunt the present.
+    can_merge_with:
+      - avenger
+    optional: true
+
+  - slot: reluctant-ally
+    needs: >
+      A character who assists the avenger despite reservations. They may share
+      the grievance, owe a debt, or be drawn in against their better judgment.
+      Their presence provides perspective on the avenger's obsession and may
+      represent the path not taken—life beyond vengeance.
+    can_merge_with:
+      - moral-compass
+    optional: true
+
+  - slot: moral-compass
+    needs: >
+      A character who questions the revenge quest and offers an alternative
+      path—forgiveness, justice through law, or simply moving on. They love
+      the avenger enough to speak hard truths and fear what the quest is
+      making them become. Their words may be rejected but cannot be unheard.
+    can_merge_with:
+      - reluctant-ally
+      - loved-one-at-risk
+    optional: true
+
+  - slot: loved-one-at-risk
+    needs: >
+      Someone the avenger cares for who may be endangered by the revenge quest.
+      A child, partner, friend, or family member whose existence represents
+      what the avenger has to lose—and what they're willing to sacrifice.
+      The target may threaten them; the avenger may neglect them.
+    can_merge_with:
+      - moral-compass
+    optional: true
+
+  - slot: informant
+    needs: >
+      A character who provides crucial information advancing the pursuit.
+      May be an underworld contact, a witness, a former associate of the
+      target, or someone with their own reasons to see the target fall.
+      Their information comes at a cost—money, favors, or moral compromise.
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that mark the stages of vengeance.
+
+setting_slots:
+  - slot: site-of-wrong
+    needs: >
+      The location where the original injury occurred. A place marked by
+      violence, loss, or betrayal that the avenger cannot forget. May be
+      returned to literally or figuratively—a wound geography that shapes
+      all that follows. Its details are seared into memory.
+    used_in:
+      - wrong
+      - vow
+      - aftermath
+    optional: false
+
+  - slot: hunting-ground
+    needs: >
+      The territory where the pursuit unfolds. May be literal (a city's
+      underworld, a frontier wilderness) or social (a corrupt institution,
+      a criminal network). The avenger must learn its rules, navigate its
+      dangers, and become someone who can operate within it.
+    used_in:
+      - pursuit
+      - cost
+    optional: false
+
+  - slot: reckoning-place
+    needs: >
+      The location of the final confrontation between avenger and target.
+      May be chosen deliberately or forced by circumstance. Its character
+      should reflect the nature of the reckoning—whether public or private,
+      intimate or spectacular, final or open to continuation.
+    used_in:
+      - reckoning
+    optional: false
+
+  - slot: sanctuary
+    needs: >
+      A place of rest and recovery where the avenger can step back from
+      the hunt. A reminder of normal life, of what existed before and might
+      exist after. Its existence represents the possibility of another path;
+      its abandonment represents the quest's consuming nature.
+    used_in:
+      - cost
+      - aftermath
+    optional: true
+
+  - slot: threshold
+    needs: >
+      A location marking moral or practical point-of-no-return. Crossing
+      this threshold commits the avenger more deeply—a crime committed, a
+      line crossed, a bridge burned. What happens here cannot be undone.
+    used_in:
+      - pursuit
+      - cost
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the revenge quest.
+
+required_beats:
+  - type: wrong
+    description: >
+      The inciting injury that demands vengeance. Show the wrong in its full
+      weight—not merely what happened, but what was lost and why it cannot
+      be restored. The audience must feel the wound as the avenger feels it,
+      understanding why normal channels of justice are inadequate or unavailable.
+    position: early
+    flexibility: fixed
+
+  - type: vow
+    description: >
+      The avenger commits to retribution. This may be explicit (spoken oath,
+      ritual commitment) or implicit (a look, a gesture, a turned back on
+      former life). The vow binds—it transforms grievance into mission,
+      victim into hunter. Something in the avenger hardens.
+    position: early
+    flexibility: flexible
+
+  - type: preparation
+    description: >
+      The avenger acquires what they need for the hunt—skills, weapons,
+      information, allies, or simply the hardness required. They become
+      someone capable of pursuing vengeance. This transformation has costs
+      that may not yet be visible.
+    position: early
+    flexibility: very-flexible
+
+  - type: pursuit
+    description: >
+      The active hunt for the target. Tracking, investigating, closing
+      distance. The target may not yet know they're hunted, or may be
+      fleeing or preparing their own defense. Each step brings the avenger
+      closer while potentially taking them further from who they were.
+    position: middle
+    flexibility: flexible
+
+  - type: obstacle
+    description: >
+      Something blocks the pursuit—the target's defenses, the avenger's
+      limitations, interference from law or other parties, or moral
+      complications that give pause. The quest is harder than anticipated.
+      The avenger must decide how far they will go.
+    position: middle
+    flexibility: very-flexible
+
+  - type: cost
+    description: >
+      The price of vengeance becomes concrete. The avenger loses something
+      valuable—a relationship, their innocence, their health, their moral
+      standing, or someone they care about. The pursuit exacts payment.
+      Is it worth it? The avenger must answer.
+    position: middle
+    flexibility: flexible
+
+  - type: reckoning
+    description: >
+      The final confrontation with the target. All the pursuit has led here.
+      The avenger must face not only the target but the truth of what they've
+      become and what vengeance actually means when it's within reach. The
+      outcome may be triumph, tragedy, or transformation.
+    position: climax
+    flexibility: fixed
+
+  - type: aftermath
+    description: >
+      What remains after vengeance is achieved or abandoned. The wrong cannot
+      be undone; the question is what can be built from what's left. The avenger
+      must live with what they've done or failed to do, finding whether
+      satisfaction, emptiness, or something else awaits.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: target-perspective
+    description: >
+      Scenes from the target's point of view reveal their own story—their
+      reasons, fears, or even a version of events that complicates the
+      avenger's righteous certainty. The monster becomes human.
+    probability: 0.35
+    position: middle
+
+  - type: justified-target
+    description: >
+      The target has reasons that, while not excusing their actions, make
+      the moral calculation more complex. Perhaps they too were wronged, or
+      acted under impossible circumstances, or have since changed.
+    probability: 0.3
+    position: middle
+
+  - type: wrong-target
+    description: >
+      The avenger discovers they've been pursuing the wrong person, or that
+      responsibility is more distributed than they believed. The quest must
+      be recalibrated, and damage already done cannot be undone.
+    probability: 0.25
+    position: middle
+
+  - type: becoming-the-monster
+    description: >
+      In pursuing the target, the avenger begins to mirror them—using the
+      same methods, developing the same ruthlessness, harming innocents in
+      turn. The hunter becomes what they hunt.
+    probability: 0.4
+    position: late
+
+  - type: target-offers-truth
+    description: >
+      Before the reckoning, the target reveals information that changes
+      everything—the full story of the original wrong, hidden actors,
+      or uncomfortable truths about the victim. The avenger must decide
+      what to do with this knowledge.
+    probability: 0.35
+    position: late
+
+  - type: mercy-choice
+    description: >
+      At the climactic moment, the avenger has the chance to show mercy.
+      Killing the helpless target, sparing them, or finding a third path—
+      this choice defines who the avenger has become.
+    probability: 0.45
+    position: climax
+
+  - type: cycle-continues
+    description: >
+      The avenger's actions create new grievances, new vows, new hunters.
+      Someone now seeks vengeance against them. The cycle of violence
+      perpetuates, calling into question what was achieved.
+    probability: 0.3
+    position: climax
+
+  - type: hollow-victory
+    description: >
+      Vengeance is achieved, but brings no satisfaction. The wrong is
+      not healed, the dead not restored. The avenger must face that
+      what they sought could never have given what they needed.
+    probability: 0.4
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - justice
+  - obsession
+  - transformation
+  - moral-compromise
+  - loss
+  - violence
+  - identity
+  - cycles
+
+motifs:
+  - blood-and-wounds
+  - the-hunt
+  - mirrors-and-doubles
+  - weapons
+  - debts-and-payment
+  - ghosts-of-the-past
+  - fire-and-ash
+  - the-threshold
+
+tone: >
+  Relentless and morally charged, the tone balances sympathy for the avenger's
+  grievance with clear-eyed examination of what vengeance costs and creates.
+  The narrative builds tension through the hunt while deepening the moral
+  complexity. There is no easy satisfaction—only the recognition that violence
+  begets violence and that justice and revenge may not be the same thing. The
+  voice understands the primal appeal of vengeance while questioning whether
+  it can ever truly answer the wounds that spawn it.

@@ -1,0 +1,340 @@
+# Fish Out of Water Story Shape
+# A narrative of displacement, struggle, and eventual adaptation
+#
+# This shape captures the experience of being thrust into an unfamiliar
+# environment where all assumptions and skills are challenged. The protagonist
+# must navigate confusion and failure before finding their footing and
+# potentially discovering strengths they never knew they had. Works for
+# comedy, drama, fantasy, sci-fi, and cross-cultural narratives.
+
+id: fish-out-of-water
+name: "Fish Out of Water"
+description: >
+  A narrative structure built around displacement and adaptation. The protagonist
+  is removed from their familiar environment and thrust into a world where the
+  rules, customs, and expectations are foreign. Through confusion, struggle, and
+  perseverance, they gradually learn to navigate the new world, often discovering
+  that their outsider perspective offers unique advantages. This shape explores
+  identity, belonging, and the universal experience of being the stranger.
+
+# ============================================================================
+# CHARACTER SLOTS
+# ============================================================================
+# The essential roles in a fish-out-of-water narrative.
+
+character_slots:
+  - slot: displaced-protagonist
+    needs: >
+      The central character who is removed from their familiar environment.
+      Must have established competencies and identity in their original world
+      that become irrelevant or problematic in the new setting. Should be
+      sympathetic enough for readers to root for their adaptation, but may
+      begin with flaws—arrogance, naivety, or rigidity—that the journey corrects.
+    optional: false
+
+  - slot: guide
+    needs: >
+      A native of the new environment who helps the protagonist understand
+      the rules, customs, and dangers. May be reluctant, eager, or mercenary
+      in their assistance. Their patience with the protagonist's confusion
+      reveals character, and their own relationship with their world adds depth.
+    can_merge_with:
+      - ally
+      - love-interest
+    optional: true
+
+  - slot: antagonist
+    needs: >
+      A character who represents the hostility of the new environment or
+      actively works against the protagonist's integration. May be a rival,
+      a gatekeeper, or someone who benefits from the protagonist's failure.
+      Their opposition forces the protagonist to earn their place rather
+      than have it given.
+    can_merge_with:
+      - skeptic
+    optional: true
+
+  - slot: ally
+    needs: >
+      Someone in the new environment who befriends the protagonist despite
+      their outsider status. May be another outsider, someone who sees value
+      in the protagonist's difference, or simply a kind soul. Their friendship
+      provides emotional grounding and demonstrates that connection is possible.
+    can_merge_with:
+      - guide
+      - love-interest
+    optional: true
+
+  - slot: skeptic
+    needs: >
+      A character who doubts the protagonist's ability to adapt or questions
+      their right to be there. May voice the doubts the protagonist themselves
+      feels. Their eventual acceptance (or continued rejection) marks progress
+      in the protagonist's journey.
+    can_merge_with:
+      - antagonist
+    optional: true
+
+  - slot: love-interest
+    needs: >
+      A romantic connection that bridges the gap between worlds. The relationship
+      forces the protagonist to engage more deeply with the new culture and
+      raises the stakes of belonging. May create conflict between old identity
+      and new attachments.
+    can_merge_with:
+      - guide
+      - ally
+    optional: true
+
+  - slot: home-connection
+    needs: >
+      Someone or something that ties the protagonist to their original world.
+      A family member, friend, or responsibility that reminds them of what
+      they left behind and may create tension between adaptation and return.
+      Can appear in flashbacks, letters, or visits.
+    optional: true
+
+# ============================================================================
+# SETTING SLOTS
+# ============================================================================
+# Key locations that embody the stages of displacement and adaptation.
+
+setting_slots:
+  - slot: origin-world
+    needs: >
+      The protagonist's familiar environment, shown before or during the
+      displacement. Establishes who the protagonist was, what skills and
+      assumptions they carry, and what they have lost access to. May appear
+      only in memory, prologue, or contrast moments.
+    used_in:
+      - displacement
+      - homesickness
+      - mastery
+    optional: true
+
+  - slot: arrival-point
+    needs: >
+      Where the protagonist first encounters the new world. Often overwhelming,
+      disorienting, or deceptively welcoming. First impressions that will be
+      complicated by deeper experience. The shock of difference is concentrated here.
+    used_in:
+      - displacement
+      - confusion
+    optional: false
+
+  - slot: struggle-arena
+    needs: >
+      The location(s) where the protagonist's incompetence is most visible
+      and consequential. A workplace, social setting, or survival situation
+      where the rules of the new world are enforced and the protagonist's
+      failures have stakes.
+    used_in:
+      - struggle
+      - adaptation
+    optional: false
+
+  - slot: refuge
+    needs: >
+      A place of relative safety where the protagonist can recover, reflect,
+      and prepare for the next attempt. May be private quarters, a friendly
+      establishment, or a hidden spot. Here the protagonist processes their
+      experiences and plans next steps.
+    used_in:
+      - confusion
+      - struggle
+      - adaptation
+    optional: true
+
+  - slot: proving-ground
+    needs: >
+      The location where the protagonist demonstrates their hard-won competence
+      or unique contribution. Often the same as the struggle-arena, but now
+      the protagonist operates differently. Their mastery transforms the space
+      from hostile to navigable.
+    used_in:
+      - mastery
+    optional: true
+
+# ============================================================================
+# REQUIRED BEATS
+# ============================================================================
+# The essential story beats that define the fish-out-of-water arc.
+
+required_beats:
+  - type: displacement
+    description: >
+      The protagonist is removed from their familiar environment. This may be
+      voluntary (seeking opportunity, fleeing danger) or involuntary (exile,
+      accident, transfer). The moment of transition should be distinct—a clear
+      before and after. What is left behind is established even as the new
+      world approaches.
+    position: early
+    flexibility: fixed
+
+  - type: confusion
+    description: >
+      The protagonist encounters the strangeness of the new world. Basic
+      assumptions fail, familiar skills prove useless or counterproductive,
+      and the rules are unclear. Misunderstandings may be comic or dangerous.
+      The protagonist realizes how far from competence they are.
+    position: early
+    flexibility: flexible
+
+  - type: first-failure
+    description: >
+      An early attempt to navigate the new world goes wrong. The protagonist
+      applies old-world logic and suffers consequences—embarrassment, loss,
+      danger, or rejection. This failure establishes stakes and demonstrates
+      that adaptation will require genuine change, not just surface adjustment.
+    position: early
+    flexibility: flexible
+
+  - type: struggle
+    description: >
+      The protagonist works to understand and function in the new environment.
+      Progress is slow and setbacks frequent. They must learn new skills,
+      unlearn old habits, and navigate social dynamics they don't understand.
+      The struggle may be frustrating, humiliating, or isolating.
+    position: middle
+    flexibility: very-flexible
+
+  - type: homesickness
+    description: >
+      The protagonist experiences longing for their original world. This may
+      be triggered by a specific reminder, a low point in their adaptation,
+      or the realization of what they've lost. The question of belonging—
+      whether to persist or retreat—becomes acute.
+    position: middle
+    flexibility: very-flexible
+
+  - type: breakthrough
+    description: >
+      A moment of genuine progress. The protagonist successfully navigates
+      something that previously baffled them, earns respect or acceptance,
+      or realizes they understand more than they thought. Hope becomes possible.
+      This is not yet mastery, but it's proof that mastery might come.
+    position: middle
+    flexibility: flexible
+
+  - type: adaptation
+    description: >
+      The protagonist develops competence in the new environment. Their
+      understanding deepens, their skills improve, and they begin to find
+      their place. They may still be an outsider, but they are no longer
+      helpless. The new world starts to feel navigable.
+    position: late
+    flexibility: flexible
+
+  - type: mastery
+    description: >
+      The protagonist demonstrates genuine belonging or competence in the
+      new world. They may solve a problem no native could solve because of
+      their outsider perspective, fully integrate into the new culture, or
+      find a unique role that honors both their origins and their adaptation.
+      The fish has learned to swim—or transformed the water.
+    position: climax
+    flexibility: flexible
+
+# ============================================================================
+# VARIATION POINTS
+# ============================================================================
+# Optional elements that add complexity and uniqueness.
+
+variation_points:
+  - type: return-opportunity
+    description: >
+      The protagonist gets a chance to return to their original world. They
+      must choose whether to stay in the new environment or go back. This
+      choice crystallizes what they've learned and how they've changed.
+    probability: 0.4
+    position: late
+
+  - type: discovery-of-advantage
+    description: >
+      The protagonist discovers that something from their original world—
+      a skill, perspective, or object—is uniquely valuable in the new
+      environment. Their outsider status becomes an asset rather than
+      only a liability.
+    probability: 0.5
+    position: middle
+
+  - type: culture-clash-crisis
+    description: >
+      A major conflict arises from fundamental differences between the
+      protagonist's values and those of the new world. They must navigate
+      a situation where their original ethics and their need to adapt
+      come into direct conflict.
+    probability: 0.35
+    position: middle
+
+  - type: betrayal-by-guide
+    description: >
+      The character helping the protagonist turns out to have ulterior
+      motives or abandons them at a crucial moment. The protagonist must
+      navigate without the help they depended on.
+    probability: 0.25
+    position: middle
+
+  - type: found-community
+    description: >
+      The protagonist finds or creates a community of others who share
+      their outsider status. Together they navigate the challenges of
+      the new world, and the protagonist gains a sense of belonging even
+      before full integration.
+    probability: 0.35
+    position: middle
+
+  - type: transformation-recognized
+    description: >
+      The protagonist returns briefly to their original context (or
+      encounters someone from it) and realizes how much they've changed.
+      They no longer fully belong in the old world either.
+    probability: 0.3
+    position: late
+
+  - type: teaching-the-native
+    description: >
+      The protagonist teaches someone from the new world something
+      valuable from their original culture. The exchange becomes
+      bidirectional, validating both worlds.
+    probability: 0.4
+    position: late
+
+  - type: hybrid-identity
+    description: >
+      Rather than fully assimilating, the protagonist develops an
+      identity that bridges both worlds. They become a translator,
+      mediator, or someone who belongs to both cultures and neither.
+    probability: 0.35
+    position: climax
+
+# ============================================================================
+# THEMATIC ELEMENTS
+# ============================================================================
+
+themes:
+  - belonging
+  - identity
+  - adaptation
+  - cultural-difference
+  - perspective
+  - home
+  - growth
+  - resilience
+
+motifs:
+  - language-barriers
+  - customs-and-rituals
+  - food-and-eating
+  - maps-and-navigation
+  - mirrors-and-reflections
+  - bridges-and-thresholds
+  - masks-and-performance
+
+tone: >
+  Emotionally layered, balancing humor and pathos. The protagonist's confusion
+  and mistakes may be funny, but the underlying experience of displacement is
+  treated with empathy. The tone acknowledges both the comedy of cultural
+  collision and the genuine difficulty of rebuilding identity in unfamiliar
+  territory. There is hope in the narrative—adaptation is possible—but it
+  comes at a cost, and what is lost is honored alongside what is gained.

@@ -43,7 +43,7 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 
 **Data Models** (`src/fabulae/models.py`): Pydantic v2 models for all narrative entities with multi-layer validation:
 - Core entities: `Character`, `WorldFact`, `Beat`, `Scene`, `Chapter`, `Plot`
-- Pattern models: `PlotPattern`, `NarrativePattern`
+- Story shapes: `StoryShape`, `CharacterSlot`, `SettingSlot`, `RequiredBeat`, `VariationPoint`
 - Config: `ProjectConfig`, `Project` (aggregate root)
 - Custom `EntityId` type enforces lowercase-with-hyphens format via regex
 - Cross-entity validation: unique IDs, valid references, scene ordering rules
@@ -51,11 +51,50 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 **File I/O**: `load_project(path)` and `save_project(project, path)` handle all YAML serialization with validation.
 
 **Template System**: `templates/` contains project templates for different formats:
-- `novel/` - Default prose template (also used for novella, short-story)
-- `poem/` - Poetry with stanzas
+- `novel/` - Full novel template with characters, world, plot patterns, narrative patterns
+- `novella/` - Condensed prose template
+- `short-story/` - Minimal prose template
 - `micro-prose/` - Flash fiction with fragments
+- `poem/` - Poetry with stanzas
 
 The `init --format <format>` command copies the appropriate template.
+
+### Create Feature Architecture
+
+The `create` feature generates narrative projects from ideas using a multi-stage pipeline:
+
+**Story Shapes** (`src/fabulae/data/story_shapes/`): Pre-defined narrative templates that provide structural scaffolding:
+- Each shape defines: character slots, setting slots, required beats, variation points, themes, motifs
+- Built-in shapes: `heros-journey`, `betrayal-arc`, `coming-of-age`, `mystery-reveal`, `romance-arc`, etc.
+- Select via `--shape <id>` or provide custom via `--shape-file <path>`
+- CLI: `fabulae shapes` (list all) and `fabulae shape <id>` (show details)
+- Loader: `src/fabulae/features/create/shapes/loader.py` and `selector.py`
+
+**Format-Specific Pipelines** (`src/fabulae/features/create/pipelines/`): Each format has its own generation pipeline:
+- `prose.py` - Novel, novella, short-story (scenes, chapters, beats)
+- `micro_prose.py` - Flash fiction (fragments instead of scenes)
+- `poem.py` - Poetry (stanzas, lines)
+- `plot_first.py` - Alternative approach: generate plot structure before scenes
+- Main service (`service.py`) dispatches to the appropriate pipeline based on format
+
+**ID Generation** (`src/fabulae/features/create/ids.py`): IDs are pre-allocated before LLM generation:
+- Sequential format: `{type}-{nn}` (e.g., `scene-01`, `character-03`, `location-04`)
+- IDs provided to LLM in prompts, validated unchanged in responses
+- Reference validation is strict; no silent filtering of invalid references
+- Ensures all entity references are valid before project creation
+
+**Variation System** (`src/fabulae/features/create/variation.py`): Controls narrative randomness and diversity:
+- `--variation <float>` CLI flag (0.0-1.0, default 0.5) sets variation level
+- Affects: complication beats, character moments, subplot seeds, filler beat selection
+- `VariationConfig`: configurable probabilities for each element type
+- `ProjectVariation`: pre-computes all variation decisions before generation
+- Deterministic RNG via optional `--seed` for reproducible results
+
+**Enrichment Pass** (`src/fabulae/features/create/enrichment.py`): Adds depth without changing structure:
+- `--enrich/--no-enrich` CLI flag (default: enabled)
+- Adds: new characters, locations, subplots, foreshadowing, thematic depth
+- Runs after initial generation to enhance existing scenes
+- Merges new entities while maintaining ID uniqueness and reference integrity
 
 ## Key Validation Rules
 
@@ -64,7 +103,7 @@ The `init --format <format>` command copies the appropriate template.
 - Scene `location` is optional; if set, must reference a WorldFact with `type="location"`
 - Scene `characters` and `world_fact_ids` must reference valid entities
 - If chapters exist, scenes must reference them via `chapter.scene_ids`
-- `plot_pattern_beat` requires `plot_pattern` to be set on the scene
+- Beat references must point to valid beats in the scene's `beats` list
 - Format validation: prose formats require scenes, micro-prose requires fragments, poem requires stanzas/lines
 
 ## Coding Conventions
