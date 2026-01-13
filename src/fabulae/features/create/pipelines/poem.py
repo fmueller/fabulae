@@ -26,6 +26,8 @@ from fabulae.features.create.service import (
     _resolve_language,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.validation import validate_id_unchanged
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -117,6 +119,44 @@ async def generate_poem(
     if progress:
         progress.success("Style determined")
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    gen_state.style = style_output
+    gen_state.current_stage = "style_complete"
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_poem_inner(
+            idea=idea,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            style_output=style_output,
+            style_hint=style_hint,
+            expected_language=expected_language,
+            stanza_range=stanza_range,
+            line_range=line_range,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_poem_inner(
+    idea: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    style_output: StyleOutput,
+    style_hint: str | None,
+    expected_language: str,
+    stanza_range: tuple[int, int],
+    line_range: tuple[int, int],
+    gen_state: GenerationState,
+) -> Project:
+    """Inner generation logic wrapped by graceful shutdown handler."""
     # Step 2: Generate Poem Plan (structure, stanza count, form)
     system_prompt_plan = build_poem_plan_prompt(
         format_name=format_name,
@@ -228,12 +268,17 @@ async def generate_poem(
         )
         stanzas.append(stanza)
 
+        # Update generation state
+        gen_state.stanzas.append(stanza)
+        gen_state.current_stage = f"generating_stanzas ({idx + 1}/{num_stanzas})"
+
         # Add to existing summary for next iteration
         stanza_summary = f"Stanza {idx + 1} ({assigned_id}):\n" + "\n".join(stanza.lines)
         existing_stanzas_summary.append(stanza_summary)
 
     if progress:
         progress.success(f"Written {len(stanzas)} stanzas")
+    gen_state.current_stage = "stanzas_complete"
 
     # Build final Project - use model_dump and validate to handle type conversion
     plot_dict = {

@@ -40,6 +40,8 @@ from fabulae.features.create.service import (
     _write_style,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_poem_graph
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -112,6 +114,34 @@ async def generate_poem_sequential(
             },
         )
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_poem_sequential_inner(
+            idea=idea,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            graph=graph,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_poem_sequential_inner(
+    idea: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress,
+    artifacts_dir: Path | None,
+    graph: PoemGraph,
+    gen_state: GenerationState,
+) -> Project:
+    """Inner generation logic wrapped by graceful shutdown handler."""
     # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
@@ -142,6 +172,10 @@ async def generate_poem_sequential(
 
     progress.success("Style determined")
 
+    # Update generation state
+    gen_state.style = style_output
+    gen_state.current_stage = "style_complete"
+
     # Write style artifact
     if artifacts_dir:
         _write_artifact(artifacts_dir, "02-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
@@ -163,6 +197,10 @@ async def generate_poem_sequential(
         premise = premise_result.output.premise
 
     progress.success("Premise expanded")
+
+    # Update generation state
+    gen_state.premise = premise
+    gen_state.current_stage = "premise_complete"
 
     # Write premise artifact
     if artifacts_dir:
@@ -212,7 +250,12 @@ async def generate_poem_sequential(
             stanza = Stanza.model_validate(stanza_data)
             state.stanzas.append(stanza)
 
+            # Update generation state
+            gen_state.stanzas.append(stanza)
+            gen_state.current_stage = f"generating_stanzas ({i + 1}/{graph.total_stanzas()})"
+
     progress.success(f"Written {len(state.stanzas)} stanzas")
+    gen_state.current_stage = "stanzas_complete"
 
     # Write stanzas artifact
     if artifacts_dir and state.stanzas:

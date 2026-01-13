@@ -11,6 +11,7 @@ The micro-prose pipeline is simpler than prose formats:
 
 from __future__ import annotations
 
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -48,6 +49,8 @@ from fabulae.features.create.service import (
     _write_style,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
@@ -58,6 +61,7 @@ from fabulae.models import (
     Project,
     ProjectConfig,
     ProjectDefaults,
+    Style,
 )
 
 
@@ -132,6 +136,46 @@ async def generate_micro_prose(
         _write_style(style, config, artifacts_dir)
         _write_artifact(artifacts_dir, "style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    gen_state.style = style_output
+    gen_state.current_stage = "style_complete"
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_micro_prose_inner(
+            idea=idea,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            config=config,
+            style=style,
+            style_output=style_output,
+            style_hint_str=style_hint_str,
+            expected_language=expected_language,
+            rng=rng,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_micro_prose_inner(
+    idea: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    config: ProjectConfig,
+    style: Style | None,
+    style_output: StyleOutput,
+    style_hint_str: str,
+    expected_language: str,
+    rng: random.Random,
+    gen_state: GenerationState,
+) -> Project:
+    """Inner generation logic wrapped by graceful shutdown handler."""
     # Step 2: Generate Fragment Plan
     fragment_count_range = _count_range(format_name, "fragments")
     fragment_plan_prompt = build_fragment_plan_prompt(format_name, style_hint_str or None, fragment_count_range)
@@ -213,6 +257,10 @@ async def generate_micro_prose(
         fragment = Fragment.model_validate(fragment_output.model_dump(exclude_none=True))
         fragment_outputs[fragment.id] = fragment
 
+        # Update generation state
+        gen_state.fragments.append(fragment)
+        gen_state.current_stage = f"generating_fragments ({len(fragment_outputs)}/{len(fragment_order)})"
+
         if artifacts_dir:
             _write_artifact(
                 artifacts_dir,
@@ -225,6 +273,7 @@ async def generate_micro_prose(
 
     if progress:
         progress.success(f"Written {len(fragments)} fragments")
+    gen_state.current_stage = "fragments_complete"
 
     # Build plot
     plot_payload = {
