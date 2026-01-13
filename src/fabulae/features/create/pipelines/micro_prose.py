@@ -11,11 +11,11 @@ The micro-prose pipeline is simpler than prose formats:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
 from fabulae import __version__
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.prompts import (
     build_fragment_plan_prompt,
     build_fragment_prompt,
@@ -35,7 +35,6 @@ from fabulae.features.create.service import (
     _extract_text_from_fragment,
     _extract_text_from_fragment_plan,
     _extract_text_from_style,
-    _maybe_warn_range,
     _resolve_language,
     _rng,
     _style_hint,
@@ -66,6 +65,7 @@ async def generate_micro_prose(
     idea: str,
     options: CreateOptions,
     llm_config: LLMConfig,
+    progress: CreateProgress | None = None,
     artifacts_dir: Path | None = None,
 ) -> Project:
     """Generate a micro-prose project from an idea.
@@ -81,9 +81,9 @@ async def generate_micro_prose(
     """
     format_name: LiteratureFormat = "micro-prose"
 
-    # Resolve language
+    # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
-    expected_language = _resolve_language(idea, None, language_config)
+    expected_language = _resolve_language(idea, options.idea_language, language_config)
 
     # Initialize config
     config = ProjectConfig(
@@ -96,12 +96,7 @@ async def generate_micro_prose(
     # Initialize RNG if seeded
     rng = _rng(llm_config.seed)
 
-    progress: Callable[[str], None] | None = None
-
     # Step 1: Generate Style
-    if progress:
-        progress("Generating style...")
-
     style_prompt = build_style_prompt(format_name)
     style_user_prompt = _build_user_prompt(idea, format_name, {"Language": expected_language or "auto-detect"})
     style_result = await run_stage(
@@ -117,12 +112,19 @@ async def generate_micro_prose(
     )
     style_output = style_result.output
 
+    # Default to English if no language was detected or overridden
+    if expected_language is None:
+        expected_language = "en"
+
     # Ensure language matches expected
-    if expected_language and style_output.language != expected_language:
+    if style_output.language != expected_language:
         style_output = style_output.model_copy(update={"language": expected_language})
 
     style = _coerce_style(style_output)
     style_hint_str = _style_hint(style_output) if style_output else ""
+
+    if progress:
+        progress.success("Style determined")
 
     # Write artifacts if directory provided
     if artifacts_dir:
@@ -131,9 +133,6 @@ async def generate_micro_prose(
         _write_artifact(artifacts_dir, "style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
     # Step 2: Generate Fragment Plan
-    if progress:
-        progress("Planning fragments...")
-
     fragment_count_range = _count_range(format_name, "fragments")
     fragment_plan_prompt = build_fragment_plan_prompt(format_name, style_hint_str or None, fragment_count_range)
     fragment_plan_user_prompt = _build_user_prompt(
@@ -157,14 +156,14 @@ async def generate_micro_prose(
         error_mode=ErrorMode.STRICT,
     )
     fragment_plan_output = fragment_plan_result.output
-    _maybe_warn_range(progress, "Fragment", len(fragment_plan_output.fragments), fragment_count_range)
+
+    if progress:
+        progress.success(f"Fragments planned: {len(fragment_plan_output.fragments)}")
 
     if artifacts_dir:
         _write_artifact(artifacts_dir, "fragments_plan.yml", fragment_plan_output.model_dump(exclude_none=True))
 
     # Step 3: Generate Fragments
-    if progress:
-        progress("Generating fragments...")
 
     fragment_outputs: dict[str, Fragment] = {}
     fragment_order = list(fragment_plan_output.fragments)
@@ -174,7 +173,13 @@ async def generate_micro_prose(
         rng.shuffle(fragment_order)
 
     for fragment_seed in fragment_order:
-        existing_summary = _summarize_fragments(list(fragment_outputs.values()))
+        # Apply sliding window for fragment context if configured
+        all_fragments = list(fragment_outputs.values())
+        if options.sliding_window_scenes is not None and len(all_fragments) > options.sliding_window_scenes:
+            windowed_fragments = all_fragments[-options.sliding_window_scenes :]
+        else:
+            windowed_fragments = all_fragments
+        existing_summary = _summarize_fragments(windowed_fragments)
         fragment_prompt = build_fragment_prompt(
             format_name,
             style_hint_str or None,
@@ -218,6 +223,9 @@ async def generate_micro_prose(
     # Reconstruct fragments in original plan order
     fragments = [fragment_outputs[seed.id] for seed in fragment_plan_output.fragments if seed.id in fragment_outputs]
 
+    if progress:
+        progress.success(f"Written {len(fragments)} fragments")
+
     # Build plot
     plot_payload = {
         "format": format_name,
@@ -259,6 +267,9 @@ async def generate_micro_prose(
         world=None,
         style=style,
     )
+
+    if progress:
+        progress.success("Project assembled")
 
     return project
 

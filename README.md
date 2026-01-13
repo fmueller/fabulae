@@ -124,6 +124,7 @@ fabulae create --idea "A fantasy epic" --seed 42 my-fantasy
 - `--enrich/--no-enrich` – Enable/disable enrichment pass (default: auto - enabled for large models, disabled for small models <13B)
 - `--language, -l` – ISO 639-1 language code to enforce
 - `--seed` – Random seed for reproducible generation
+- `--pipeline, -p` – Generation pipeline: 'batch' or 'sequential' (default: 'sequential' for small models <13B, 'batch' otherwise)
 - `--model` – LLM model to use
 - `--temperature` – LLM temperature setting
 

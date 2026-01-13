@@ -9,6 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 NarrativePatternsMode = Literal["off", "artifact", "project"]
+PipelineMode = Literal["batch", "sequential"]
 
 
 @dataclass
@@ -22,9 +23,13 @@ class CreateOptions:
     variation: float = 0.5
     seed: int | None = None
     enrich: bool = True
+    # Language override from CLI (ISO 639-1 code)
+    idea_language: str | None = None
     # Small model optimizations
     is_small_model: bool = False
     sliding_window_scenes: int | None = None  # None = unlimited, 5 recommended for small models
+    # Pipeline selection
+    pipeline: PipelineMode = "batch"  # "batch" (current) or "sequential" (new)
 
 
 class CharacterOutput(BaseModel):

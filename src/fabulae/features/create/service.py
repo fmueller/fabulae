@@ -962,35 +962,79 @@ async def generate_project_from_idea(
     if progress:
         progress(f"Starting {format_name} generation from idea...")
 
-    # Dispatch to appropriate pipeline based on format
+    # Create progress reporter for pipeline feedback
+    from fabulae.features.create.progress import CreateProgress
+
+    create_progress = CreateProgress()
+
+    # Dispatch to appropriate pipeline based on format and pipeline option
     if format_name in ("novel", "novella", "short-story"):
-        from fabulae.features.create.pipelines.prose import generate_prose
+        if options.pipeline == "sequential":
+            from fabulae.features.create.pipelines.sequential import generate_prose_sequential
 
-        project = await generate_prose(
-            idea=idea,
-            format=format_name,
-            options=options,
-            llm_config=config,
-            artifacts_dir=output_dir,
-        )
+            project = await generate_prose_sequential(
+                idea=idea,
+                format=format_name,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
+        else:
+            from fabulae.features.create.pipelines.prose import generate_prose
+
+            project = await generate_prose(
+                idea=idea,
+                format=format_name,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
     elif format_name == "micro-prose":
-        from fabulae.features.create.pipelines.micro_prose import generate_micro_prose
+        if options.pipeline == "sequential":
+            from fabulae.features.create.pipelines.micro_prose_sequential import (
+                generate_micro_prose_sequential,
+            )
 
-        project = await generate_micro_prose(
-            idea=idea,
-            options=options,
-            llm_config=config,
-            artifacts_dir=output_dir,
-        )
+            project = await generate_micro_prose_sequential(
+                idea=idea,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
+        else:
+            from fabulae.features.create.pipelines.micro_prose import generate_micro_prose
+
+            project = await generate_micro_prose(
+                idea=idea,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
     elif format_name == "poem":
-        from fabulae.features.create.pipelines.poem import generate_poem
+        if options.pipeline == "sequential":
+            from fabulae.features.create.pipelines.poem_sequential import generate_poem_sequential
 
-        project = await generate_poem(
-            idea=idea,
-            options=options,
-            llm_config=config,
-            artifacts_dir=output_dir,
-        )
+            project = await generate_poem_sequential(
+                idea=idea,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
+        else:
+            from fabulae.features.create.pipelines.poem import generate_poem
+
+            project = await generate_poem(
+                idea=idea,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
     else:
         # This should never happen due to _validate_format, but for safety
         raise ValueError(f"Unsupported format: {format_name}")

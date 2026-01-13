@@ -53,7 +53,7 @@ def test_generate_prose_function_signature() -> None:
 
     # Check parameter names
     param_names = list(sig.parameters.keys())
-    assert param_names == ["idea", "format", "options", "llm_config", "artifacts_dir"]
+    assert param_names == ["idea", "format", "options", "llm_config", "progress", "artifacts_dir"]
 
     # Check that function is async
     assert inspect.iscoroutinefunction(generate_prose)

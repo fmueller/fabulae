@@ -298,7 +298,12 @@ async def test_dispatcher_routes_novel_to_prose_pipeline(monkeypatch: pytest.Mon
     called = {"prose": False, "micro_prose": False, "poem": False}
 
     async def fake_generate_prose(
-        idea: str, format: str, options: CreateOptions, llm_config: Any, artifacts_dir: Path | None = None
+        idea: str,
+        format: str,
+        options: CreateOptions,
+        llm_config: Any,
+        progress: Any = None,
+        artifacts_dir: Path | None = None,
     ) -> Project:
         called["prose"] = True
         assert format == "novel"
@@ -338,7 +343,12 @@ async def test_dispatcher_routes_novella_to_prose_pipeline(monkeypatch: pytest.M
     called: dict[str, str | None] = {"format": None}
 
     async def fake_generate_prose(
-        idea: str, format: str, options: CreateOptions, llm_config: Any, artifacts_dir: Path | None = None
+        idea: str,
+        format: str,
+        options: CreateOptions,
+        llm_config: Any,
+        progress: Any = None,
+        artifacts_dir: Path | None = None,
     ) -> Project:
         called["format"] = format
         return Project(
@@ -374,7 +384,12 @@ async def test_dispatcher_routes_short_story_to_prose_pipeline(monkeypatch: pyte
     called: dict[str, str | None] = {"format": None}
 
     async def fake_generate_prose(
-        idea: str, format: str, options: CreateOptions, llm_config: Any, artifacts_dir: Path | None = None
+        idea: str,
+        format: str,
+        options: CreateOptions,
+        llm_config: Any,
+        progress: Any = None,
+        artifacts_dir: Path | None = None,
     ) -> Project:
         called["format"] = format
         return Project(
@@ -412,7 +427,11 @@ async def test_dispatcher_routes_micro_prose_to_micro_prose_pipeline(
     called = {"micro_prose": False}
 
     async def fake_generate_micro_prose(
-        idea: str, options: CreateOptions, llm_config: Any, artifacts_dir: Path | None = None
+        idea: str,
+        options: CreateOptions,
+        llm_config: Any,
+        progress: Any = None,
+        artifacts_dir: Path | None = None,
     ) -> Project:
         called["micro_prose"] = True
         return Project(
@@ -449,7 +468,11 @@ async def test_dispatcher_routes_poem_to_poem_pipeline(monkeypatch: pytest.Monke
     called = {"poem": False}
 
     async def fake_generate_poem(
-        idea: str, options: CreateOptions, llm_config: Any, artifacts_dir: Path | None = None
+        idea: str,
+        options: CreateOptions,
+        llm_config: Any,
+        progress: Any = None,
+        artifacts_dir: Path | None = None,
     ) -> Project:
         called["poem"] = True
         return Project(

@@ -71,11 +71,24 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 - Loader: `src/fabulae/features/create/shapes/loader.py` and `selector.py`
 
 **Format-Specific Pipelines** (`src/fabulae/features/create/pipelines/`): Each format has its own generation pipeline:
-- `prose.py` - Novel, novella, short-story (scenes, chapters, beats)
-- `micro_prose.py` - Flash fiction (fragments instead of scenes)
-- `poem.py` - Poetry (stanzas, lines)
+- `prose.py` - Novel, novella, short-story (scenes, chapters, beats) - batch generation
+- `sequential.py` - Per-unit generation pipeline for prose formats (one LLM call per scene/character)
+- `micro_prose.py` - Flash fiction (fragments instead of scenes) - batch generation
+- `micro_prose_sequential.py` - Per-unit fragment generation with sliding window context
+- `poem.py` - Poetry (stanzas, lines) - batch generation
+- `poem_sequential.py` - Per-unit stanza generation with sliding window context
 - `plot_first.py` - Alternative approach: generate plot structure before scenes
-- Main service (`service.py`) dispatches to the appropriate pipeline based on format
+- Main service (`service.py`) dispatches to the appropriate pipeline based on format and `--pipeline` flag
+
+**Sequential Pipeline Architecture**:
+- `--pipeline sequential` enables per-unit generation with minimal context per LLM call
+- Works for all formats: prose, micro-prose, and poem
+- Pre-computes complete structure using RNG (`graph.py`, `structure.py`) before any LLM calls
+- Graph types: `PlotGraph` (prose), `MicroProseGraph` (fragments), `PoemGraph` (stanzas)
+- Generates one unit at a time with sliding window context
+- Uses minimal context builders (`context.py`) to include only relevant entities per prompt
+- Focused prompts (`prompts_v2.py`) for each unit type reduce LLM divergence and errors
+- Deterministic structure with seed: same seed = same structure skeleton
 
 **ID Generation** (`src/fabulae/features/create/ids.py`): IDs are pre-allocated before LLM generation:
 - Sequential format: `{type}-{nn}` (e.g., `scene-01`, `character-03`, `location-04`)
@@ -98,8 +111,12 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 
 **Small Model Optimizations** (`src/fabulae/features/create/cli.py`): Auto-detected for models <13B parameters:
 - Auto-detection via model name patterns (e.g., `:3b`, `:1.7b`, `mini`, `tiny`)
+- Sequential pipeline auto-selected (better for limited context, override with `--pipeline batch`)
 - Enrichment auto-disabled to reduce context pressure
-- Sliding window for scene context (last 5 scenes instead of all prior scenes)
+- Sliding window for context (last 5 units instead of all prior units) - applies to all formats:
+  - Prose: last 5 scenes
+  - Micro-prose: last 5 fragments
+  - Poem: last 5 stanzas
 - Warning displayed at startup about potential JSON output issues
 
 ## Key Validation Rules

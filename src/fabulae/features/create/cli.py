@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from fabulae.cli_options import model_option, seed_option, temperature_option
 from fabulae.features.create.errors import ErrorType, classify_error, get_error_guidance
 from fabulae.features.create.progress import CreateProgress
-from fabulae.features.create.schemas import CreateOptions, NarrativePatternsMode
+from fabulae.features.create.schemas import CreateOptions, NarrativePatternsMode, PipelineMode
 from fabulae.features.create.service import (
     CreateProjectError,
     generate_project_from_idea_sync,
@@ -181,6 +181,18 @@ def register_create_command(app: typer.Typer) -> None:
                 ),
             ),
         ] = None,
+        pipeline: Annotated[
+            PipelineMode | None,
+            typer.Option(
+                "--pipeline",
+                "-p",
+                help=(
+                    "Generation pipeline: 'batch' (generates multiple items per LLM call) "
+                    "or 'sequential' (generates one unit at a time with minimal context). "
+                    "Default: 'sequential' for small models (<13B), 'batch' otherwise."
+                ),
+            ),
+        ] = None,
     ) -> None:
         format_value = _validate_format(format_name)
         if directory.exists() and directory.is_file():
@@ -221,15 +233,11 @@ def register_create_command(app: typer.Typer) -> None:
         progress = CreateProgress()
         is_small = _is_small_model(config.model)
 
-        # Determine effective enrich setting based on model size
-        effective_enrich: bool
-        if enrich is None:
-            # Auto: disable enrichment for small models to reduce context pressure
-            effective_enrich = not is_small
-            if is_small:
-                progress.info("Enrichment auto-disabled for small model. Use --enrich to override.")
-        else:
-            effective_enrich = enrich
+        # Determine effective settings based on model size
+        # Auto: disable enrichment for small models to reduce context pressure
+        effective_enrich: bool = not is_small if enrich is None else enrich
+        # Auto: use sequential for small models (better for limited context)
+        effective_pipeline: PipelineMode = ("sequential" if is_small else "batch") if pipeline is None else pipeline
 
         create_options = CreateOptions(
             narrative_patterns_mode=narrative_patterns,
@@ -237,30 +245,47 @@ def register_create_command(app: typer.Typer) -> None:
             shape_id=shape,
             shape_file=shape_file,
             variation=variation,
+            seed=seed,
             enrich=effective_enrich,
+            idea_language=language_code,
             is_small_model=is_small,
             sliding_window_scenes=5 if is_small else None,  # Limit context for small models
+            pipeline=effective_pipeline,
         )
 
-        # Warn about small models that may struggle with structured output
+        # Show small model optimizations info
         if is_small:
-            progress.warn(
-                f"Model '{config.model}' appears to be a small model (<{_SMALL_MODEL_THRESHOLD_B}B). "
-                "Small models may struggle with JSON output for complex formats. "
-                "Consider using a larger model if generation fails."
-            )
+            optimizations = []
+            overrides = []
+            if enrich is None:
+                optimizations.append("enrichment disabled")
+                overrides.append("--enrich")
+            if pipeline is None:
+                optimizations.append("sequential pipeline")
+                overrides.append("--pipeline batch")
+            if optimizations:
+                msg = f"Small model detected (<{_SMALL_MODEL_THRESHOLD_B}B): using {', '.join(optimizations)}."
+                if overrides:
+                    msg += f" Override with {'/'.join(overrides)}."
+                progress.info(msg)
+            # Only warn about JSON issues if user explicitly chose batch pipeline or enrichment
+            if pipeline == "batch" or enrich is True:
+                progress.warn(
+                    f"Model '{config.model}' may struggle with JSON output. "
+                    "Consider a larger model if generation fails."
+                )
 
         try:
-            with progress.stage(f"Generating {format_value} project from idea"):
-                project = generate_project_from_idea_sync(
-                    idea_text,
-                    format_value,
-                    config,
-                    output_dir=directory,
-                    idea_language=language_code,
-                    progress=None,
-                    options=create_options,
-                )
+            # Pipeline reports progress directly via CreateProgress
+            project = generate_project_from_idea_sync(
+                idea_text,
+                format_value,
+                config,
+                output_dir=directory,
+                idea_language=language_code,
+                progress=None,
+                options=create_options,
+            )
         except CreateProjectError as exc:
             error_message = _format_generation_error(exc, config.model)
             progress.error(error_message)

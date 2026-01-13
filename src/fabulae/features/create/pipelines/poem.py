@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fabulae import __version__
 from fabulae.features.create.ids import allocate_poem_ids
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.prompts import (
     build_poem_plan_prompt,
     build_stanza_prompt,
@@ -22,10 +23,12 @@ from fabulae.features.create.service import (
     CreateProjectError,
     ErrorMode,
     _build_user_prompt,
+    _resolve_language,
     run_stage,
 )
 from fabulae.features.create.validation import validate_id_unchanged
 from fabulae.llm import LLMConfig
+from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
     GenerationMetadata,
     LiteratureFormat,
@@ -41,6 +44,7 @@ async def generate_poem(
     idea: str,
     options: CreateOptions,
     llm_config: LLMConfig,
+    progress: CreateProgress | None = None,
     artifacts_dir: Path | None = None,
 ) -> Project:
     """Generate a complete poem project from an idea.
@@ -71,6 +75,10 @@ async def generate_poem(
     stanza_range = count_ranges["stanzas"]
     line_range = count_ranges["lines"]
 
+    # Resolve language from CLI override or detect from idea
+    language_config = LanguageGuardConfig()
+    expected_language = _resolve_language(idea, options.idea_language, language_config)
+
     # Step 1: Generate Style (tone, voice, poetic form hints)
     user_prompt_style = _build_user_prompt(idea, format_name)
     system_prompt_style = build_style_prompt(format_name)
@@ -80,11 +88,19 @@ async def generate_poem(
         system_prompt=system_prompt_style,
         user_prompt=user_prompt_style,
         config=llm_config,
-        expected_language=None,
+        expected_language=expected_language,
         extract_text=lambda s: s.language or "",
         error_mode=ErrorMode.STRICT,
     )
     style_output = style_result.output
+
+    # Default to English if no language was detected or overridden
+    if expected_language is None:
+        expected_language = "en"
+
+    # Ensure style reflects the enforced language (CLI override takes precedence)
+    if expected_language and style_output.language != expected_language:
+        style_output = style_output.model_copy(update={"language": expected_language})
 
     # Format style as hint string
     style_hint_parts = []
@@ -97,6 +113,9 @@ async def generate_poem(
     if style_output.constraints:
         style_hint_parts.append(f"Constraints: {', '.join(style_output.constraints)}")
     style_hint = "\n".join(style_hint_parts) if style_hint_parts else None
+
+    if progress:
+        progress.success("Style determined")
 
     # Step 2: Generate Poem Plan (structure, stanza count, form)
     system_prompt_plan = build_poem_plan_prompt(
@@ -112,7 +131,7 @@ async def generate_poem(
         system_prompt=system_prompt_plan,
         user_prompt=user_prompt_plan,
         config=llm_config,
-        expected_language=style_output.language,
+        expected_language=expected_language,
         extract_text=lambda p: p.premise,
         error_mode=ErrorMode.STRICT,
     )
@@ -129,6 +148,9 @@ async def generate_poem(
     for idx, stanza_plan_item in enumerate(poem_plan.stanzas):
         stanza_plan_item.id = project_ids.stanzas[idx]
 
+    if progress:
+        progress.success(f"Structure planned: {num_stanzas} stanzas")
+
     # Step 3: Generate Stanzas (actual lines for each stanza)
     stanzas: list[Stanza] = []
     existing_stanzas_summary: list[str] = []
@@ -136,8 +158,12 @@ async def generate_poem(
     for idx, stanza_plan_item in enumerate(poem_plan.stanzas):
         assigned_id = project_ids.stanzas[idx]
 
-        # Build summary of existing stanzas
-        existing_summary = "\n\n".join(existing_stanzas_summary) if existing_stanzas_summary else "None yet."
+        # Build summary of existing stanzas (apply sliding window if configured)
+        if options.sliding_window_scenes is not None and len(existing_stanzas_summary) > options.sliding_window_scenes:
+            windowed_summaries = existing_stanzas_summary[-options.sliding_window_scenes :]
+        else:
+            windowed_summaries = existing_stanzas_summary
+        existing_summary = "\n\n".join(windowed_summaries) if windowed_summaries else "None yet."
 
         # Build context for this stanza
         context: dict[str, object] = {
@@ -186,7 +212,7 @@ async def generate_poem(
             system_prompt=system_prompt_stanza,
             user_prompt=user_prompt_stanza,
             config=llm_config,
-            expected_language=style_output.language,
+            expected_language=expected_language,
             extract_text=lambda s: "\n".join(s.lines),
             validate=validate_stanza,
             error_mode=ErrorMode.STRICT,
@@ -205,6 +231,9 @@ async def generate_poem(
         # Add to existing summary for next iteration
         stanza_summary = f"Stanza {idx + 1} ({assigned_id}):\n" + "\n".join(stanza.lines)
         existing_stanzas_summary.append(stanza_summary)
+
+    if progress:
+        progress.success(f"Written {len(stanzas)} stanzas")
 
     # Build final Project - use model_dump and validate to handle type conversion
     plot_dict = {
@@ -250,5 +279,8 @@ async def generate_poem(
         world=None,  # Poems don't have world building
         style=style,
     )
+
+    if progress:
+        progress.success("Project assembled")
 
     return project

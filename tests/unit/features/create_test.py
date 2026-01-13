@@ -573,7 +573,7 @@ def test_create_command_passes_language_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target = tmp_path / "project"
-    captured: list[str | None] = []
+    captured_options: list[CreateOptions | None] = []
 
     def fake_generate(
         idea: str,
@@ -582,9 +582,9 @@ def test_create_command_passes_language_override(
         output_dir: Path,
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
-        options: object = None,
+        options: CreateOptions | None = None,
     ) -> Project:
-        captured.append(idea_language)
+        captured_options.append(options)
         return _minimal_project(format_name)
 
     monkeypatch.setattr(create_cli, "generate_project_from_idea_sync", fake_generate)
@@ -594,7 +594,9 @@ def test_create_command_passes_language_override(
         ["create", str(target), "--idea", "Test", "--format", "novel", "--language", "fr"],
     )
     assert result.exit_code == 0
-    assert captured == ["fr"]
+    assert len(captured_options) == 1
+    assert captured_options[0] is not None
+    assert captured_options[0].idea_language == "fr"
 
 
 def test_create_command_passes_seed(
@@ -1328,3 +1330,146 @@ def test_create_warns_but_does_not_fail_on_scene_count(
     # New pipeline generates structure internally, so count warnings may differ
     # The important thing is that the pipeline completes without error
     assert any(msg for msg in messages)  # Pipeline produces progress messages
+
+
+def test_language_override_flows_to_output_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that idea_language from CreateOptions flows through to fabulae.yml and style.yml."""
+    seed = 42
+    # LLM returns English style, but we override with a different language via CLI
+    style_output = StyleOutput(language="en", pov="third", tense="past")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline_content, scene_outputs, _ = _prose_mocks_from_structure("short-story", seed)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise.")],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        OutlineContentOutput: [outline_content] * 4,  # Allow for retries
+        SceneOutput: cast(list[object], scene_outputs),
+    }
+
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+
+    format_value: LiteratureFormat = "short-story"
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "A story idea.",
+            format_value,
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=CreateOptions(seed=seed, idea_language="fr"),
+        )
+    )
+
+    # Verify language override appears in fabulae.yml
+    config = load_yaml_file(tmp_path / "fabulae.yml")
+    defaults = cast(dict[str, object], config.get("defaults", {}))
+    assert defaults.get("language") == "fr"
+
+    # Verify language appears in style.yml
+    style = load_yaml_file(tmp_path / "style.yml")
+    assert style.get("language") == "fr"
+
+
+def test_language_detection_from_idea_when_no_override(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that detected language from idea wins over LLM style language."""
+    seed = 42
+    # LLM returns English style, but language detection returns German
+    style_output = StyleOutput(language="en", pov="first")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline_content, scene_outputs, _ = _prose_mocks_from_structure("short-story", seed)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise.")],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        OutlineContentOutput: [outline_content] * 4,  # Allow for retries
+        SceneOutput: cast(list[object], scene_outputs),
+    }
+
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    # Mock language detection to return German (simulating detecting language from idea)
+    # Even though LLM returns "en" in style, detected "de" should win
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: ("de", 0.95))
+
+    format_value: LiteratureFormat = "short-story"
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "A story idea.",
+            format_value,
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=CreateOptions(seed=seed),  # No idea_language override
+        )
+    )
+
+    # Verify detected language (de) wins over LLM style language (en)
+    config = load_yaml_file(tmp_path / "fabulae.yml")
+    defaults = cast(dict[str, object], config.get("defaults", {}))
+    assert defaults.get("language") == "de"
+
+    # Verify style.yml is also updated to match detected language
+    style = load_yaml_file(tmp_path / "style.yml")
+    assert style.get("language") == "de"
+
+
+def test_language_defaults_to_english_when_not_detected(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that language defaults to English when no override and no detection."""
+    seed = 42
+    # LLM returns style without language
+    style_output = StyleOutput(language=None, pov="first")
+    character_plan = _character_plan("short-story")
+    world_plan = _world_plan("short-story")
+    outline_content, scene_outputs, _ = _prose_mocks_from_structure("short-story", seed)
+
+    outputs_by_type: dict[type[object], list[object]] = {
+        StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise.")],
+        CharacterPlanOutput: [character_plan],
+        CharacterOutput: cast(list[object], _character_outputs(character_plan)),
+        WorldPlanOutput: [world_plan],
+        WorldFactOutput: cast(list[object], _world_fact_outputs(world_plan)),
+        OutlineContentOutput: [outline_content] * 4,
+        SceneOutput: cast(list[object], scene_outputs),
+    }
+
+    monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
+    # Mock language detection to return None (no language detected)
+    monkeypatch.setattr(create_service, "detect_language", lambda _text: (None, None))
+
+    format_value: LiteratureFormat = "short-story"
+    asyncio.run(
+        create_service.generate_project_from_idea(
+            "A story idea.",
+            format_value,
+            LLMConfig(),
+            output_dir=tmp_path,
+            options=CreateOptions(seed=seed),  # No idea_language override
+        )
+    )
+
+    # Verify language defaults to English
+    config = load_yaml_file(tmp_path / "fabulae.yml")
+    defaults = cast(dict[str, object], config.get("defaults", {}))
+    assert defaults.get("language") == "en"
+
+    # Verify style.yml also has English
+    style = load_yaml_file(tmp_path / "style.yml")
+    assert style.get("language") == "en"

@@ -37,6 +37,7 @@ from fabulae.features.create.pipelines.plot_first import (
     generate_outline_structure,
     generate_world_from_slots,
 )
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.prompts import (
     build_character_plan_prompt,
     build_character_prompt,
@@ -132,6 +133,7 @@ async def generate_prose(
     format: str,
     options: CreateOptions,
     llm_config: LLMConfig,
+    progress: CreateProgress | None = None,
     artifacts_dir: Path | None = None,
 ) -> Project:
     """Generate a complete prose narrative project (novel, novella, or short-story).
@@ -166,9 +168,9 @@ async def generate_prose(
     # Phase 1: Setup
     # =========================================================================
 
-    # Resolve language from idea
+    # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
-    expected_language = _resolve_language(idea, None, language_config)
+    expected_language = _resolve_language(idea, options.idea_language, language_config)
 
     # Generate style
     style_result = await run_stage(
@@ -183,12 +185,19 @@ async def generate_prose(
     )
     style_output = style_result.output
 
-    # Update expected_language from style if available
-    if style_output.language:
-        expected_language = style_output.language.lower()
+    # Default to English if no language was detected or overridden
+    if expected_language is None:
+        expected_language = "en"
+
+    # Ensure style reflects the enforced language (CLI override takes precedence)
+    if expected_language and style_output.language != expected_language:
+        style_output = style_output.model_copy(update={"language": expected_language})
 
     style_hint_str = _style_hint(style_output)
     style = _coerce_style(style_output)
+
+    if progress:
+        progress.success("Style determined")
 
     # Write style artifact
     if artifacts_dir:
@@ -205,6 +214,9 @@ async def generate_prose(
         error_mode=ErrorMode.STRICT,
     )
     premise = premise_result.output.premise
+
+    if progress:
+        progress.success("Premise expanded")
 
     # Write premise artifact
     if artifacts_dir:
@@ -248,6 +260,9 @@ async def generate_prose(
         location_slots=location_slot_names,
         extra_world_facts=0,  # We'll generate additional world facts separately if needed
     )
+
+    if progress:
+        progress.success(f"Structure planned: {structure.num_chapters} chapters, {structure.total_scenes} scenes")
 
     # Write structure artifact
     if artifacts_dir:
@@ -302,6 +317,9 @@ async def generate_prose(
                 ],
             },
         )
+
+    if progress:
+        progress.success("Outline generated")
 
     # Generate characters
     characters: list[Character] = []
@@ -373,6 +391,9 @@ async def generate_prose(
                 traits=char_output.traits,
             )
             characters.append(character)
+
+    if progress:
+        progress.success(f"Created {len(characters)} characters")
 
     # Write characters artifact
     if artifacts_dir:
@@ -474,6 +495,9 @@ async def generate_prose(
         motifs=world_motifs,
         facts=world_facts,
     )
+
+    if progress:
+        progress.success(f"Created {len(world_facts)} world facts")
 
     # Write world artifact
     if artifacts_dir:
@@ -585,6 +609,20 @@ async def generate_prose(
                     outline_content_output.model_dump(exclude_none=True),
                 )
 
+            if progress:
+                new_chars = len(enrichment.new_characters) if enrichment.new_characters else 0
+                new_locs = len(enrichment.new_locations) if enrichment.new_locations else 0
+                subplots = len(enrichment.subplot_additions) if enrichment.subplot_additions else 0
+                parts = []
+                if new_chars:
+                    parts.append(f"{new_chars} characters")
+                if new_locs:
+                    parts.append(f"{new_locs} locations")
+                if subplots:
+                    parts.append(f"{subplots} subplots")
+                if parts:
+                    progress.success(f"Enriched narrative ({', '.join(parts)} added)")
+
     # =========================================================================
     # Phase 4: Patterns & Beats
     # =========================================================================
@@ -647,6 +685,9 @@ async def generate_prose(
         scene_variations=scene_variations,
         rng=rng,
     )
+
+    if progress:
+        progress.success("Beat templates prepared")
 
     # Write beat templates artifact
     if artifacts_dir:
@@ -810,6 +851,9 @@ async def generate_prose(
         if scene_output.summary:
             prior_scene_summaries.append(scene_output.summary)
 
+    if progress:
+        progress.success(f"Written {len(scenes)} scenes")
+
     # Write scenes artifact
     if artifacts_dir:
         _write_artifact(
@@ -890,6 +934,9 @@ async def generate_prose(
         _write_characters(characters, project_config, artifacts_dir)
         _write_world(world, project_config, artifacts_dir)
         _write_plot(plot, project_config, artifacts_dir)
+
+    if progress:
+        progress.success("Project assembled")
 
     return project
 
