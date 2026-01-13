@@ -22,6 +22,7 @@ from fabulae.features.create.errors import (
     is_json_error,
     is_transient_error,
 )
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.schemas import (
     CharacterOutput,
     CharacterPlanOutput,
@@ -918,6 +919,7 @@ async def generate_project_from_idea(
     idea_language: str | None = None,
     progress: Callable[[str], None] | None = None,
     options: CreateOptions | None = None,
+    create_progress: CreateProgress | None = None,
 ) -> Project:
     """Generate a complete Fabulae project from an idea.
 
@@ -932,8 +934,9 @@ async def generate_project_from_idea(
         config: LLM configuration for generation
         output_dir: Directory to save the project files
         idea_language: Optional language override
-        progress: Optional progress callback function
+        progress: Optional progress callback function (deprecated, use create_progress)
         options: Optional creation options
+        create_progress: Optional CreateProgress instance for timing and status
 
     Returns:
         A complete Project object with all narrative elements
@@ -954,14 +957,13 @@ async def generate_project_from_idea(
     artifacts_dir = _artifact_root(output_dir)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    # Log start of generation
+    # Log start of generation (legacy callback)
     if progress:
         progress(f"Starting {format_name} generation from idea...")
 
-    # Create progress reporter for pipeline feedback
-    from fabulae.features.create.progress import CreateProgress
-
-    create_progress = CreateProgress()
+    # Use provided progress reporter or create a new one
+    if create_progress is None:
+        create_progress = CreateProgress()
 
     # Dispatch to appropriate pipeline based on format and pipeline option
     if format_name in ("novel", "novella", "short-story"):
@@ -1046,6 +1048,7 @@ def generate_project_from_idea_sync(
     idea_language: str | None = None,
     progress: Callable[[str], None] | None = None,
     options: CreateOptions | None = None,
+    create_progress: CreateProgress | None = None,
 ) -> Project:
     """Synchronous wrapper for generate_project_from_idea."""
     return asyncio.run(
@@ -1057,6 +1060,7 @@ def generate_project_from_idea_sync(
             idea_language=idea_language,
             progress=progress,
             options=options,
+            create_progress=create_progress,
         )
     )
 
