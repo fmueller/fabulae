@@ -17,6 +17,7 @@ from fabulae.features.create.service import (
     CreateProjectError,
     generate_project_from_idea_sync,
 )
+from fabulae.features.create.validation import validate_title_diversity
 from fabulae.llm import resolve_config
 from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, save_project
 
@@ -294,6 +295,11 @@ def register_create_command(app: typer.Typer) -> None:
         except (ValidationError, ValueError) as exc:
             progress.error(f"Create failed: {exc}")
             raise typer.Exit(code=1) from exc
+
+        # Validate generated content for quality issues
+        quality_warnings = validate_title_diversity(project)
+        for warning in quality_warnings:
+            progress.warn(warning)
 
         with progress.stage("Writing project files..."):
             save_project(project, directory)

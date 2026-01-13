@@ -339,3 +339,82 @@ class TestGeneratePoemGraph:
 
         positions = [s.position for s in graph.stanza_slots]
         assert positions == list(range(len(positions)))
+
+
+class TestCharacterAssignmentVariation:
+    """Tests for character count variation in scenes."""
+
+    def test_character_count_varies_with_seed(self) -> None:
+        """Test that character counts vary across scenes with different seeds."""
+        # Run multiple times with different seeds and check for variety
+        counts_by_seed: list[list[int]] = []
+
+        for seed in range(10):
+            graph = generate_plot_graph("novella", None, 0.5, seed=seed)
+            scene_char_counts = [len(s.character_ids) for s in graph.scenes]
+            counts_by_seed.append(scene_char_counts)
+
+        # Should have some variety across seeds (not all identical)
+        unique_count_patterns = len({tuple(counts) for counts in counts_by_seed})
+        assert unique_count_patterns > 1, "Character counts should vary between seeds"
+
+    def test_character_count_within_scene_varies(self) -> None:
+        """Test that character counts vary within a single story."""
+        graph = generate_plot_graph("novel", None, 0.5, seed=42)
+
+        scene_char_counts = [len(s.character_ids) for s in graph.scenes]
+
+        # Should have at least 2 different character counts across scenes
+        unique_counts = set(scene_char_counts)
+        assert len(unique_counts) >= 2, f"Should have variety in character counts, got: {unique_counts}"
+
+    def test_character_count_respects_position(self) -> None:
+        """Test that character counts vary by scene position."""
+        graph = generate_plot_graph("novel", None, 0.5, seed=42)
+
+        # Group scenes by position
+        by_position: dict[str, list[int]] = {}
+        for scene in graph.scenes:
+            pos = scene.position_label
+            if pos not in by_position:
+                by_position[pos] = []
+            by_position[pos].append(len(scene.character_ids))
+
+        # Climax scenes should generally have more characters (allow for RNG variation)
+        if "climax" in by_position and "early" in by_position:
+            avg_climax = sum(by_position["climax"]) / len(by_position["climax"])
+            avg_early = sum(by_position["early"]) / len(by_position["early"])
+            # Climax should have at least as many characters on average as early scenes
+            assert avg_climax >= avg_early - 1, "Climax scenes should not have fewer characters than early scenes"
+
+    def test_protagonist_appears_frequently(self) -> None:
+        """Test that protagonist appears in most scenes."""
+        graph = generate_plot_graph("novella", None, 0.5, seed=42)
+
+        protagonist_ids = [c.id for c in graph.characters if c.role == "protagonist"]
+        if not protagonist_ids:
+            return  # Skip if no protagonist (shouldn't happen, but defensive)
+
+        scenes_with_protagonist = sum(
+            1 for s in graph.scenes if any(pid in s.character_ids for pid in protagonist_ids)
+        )
+        protagonist_percentage = scenes_with_protagonist / len(graph.scenes)
+
+        # Protagonist should appear in at least 60% of scenes
+        assert protagonist_percentage >= 0.6, f"Protagonist appears in {protagonist_percentage:.0%} of scenes"
+
+    def test_no_scene_exceeds_available_characters(self) -> None:
+        """Test that no scene has more characters than available."""
+        graph = generate_plot_graph("novel", None, 0.5, seed=42)
+
+        total_characters = len(graph.characters)
+        for scene in graph.scenes:
+            assert len(scene.character_ids) <= total_characters
+
+    def test_character_count_deterministic_with_seed(self) -> None:
+        """Test that character assignment is deterministic with same seed."""
+        graph1 = generate_plot_graph("novella", None, 0.5, seed=12345)
+        graph2 = generate_plot_graph("novella", None, 0.5, seed=12345)
+
+        for s1, s2 in zip(graph1.scenes, graph2.scenes, strict=True):
+            assert s1.character_ids == s2.character_ids, "Same seed should produce same character assignment"

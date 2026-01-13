@@ -108,6 +108,7 @@ class ChapterContext:
     - Premise for story context
     - Style for tone guidance
     - Previous chapter summaries for continuity
+    - Previous chapter titles to avoid repetition
     """
 
     chapter_id: str
@@ -117,6 +118,7 @@ class ChapterContext:
     premise: str
     style: StyleOutput
     previous_chapter_summaries: list[str] = field(default_factory=list)
+    previous_chapter_titles: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -322,6 +324,7 @@ def build_chapter_context(
         raise TypeError("chapter_slot must be a ChapterSlot")
 
     previous_summaries = [c.summary for c in state.chapters if c.summary and c.id != chapter_slot.id]
+    previous_titles = [c.title for c in state.chapters if c.title and c.id != chapter_slot.id]
 
     return ChapterContext(
         chapter_id=chapter_slot.id,
@@ -331,6 +334,7 @@ def build_chapter_context(
         premise=premise,
         style=style,
         previous_chapter_summaries=previous_summaries,
+        previous_chapter_titles=previous_titles,
     )
 
 
