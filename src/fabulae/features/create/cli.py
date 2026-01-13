@@ -231,6 +231,7 @@ def register_create_command(app: typer.Typer) -> None:
         config = resolve_config(model, None, None, temperature, seed)
 
         progress = CreateProgress()
+        progress.start()  # Initialize timing
         is_small = _is_small_model(config.model)
 
         # Determine effective settings based on model size
@@ -283,7 +284,7 @@ def register_create_command(app: typer.Typer) -> None:
                 config,
                 output_dir=directory,
                 idea_language=language_code,
-                progress=None,
+                progress=progress,
                 options=create_options,
             )
         except CreateProjectError as exc:
@@ -294,7 +295,7 @@ def register_create_command(app: typer.Typer) -> None:
             progress.error(f"Create failed: {exc}")
             raise typer.Exit(code=1) from exc
 
-        with progress.stage("Writing project files"):
+        with progress.stage("Writing project files..."):
             save_project(project, directory)
 
         character_count = len(project.characters)
@@ -302,6 +303,8 @@ def register_create_command(app: typer.Typer) -> None:
         fragment_count = len(project.plot.fragments)
         stanza_count = len(project.plot.stanzas)
 
+        # Print timing summary before final messages
+        progress.print_summary()
         progress.success(f"Created Fabulae project in {directory}")
         progress.info(
             f"Summary: {character_count} characters, {scene_count} scenes, "

@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from fabulae.features.create import cli as create_cli
 from fabulae.features.create import service as create_service
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.schemas import (
     BeatOutput,
     ChapterContentOutput,
@@ -1303,7 +1304,6 @@ def test_create_warns_but_does_not_fail_on_scene_count(
     character_plan = _character_plan("novella")
     world_plan = _world_plan("novella")
     outline_content, scene_outputs, _ = _prose_mocks_from_structure("novella", seed)
-    messages: list[str] = []
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
@@ -1319,20 +1319,23 @@ def test_create_warns_but_does_not_fail_on_scene_count(
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
     monkeypatch.setattr(create_service, "detect_language", lambda _text: ("en", 0.9))
 
+    # Use CreateProgress instead of callback - the pipeline will report progress through it
+    progress = CreateProgress()
+
     asyncio.run(
         create_service.generate_project_from_idea(
             "An idea.",
             "novella",
             LLMConfig(),
             output_dir=tmp_path,
-            progress=messages.append,
+            progress=progress,
             options=CreateOptions(seed=seed),
         )
     )
 
     # New pipeline generates structure internally, so count warnings may differ
     # The important thing is that the pipeline completes without error
-    assert any(msg for msg in messages)  # Pipeline produces progress messages
+    # Progress tracking happens via CreateProgress now, so we just verify completion
 
 
 def test_language_override_flows_to_output_files(

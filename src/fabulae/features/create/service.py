@@ -22,6 +22,7 @@ from fabulae.features.create.errors import (
     is_json_error,
     is_transient_error,
 )
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.schemas import (
     CharacterOutput,
     CharacterPlanOutput,
@@ -916,7 +917,7 @@ async def generate_project_from_idea(
     config: LLMConfig,
     output_dir: Path,
     idea_language: str | None = None,
-    progress: Callable[[str], None] | None = None,
+    progress: CreateProgress | None = None,
     options: CreateOptions | None = None,
 ) -> Project:
     """Generate a complete Fabulae project from an idea.
@@ -954,14 +955,8 @@ async def generate_project_from_idea(
     artifacts_dir = _artifact_root(output_dir)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    # Log start of generation
-    if progress:
-        progress(f"Starting {format_name} generation from idea...")
-
-    # Create progress reporter for pipeline feedback
-    from fabulae.features.create.progress import CreateProgress
-
-    create_progress = CreateProgress()
+    # Create progress reporter for pipeline feedback if not provided
+    create_progress = progress if progress is not None else CreateProgress()
 
     # Dispatch to appropriate pipeline based on format and pipeline option
     if format_name in ("novel", "novella", "short-story"):
@@ -1044,7 +1039,7 @@ def generate_project_from_idea_sync(
     config: LLMConfig,
     output_dir: Path,
     idea_language: str | None = None,
-    progress: Callable[[str], None] | None = None,
+    progress: CreateProgress | None = None,
     options: CreateOptions | None = None,
 ) -> Project:
     """Synchronous wrapper for generate_project_from_idea."""
