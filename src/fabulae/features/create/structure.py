@@ -335,41 +335,165 @@ def _create_world_fact_slots(format: LiteratureFormat, location_count: int, rng:
 
 
 def _assign_characters_to_scenes(graph: PlotGraph, shape: StoryShape | None, rng: random.Random) -> None:
-    """Assign characters to scenes based on shape or balanced distribution."""
+    """Assign characters to scenes based on shape or balanced distribution.
+
+    Character count varies by scene position and story progress:
+    - Early scenes (Act 1): 1-2 characters - intimate introduction
+    - Middle scenes (Act 2): 2-4 characters - building complexity
+    - Late scenes (Act 3): 2-3 characters - focused tension
+    - Climax scenes: 3-5 characters - ensemble moments
+
+    Some scenes are intentionally solo (protagonist only) for variety.
+    """
     if not graph.characters or not graph.scenes:
         return
 
     character_ids = [c.id for c in graph.characters]
     protagonist_ids = [c.id for c in graph.characters if c.role == "protagonist"]
+    total_scenes = len(graph.scenes)
 
     # Track character appearances for balance
     appearance_count: dict[str, int] = {cid: 0 for cid in character_ids}
 
-    for scene in graph.scenes:
+    for scene_index, scene in enumerate(graph.scenes):
         scene_chars: list[str] = []
 
-        # Protagonist appears in most scenes (80% chance)
+        # Calculate story progress (0.0 to 1.0)
+        story_progress = scene_index / max(1, total_scenes - 1) if total_scenes > 1 else 0.5
+
+        # Determine character count range based on position and story progress
+        min_chars, max_chars = _get_character_count_range(
+            scene.position_label, story_progress, len(character_ids), rng
+        )
+
+        # Decide if this is a "solo" scene (protagonist only) - ~15% chance for non-climax
+        is_solo_scene = scene.position_label != "climax" and rng.random() < 0.15
+
+        # Solo scenes have just protagonist; normal scenes use varied character count
+        target_count = 1 if is_solo_scene and protagonist_ids else rng.randint(min_chars, max_chars)
+
+        # Protagonist appears in most scenes (85% chance, higher than before for continuity)
         for prot_id in protagonist_ids:
-            if rng.random() < 0.8:
+            if rng.random() < 0.85 or is_solo_scene:
                 scene_chars.append(prot_id)
                 appearance_count[prot_id] += 1
 
-        # Add 1-3 additional characters based on position
-        additional_count = 2 if scene.position_label in ["middle", "late"] else 1
-        if scene.position_label == "climax":
-            additional_count = min(3, len(character_ids) - len(scene_chars))
+        # Calculate how many more characters we need
+        additional_needed = max(0, target_count - len(scene_chars))
 
-        # Select least-appeared characters for balance
-        available = [cid for cid in character_ids if cid not in scene_chars]
-        if available:
-            # Sort by appearance count, pick least appeared
-            available.sort(key=lambda x: appearance_count[x])
-            to_add = available[:additional_count]
-            for cid in to_add:
-                scene_chars.append(cid)
-                appearance_count[cid] += 1
+        if additional_needed > 0:
+            # Select characters with weighted probability
+            # Prefer least-appeared for balance, but add some randomness
+            available = [cid for cid in character_ids if cid not in scene_chars]
+            if available:
+                selected = _weighted_character_selection(
+                    available, additional_needed, appearance_count, rng
+                )
+                for cid in selected:
+                    scene_chars.append(cid)
+                    appearance_count[cid] += 1
 
         scene.character_ids = scene_chars
+
+
+def _get_character_count_range(
+    position_label: str,
+    story_progress: float,
+    total_characters: int,
+    rng: random.Random,
+) -> tuple[int, int]:
+    """Get the min/max character count for a scene based on position.
+
+    Args:
+        position_label: Scene position (early, middle, late, climax)
+        story_progress: Progress through story (0.0 to 1.0)
+        total_characters: Total available characters
+        rng: Random number generator
+
+    Returns:
+        Tuple of (min_chars, max_chars)
+    """
+    # Base ranges by position
+    ranges = {
+        "early": (1, 2),      # Intimate introductions
+        "middle": (2, 4),     # Building complexity
+        "late": (2, 3),       # Focused tension
+        "climax": (3, 5),     # Ensemble moments
+    }
+
+    base_min, base_max = ranges.get(position_label, (2, 3))
+
+    # Add some variation based on story progress
+    # Middle of story (0.3-0.7) tends to have more characters
+    if 0.3 <= story_progress <= 0.7:
+        base_max = min(base_max + 1, total_characters)
+
+    # Cap at available characters
+    final_max = min(base_max, total_characters)
+    final_min = min(base_min, final_max)
+
+    return (final_min, final_max)
+
+
+def _weighted_character_selection(
+    available: list[str],
+    count: int,
+    appearance_count: dict[str, int],
+    rng: random.Random,
+) -> list[str]:
+    """Select characters with weighted probability favoring less-appeared.
+
+    Uses a soft preference for balance rather than strict sorting,
+    introducing some randomness for more natural variation.
+
+    Args:
+        available: List of available character IDs
+        count: Number of characters to select
+        appearance_count: Dict of character ID to appearance count
+        rng: Random number generator
+
+    Returns:
+        List of selected character IDs
+    """
+    if not available or count <= 0:
+        return []
+
+    count = min(count, len(available))
+
+    # If only selecting 1 or 2, use weighted random selection
+    if count <= 2:
+        selected: list[str] = []
+        remaining = list(available)
+
+        for _ in range(count):
+            if not remaining:
+                break
+
+            # Calculate weights - inverse of appearance count + 1
+            weights = [1.0 / (appearance_count.get(cid, 0) + 1) for cid in remaining]
+            total_weight = sum(weights)
+
+            # Normalize and select
+            r = rng.random() * total_weight
+            cumulative = 0.0
+            choice_idx = 0
+
+            for idx, w in enumerate(weights):
+                cumulative += w
+                if r <= cumulative:
+                    choice_idx = idx
+                    break
+
+            selected.append(remaining[choice_idx])
+            remaining.pop(choice_idx)
+
+        return selected
+    else:
+        # For larger selections, use shuffled sorting with some randomness
+        # Sort by appearance count with random tiebreaker
+        scored = [(cid, appearance_count.get(cid, 0) + rng.random() * 0.5) for cid in available]
+        scored.sort(key=lambda x: x[1])
+        return [cid for cid, _ in scored[:count]]
 
 
 def _assign_locations_to_scenes(graph: PlotGraph, rng: random.Random) -> None:
