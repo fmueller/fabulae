@@ -51,7 +51,7 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 **File I/O**: `load_project(path)` and `save_project(project, path)` handle all YAML serialization with validation.
 
 **Template System**: `templates/` contains project templates for different formats:
-- `novel/` - Full novel template with characters, world, plot patterns, narrative patterns
+- `novel/` - Full novel template with characters, world, style
 - `novella/` - Condensed prose template
 - `short-story/` - Minimal prose template
 - `micro-prose/` - Flash fiction with fragments
@@ -125,7 +125,7 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 - IDs must be lowercase alphanumeric with hyphens (e.g., `scene-01`, `world-london`)
 - Scene `location` is optional; if set, must reference a WorldFact with `type="location"`
 - Scene `characters` and `world_fact_ids` must reference valid entities
-- If chapters exist, scenes must reference them via `chapter.scene_ids`
+- If chapters exist, each chapter lists its scenes via `scene_ids`; all scenes must be assigned to exactly one chapter
 - Beat references must point to valid beats in the scene's `beats` list
 - Format validation: prose formats require scenes, micro-prose requires fragments, poem requires stanzas/lines
 
@@ -135,3 +135,22 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 - Test files use `_test.py` suffix (e.g., `models_test.py`)
 - Prefer placing feature tests under `tests/unit/features/` to mirror `src/fabulae/features/`
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`)
+
+## Task Execution
+
+### Complexity-Based Model Selection
+
+When implementing tasks, evaluate each step's complexity and select the appropriate model:
+
+- **Haiku** (Low complexity): Simple edits, boilerplate, file operations, CLI flags
+- **Sonnet** (Medium complexity): Business logic, services, tests, refactoring
+- **Opus** (High complexity): Prompt engineering, architecture, verification
+
+### Documentation Maintenance
+
+After implementing changes, review and update these files as needed:
+- `README.md` for user-facing changes (CLI commands, features)
+- `CLAUDE.md` for architectural/convention changes
+- `AGENTS.md` for structural/process changes
+
+Keep documentation concise but comprehensive for both human developers and AI coding agents.

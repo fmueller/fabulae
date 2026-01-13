@@ -188,7 +188,6 @@ class SceneOutput(BaseModel):
     """A fully expanded scene with beats."""
 
     id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01'). Use assigned ID exactly.")
-    chapter: str | None = Field(default=None, description="Chapter ID this scene belongs to (e.g., 'chapter-01').")
     location: str | None = Field(default=None, description="Location ID (e.g., 'location-01'). Must be valid.")
     time: str | None = Field(default=None, description="Time of day (e.g., 'night', 'dawn').")
     characters: list[str] = Field(default_factory=list, description="Character IDs in this scene. Use only valid IDs.")
@@ -209,7 +208,6 @@ class OutlineSceneOutput(BaseModel):
     """A scene outline with planned beat count."""
 
     id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01').")
-    chapter: str | None = Field(default=None, description="Chapter ID (required when chapters exist).")
     summary: str | None = Field(default=None, description="Brief summary of the scene's events.")
     goal: str | None = Field(default=None, description="What the protagonist wants to achieve.")
     conflict: str | None = Field(default=None, description="The obstacle or tension in this scene.")

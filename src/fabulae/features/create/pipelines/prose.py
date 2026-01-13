@@ -725,7 +725,6 @@ async def generate_prose(
     for sc in outline_content.scenes:
         scene_outlines[sc.id] = OutlineSceneOutput(
             id=sc.id,
-            chapter=sc.chapter_id,
             summary=sc.summary,
             goal=None,
             conflict=None,
@@ -834,7 +833,6 @@ async def generate_prose(
         # Create Scene
         scene = Scene(
             id=scene_output.id,
-            chapter=scene_output.chapter,
             location=scene_output.location,
             time=scene_output.time,
             characters=scene_output.characters,
@@ -866,10 +864,10 @@ async def generate_prose(
     # Phase 6: Assembly
     # =========================================================================
 
-    # Build chapters
+    # Build chapters (derive scene_ids from outline scenes' chapter_id)
     chapters: list[Chapter] = []
     for ch in outline_content.chapters:
-        chapter_scene_ids = [sc.id for sc in scenes if sc.chapter == ch.id]
+        chapter_scene_ids = [sc.id for sc in outline_content.scenes if sc.chapter_id == ch.id]
         chapter = Chapter(
             id=ch.id,
             title=ch.title,

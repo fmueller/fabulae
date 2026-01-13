@@ -109,7 +109,6 @@ class Scene(BaseModel):
     """A scene in the narrative."""
 
     id: EntityId
-    chapter: EntityId | None = None
     location: EntityId | None = None
     time: str | None = None
     characters: list[EntityId] = Field(default_factory=list)
@@ -371,13 +370,8 @@ def _validate_scene_order(plot: Plot) -> None:
         if plot.scene_ids:
             raise ValueError("plot.scene_ids is only allowed when no chapters are defined.")
 
-        chapter_ids = {chapter.id for chapter in plot.chapters}
-        for scene in plot.scenes:
-            if scene.chapter is None:
-                raise ValueError(f"Scene {scene.id!r} must reference a chapter when chapters exist.")
-            if scene.chapter not in chapter_ids:
-                raise ValueError(f"Scene {scene.id!r} references unknown chapter {scene.chapter!r}.")
-
+        # Validate each chapter's scene_ids
+        all_referenced_scenes: set[EntityId] = set()
         for chapter in plot.chapters:
             if chapter.scene_ids is None:
                 continue
@@ -385,16 +379,24 @@ def _validate_scene_order(plot: Plot) -> None:
             if len(set(chapter.scene_ids)) != len(chapter.scene_ids):
                 raise ValueError(f"Chapter {chapter.id!r} has duplicate scene IDs.")
 
-            chapter_scene_ids = [scene.id for scene in plot.scenes if scene.chapter == chapter.id]
-            missing = set(chapter_scene_ids) - set(chapter.scene_ids)
-            extra = set(chapter.scene_ids) - set(chapter_scene_ids)
-            if extra:
-                raise ValueError(f"Chapter {chapter.id!r} references unknown scenes: {sorted(extra)!r}.")
-            if missing:
-                raise ValueError(f"Chapter {chapter.id!r} does not list all scenes: {sorted(missing)!r}.")
+            # Check for unknown scenes
+            unknown = set(chapter.scene_ids) - scene_ids
+            if unknown:
+                raise ValueError(f"Chapter {chapter.id!r} references unknown scenes: {sorted(unknown)!r}.")
+
+            # Check for scenes referenced by multiple chapters
+            duplicates = all_referenced_scenes & set(chapter.scene_ids)
+            if duplicates:
+                raise ValueError(
+                    f"Chapter {chapter.id!r} references scenes already in another chapter: {sorted(duplicates)!r}."
+                )
+            all_referenced_scenes.update(chapter.scene_ids)
+
+        # Check for orphan scenes (scenes not in any chapter)
+        orphan_scenes = scene_ids - all_referenced_scenes
+        if orphan_scenes:
+            raise ValueError(f"Scenes not assigned to any chapter: {sorted(orphan_scenes)!r}.")
     else:
-        if any(scene.chapter is not None for scene in plot.scenes):
-            raise ValueError("Scenes must not reference chapters when no chapters are defined.")
         if plot.scene_ids is None:
             return
         if len(set(plot.scene_ids)) != len(plot.scene_ids):

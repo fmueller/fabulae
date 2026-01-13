@@ -368,7 +368,6 @@ async def generate_prose_sequential(
 
     def make_scene_validator(
         expected_scene_id: str,
-        expected_chapter_id: str | None,
         expected_beat_count: int,
     ) -> Callable[[SceneOutput], str | None]:
         """Create a scene validator with captured values."""
@@ -376,8 +375,6 @@ async def generate_prose_sequential(
         def validate_scene(output: SceneOutput) -> str | None:
             if output.id != expected_scene_id:
                 return f"Scene ID {output.id!r} does not match expected {expected_scene_id!r}."
-            if expected_chapter_id and output.chapter != expected_chapter_id:
-                return f"Scene chapter {output.chapter!r} does not match expected {expected_chapter_id!r}."
             if len(output.beats) != expected_beat_count:
                 return f"Scene has {len(output.beats)} beats but expected {expected_beat_count}."
             # Validate character references
@@ -397,7 +394,6 @@ async def generate_prose_sequential(
 
             validate_scene = make_scene_validator(
                 expected_scene_id=scene_slot.id,
-                expected_chapter_id=scene_slot.chapter_id,
                 expected_beat_count=len(scene_slot.beat_slots),
             )
 
@@ -433,7 +429,6 @@ async def generate_prose_sequential(
             # Build scene
             scene = Scene(
                 id=scene_data["id"],
-                chapter=scene_data.get("chapter"),
                 location=scene_data.get("location"),
                 time=scene_data.get("time"),
                 characters=scene_data.get("characters", []),

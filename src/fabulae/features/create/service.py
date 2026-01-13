@@ -455,27 +455,29 @@ def _validate_plot_outline_output(
         return "Chapter IDs must be unique."
 
     if output.chapters:
-        for scene in output.scenes:
-            if scene.chapter is None:
-                return f"Scene {scene.id!r} must reference a chapter when chapters exist."
-            if scene.chapter not in chapter_ids:
-                return f"Scene {scene.id!r} references unknown chapter {scene.chapter!r}."
+        # Validate each chapter's scene_ids
+        all_referenced_scenes: set[str] = set()
         for chapter in output.chapters:
             if chapter.scene_ids is None:
                 continue
             if len(set(chapter.scene_ids)) != len(chapter.scene_ids):
                 return f"Chapter {chapter.id!r} has duplicate scene IDs."
-            missing = {scene.id for scene in output.scenes if scene.chapter == chapter.id} - set(chapter.scene_ids)
-            extra = set(chapter.scene_ids) - {scene.id for scene in output.scenes if scene.chapter == chapter.id}
-            if extra:
-                return f"Chapter {chapter.id!r} references unknown scenes: {sorted(extra)!r}."
-            if missing:
-                return f"Chapter {chapter.id!r} does not list all scenes: {sorted(missing)!r}."
+            # Check for unknown scenes
+            unknown = set(chapter.scene_ids) - scene_ids
+            if unknown:
+                return f"Chapter {chapter.id!r} references unknown scenes: {sorted(unknown)!r}."
+            # Check for scenes referenced by multiple chapters
+            duplicates = all_referenced_scenes & set(chapter.scene_ids)
+            if duplicates:
+                return f"Chapter {chapter.id!r} references scenes already in another chapter: {sorted(duplicates)!r}."
+            all_referenced_scenes.update(chapter.scene_ids)
+        # Check for orphan scenes (scenes not in any chapter)
+        orphan_scenes = scene_ids - all_referenced_scenes
+        if orphan_scenes:
+            return f"Scenes not assigned to any chapter: {sorted(orphan_scenes)!r}."
         if output.scene_ids is not None:
             return "scene_ids must be null when chapters are present."
     else:
-        if any(scene.chapter is not None for scene in output.scenes):
-            return "Scenes must not reference chapters when no chapters exist."
         if output.scene_ids is not None:
             if len(set(output.scene_ids)) != len(output.scene_ids):
                 return "scene_ids contains duplicate IDs."
@@ -497,8 +499,6 @@ def _validate_scene_output(
 ) -> str | None:
     if output.id != expected_scene.id:
         return f"Scene ID {output.id!r} does not match expected {expected_scene.id!r}."
-    if expected_scene.chapter and output.chapter != expected_scene.chapter:
-        return f"Scene {output.id!r} chapter {output.chapter!r} does not match expected {expected_scene.chapter!r}."
     if len(output.beats) != expected_scene.beat_count:
         return f"Scene {output.id!r} must have {expected_scene.beat_count} beats, got {len(output.beats)}."
     if len(output.beats) < beats_per_scene[0] or len(output.beats) > beats_per_scene[1]:
@@ -871,8 +871,6 @@ def _normalize_plot_outline_output(output: PlotOutlineOutput) -> PlotOutlineOutp
     normalized_scenes = []
     for scene in output.scenes:
         scene_update: dict[str, object] = {"id": _normalize_id(scene.id)}
-        if scene.chapter:
-            scene_update["chapter"] = _normalize_id(scene.chapter)
         normalized_scenes.append(scene.model_copy(update=scene_update))
 
     update: dict[str, object] = {
@@ -886,8 +884,6 @@ def _normalize_plot_outline_output(output: PlotOutlineOutput) -> PlotOutlineOutp
 
 def _normalize_scene_output(output: SceneOutput) -> SceneOutput:
     update: dict[str, object] = {"id": _normalize_id(output.id)}
-    if output.chapter:
-        update["chapter"] = _normalize_id(output.chapter)
     if output.location:
         update["location"] = _normalize_id(output.location)
     if output.characters:

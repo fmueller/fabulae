@@ -262,7 +262,6 @@ def build_scene_prompt_v2(context: SceneContext, style: StyleOutput) -> str:
     schema = (
         "{\n"
         f'  "id": "{context.scene_id}",\n'
-        + (f'  "chapter": "{context.chapter_id}",\n' if context.chapter_id else "")
         + (f'  "location": "{context.location.id}",\n' if context.location else "")
         + '  "time": "time of day/period",\n'
         + f'  "characters": [{char_ids_json}],\n'

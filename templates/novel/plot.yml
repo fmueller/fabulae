@@ -23,7 +23,6 @@ chapters:
     scene_ids: [dawn-inspection]
 scenes:
   - id: dawn-inspection
-    chapter: discovery
     location: apiary
     time: dawn
     characters: [marta]

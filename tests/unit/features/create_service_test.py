@@ -258,7 +258,7 @@ def test_scene_context_can_be_instantiated() -> None:
     style = StyleOutput(pov="first", tense="past", voice="active", register="formal", language="english")
 
     scene_outline = OutlineSceneOutput(
-        id="scene-01", summary="Test scene", beat_count=3, chapter=None, goal=None, conflict=None, outcome=None
+        id="scene-01", summary="Test scene", beat_count=3, goal=None, conflict=None, outcome=None
     )
 
     context = SceneContext(

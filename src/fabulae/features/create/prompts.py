@@ -269,7 +269,6 @@ def build_plot_outline_prompt(
         '  "scenes": [\n'
         "    {\n"
         '      "id": "scene-01",\n'
-        '      "chapter": "chapter-01",\n'
         '      "summary": "Opening scene summary.",\n'
         '      "goal": "Scene goal",\n'
         '      "conflict": "Scene conflict",\n'
@@ -278,7 +277,6 @@ def build_plot_outline_prompt(
         "    },\n"
         "    {\n"
         '      "id": "scene-02",\n'
-        '      "chapter": "chapter-01",\n'
         '      "summary": "Second scene summary.",\n'
         '      "goal": "Scene goal",\n'
         '      "conflict": "Scene conflict",\n'
@@ -332,7 +330,6 @@ def build_scene_prompt(
     schema = (
         "{\n"
         '  "id": "scene-01",\n'
-        '  "chapter": "chapter-01",\n'
         '  "location": "location-01",\n'
         '  "time": "night",\n'
         '  "characters": ["character-01"],\n'

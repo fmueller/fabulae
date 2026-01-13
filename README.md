@@ -54,7 +54,7 @@ style.yml
 
 Key rules:
 - Global IDs are lowercase with hyphens and unique across the project.
-- Chapters are optional; if present, scenes must reference a chapter.
+- Chapters are optional; if present, each chapter lists its scenes via `scene_ids`.
 - Scene locations are optional; if set, must reference a `world.fact` with type `location`.
 - Scenes can have a `time` field for temporal context (e.g., "dawn", "three years later").
 - Explicit scene order (via `chapter.scene_ids` or `plot.scene_ids`) overrides file order.

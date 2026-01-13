@@ -54,6 +54,9 @@ from fabulae.models import (
 
 runner = CliRunner()
 
+# Module-level mapping of scene IDs to chapter IDs (populated by _plot_outline)
+_scene_to_chapter_map: dict[str, str] = {}
+
 
 class DummyResult:
     def __init__(self, output: object) -> None:
@@ -141,7 +144,6 @@ def _plot_outline(format_name: Literal["novel", "novella", "short-story"]) -> Pl
             scenes.append(
                 OutlineSceneOutput(
                     id=scene_id,
-                    chapter=chapter_id,
                     summary=f"Scene {index + 1} summary",
                     beat_count=beat_count,
                 )
@@ -149,6 +151,11 @@ def _plot_outline(format_name: Literal["novel", "novella", "short-story"]) -> Pl
         chapters = [
             ChapterOutput(id=chapter_id, scene_ids=scene_ids) for chapter_id, scene_ids in chapter_scene_map.items()
         ]
+        # Store mapping for later use in _outline_content
+        _scene_to_chapter_map.clear()
+        for chapter_id, scene_list in chapter_scene_map.items():
+            for scene_id in scene_list:
+                _scene_to_chapter_map[scene_id] = chapter_id
     else:
         scenes = [
             OutlineSceneOutput(
@@ -188,12 +195,12 @@ def _outline_content(
             )
         )
 
-    # Convert scenes
+    # Convert scenes (use the scene_to_chapter mapping populated by _plot_outline)
     for scene in outline.scenes:
         scenes.append(
             SceneContentOutput(
                 id=scene.id,
-                chapter_id=scene.chapter,
+                chapter_id=_scene_to_chapter_map.get(scene.id),
                 title=f"Scene {scene.id}",
                 summary=scene.summary or f"Summary for {scene.id}",
                 beat_count=scene.beat_count,
@@ -268,7 +275,6 @@ def _prose_mocks_from_structure(
         scene_outlines.append(
             OutlineSceneOutput(
                 id=sc.id,
-                chapter=sc.chapter_id,
                 summary=sc.summary,
                 beat_count=sc.beat_count,
             )
@@ -277,7 +283,6 @@ def _prose_mocks_from_structure(
     # Generate SceneOutputs
     scene_outputs: list[SceneOutput] = []
     for i, scene_id in enumerate(project_ids.scenes):
-        chapter_id_for_scene: str | None = project_ids.scene_to_chapter.get(scene_id)
         beat_count = structure.beats_per_scene[i]
 
         beats = [
@@ -292,7 +297,6 @@ def _prose_mocks_from_structure(
         scene_outputs.append(
             SceneOutput(
                 id=scene_id,
-                chapter=chapter_id_for_scene,
                 summary=f"Summary for {scene_id}",
                 beats=beats,
                 characters=[],
@@ -319,7 +323,6 @@ def _scene_outputs(
         outputs.append(
             SceneOutput(
                 id=scene.id,
-                chapter=scene.chapter,
                 summary=scene.summary,
                 beats=beats,
                 characters=[],

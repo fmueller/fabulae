@@ -43,6 +43,45 @@
 
 - After every task, run `uv run ruff check --fix`, `uv run mypy`, and `uv run pytest`, then fix any errors before handing off.
 
+## Task Execution Guidelines
+
+### Breaking Down Tasks
+
+When implementing a task from `tasks/`:
+1. Read the full task description to understand scope
+2. Identify discrete implementation steps
+3. Evaluate complexity per step (Low/Medium/High)
+4. Select appropriate model per step (see Model Selection below)
+5. Execute steps sequentially, verifying each before proceeding
+
+### Model Selection per Step
+
+| Step Type | Complexity | Recommended Model |
+|-----------|------------|-------------------|
+| Boilerplate, simple edits, CLI flags, file moves | Low | Haiku |
+| Business logic, validation, service layer, tests | Medium | Sonnet |
+| Prompt engineering, architecture, complex refactors | High | Opus |
+| Final verification, code review, integration checks | High | Opus |
+
+### Post-Implementation Documentation Review
+
+After completing any implementation task, check if documentation updates are needed:
+
+1. **README.md** - Update if:
+   - New CLI commands or flags added
+   - User-facing behavior changed
+   - New features documented
+
+2. **CLAUDE.md** - Update if:
+   - Architectural patterns changed
+   - New conventions established
+   - Key implementation details added
+
+3. **AGENTS.md** - Update if:
+   - Project structure changed
+   - Testing guidelines updated
+   - Commit conventions modified
+
 ## Configuration & Templates
 
 - YAML project files live at the project root when used by the CLI (see `templates/`).
