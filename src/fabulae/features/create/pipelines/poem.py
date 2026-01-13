@@ -26,6 +26,8 @@ from fabulae.features.create.service import (
     _resolve_language,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.validation import validate_id_unchanged
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -71,15 +73,43 @@ async def generate_poem(
         CreateProjectError: If generation fails after retries
     """
     format_name: LiteratureFormat = "poem"
+
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_poem_impl(
+            idea=idea,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_poem_impl(
+    idea: str,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    gen_state: GenerationState,
+) -> Project:
+    """Internal implementation of poem generation with state tracking."""
+    format_name: LiteratureFormat = "poem"
     count_ranges = FORMAT_COUNT_RANGES[format_name]
     stanza_range = count_ranges["stanzas"]
     line_range = count_ranges["lines"]
 
     # Resolve language from CLI override or detect from idea
+    gen_state.current_stage = "setup"
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, options.idea_language, language_config)
 
     # Step 1: Generate Style (tone, voice, poetic form hints)
+    gen_state.current_stage = "generating_style"
     user_prompt_style = _build_user_prompt(idea, format_name)
     system_prompt_style = build_style_prompt(format_name)
 
@@ -113,11 +143,13 @@ async def generate_poem(
     if style_output.constraints:
         style_hint_parts.append(f"Constraints: {', '.join(style_output.constraints)}")
     style_hint = "\n".join(style_hint_parts) if style_hint_parts else None
+    gen_state.style = style_output
 
     if progress:
         progress.success("Style determined")
 
     # Step 2: Generate Poem Plan (structure, stanza count, form)
+    gen_state.current_stage = "generating_poem_plan"
     system_prompt_plan = build_poem_plan_prompt(
         format_name=format_name,
         style_hint=style_hint,
@@ -148,10 +180,15 @@ async def generate_poem(
     for idx, stanza_plan_item in enumerate(poem_plan.stanzas):
         stanza_plan_item.id = project_ids.stanzas[idx]
 
+    # Store premise from poem plan
+    if poem_plan.premise:
+        gen_state.premise = poem_plan.premise
+
     if progress:
         progress.success(f"Structure planned: {num_stanzas} stanzas")
 
     # Step 3: Generate Stanzas (actual lines for each stanza)
+    gen_state.current_stage = "generating_stanzas"
     stanzas: list[Stanza] = []
     existing_stanzas_summary: list[str] = []
 
@@ -227,6 +264,7 @@ async def generate_poem(
             rhyme_scheme=stanza_output.rhyme_scheme,
         )
         stanzas.append(stanza)
+        gen_state.stanzas.append(stanza)
 
         # Add to existing summary for next iteration
         stanza_summary = f"Stanza {idx + 1} ({assigned_id}):\n" + "\n".join(stanza.lines)
@@ -236,6 +274,7 @@ async def generate_poem(
         progress.success(f"Written {len(stanzas)} stanzas")
 
     # Build final Project - use model_dump and validate to handle type conversion
+    gen_state.current_stage = "assembling_project"
     plot_dict = {
         "format": format_name,
         "title": poem_plan.title,

@@ -38,6 +38,8 @@ from fabulae.features.create.service import (
     _write_style,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_micro_prose_graph
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -79,9 +81,36 @@ async def generate_micro_prose_sequential(
     """
     format_name: LiteratureFormat = "micro-prose"
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_micro_prose_sequential_impl(
+            idea=idea,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_micro_prose_sequential_impl(
+    idea: str,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress,
+    artifacts_dir: Path | None,
+    gen_state: GenerationState,
+) -> Project:
+    """Internal implementation of micro-prose sequential generation with state tracking."""
+    format_name: LiteratureFormat = "micro-prose"
+
     # =========================================================================
     # Phase 1: Structure Generation (No LLM)
     # =========================================================================
+    gen_state.current_stage = "planning_structure"
 
     with progress.stage("Planning fragment structure..."):
         graph: MicroProseGraph = generate_micro_prose_graph(options.variation, options.seed)
@@ -104,6 +133,7 @@ async def generate_micro_prose_sequential(
     # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
+    gen_state.current_stage = "generating_style"
 
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
@@ -129,6 +159,7 @@ async def generate_micro_prose_sequential(
     if expected_language and style_output.language != expected_language:
         style_output = style_output.model_copy(update={"language": expected_language})
 
+    gen_state.style = style_output
     progress.success("Style determined")
 
     # Write style artifact
@@ -138,6 +169,7 @@ async def generate_micro_prose_sequential(
     # =========================================================================
     # Phase 3: Premise Expansion
     # =========================================================================
+    gen_state.current_stage = "generating_premise"
 
     with progress.stage("Expanding premise..."):
         premise_result = await run_stage(
@@ -151,6 +183,7 @@ async def generate_micro_prose_sequential(
         )
         premise = premise_result.output.premise
 
+    gen_state.premise = premise
     progress.success("Premise expanded")
 
     # Write premise artifact
@@ -160,6 +193,7 @@ async def generate_micro_prose_sequential(
     # =========================================================================
     # Phase 4: Fragment Generation (One at a time)
     # =========================================================================
+    gen_state.current_stage = "generating_fragments"
 
     state = MicroProseState()
 
@@ -195,6 +229,7 @@ async def generate_micro_prose_sequential(
             # Map 'content' to 'text' for the Fragment model if needed
             fragment = Fragment.model_validate(fragment_data)
             state.fragments.append(fragment)
+            gen_state.fragments.append(fragment)
 
     progress.success(f"Written {len(state.fragments)} fragments")
 
@@ -209,6 +244,7 @@ async def generate_micro_prose_sequential(
     # =========================================================================
     # Phase 5: Project Assembly
     # =========================================================================
+    gen_state.current_stage = "assembling_project"
 
     with progress.stage("Assembling project..."):
         project = _assemble_micro_prose_project(

@@ -101,6 +101,8 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.variation import (
     VariationEngine,
     create_variation_config_from_level,
@@ -161,12 +163,41 @@ async def generate_prose(
 
     format_name = cast(LiteratureFormat, format)
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_prose_impl(
+            idea=idea,
+            format=format,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_prose_impl(
+    idea: str,
+    format: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    gen_state: GenerationState,
+) -> Project:
+    """Internal implementation of prose generation with state tracking."""
     # Initialize RNG for reproducibility
     rng = random.Random(options.seed)
 
     # =========================================================================
     # Phase 1: Setup
     # =========================================================================
+    gen_state.current_stage = "setup"
 
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
@@ -195,6 +226,7 @@ async def generate_prose(
 
     style_hint_str = _style_hint(style_output)
     style = _coerce_style(style_output)
+    gen_state.style = style_output
 
     if progress:
         progress.success("Style determined")
@@ -204,6 +236,7 @@ async def generate_prose(
         _write_artifact(artifacts_dir, "01-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
     # Generate premise expansion
+    gen_state.current_stage = "generating_premise"
     premise_result = await run_stage(
         result_type=PremiseOutput,
         system_prompt=build_premise_expansion_prompt(format_name, expected_language),
@@ -214,6 +247,7 @@ async def generate_prose(
         error_mode=ErrorMode.STRICT,
     )
     premise = premise_result.output.premise
+    gen_state.premise = premise
 
     if progress:
         progress.success("Premise expanded")
@@ -223,6 +257,7 @@ async def generate_prose(
         _write_artifact(artifacts_dir, "02-premise.yml", {"premise": premise})
 
     # Load story shape if provided
+    gen_state.current_stage = "planning_structure"
     shape: StoryShape | None = None
     if options.shape_file:
         shape = load_shape_from_file(options.shape_file)
@@ -283,6 +318,7 @@ async def generate_prose(
     # =========================================================================
     # Phase 3: Content
     # =========================================================================
+    gen_state.current_stage = "generating_outline"
 
     # Generate outline content (chapter/scene titles and summaries)
     outline_content = await generate_outline_content(
@@ -322,6 +358,7 @@ async def generate_prose(
         progress.success("Outline generated")
 
     # Generate characters
+    gen_state.current_stage = "generating_characters"
     characters: list[Character] = []
 
     if shape and shape.character_slots:
@@ -392,6 +429,9 @@ async def generate_prose(
             )
             characters.append(character)
 
+    # Update generation state with all characters
+    gen_state.characters = list(characters)
+
     if progress:
         progress.success(f"Created {len(characters)} characters")
 
@@ -404,6 +444,7 @@ async def generate_prose(
         )
 
     # Generate world
+    gen_state.current_stage = "generating_world"
     world_facts: list[WorldFact] = []
     world_setting: str | None = None
     world_time_period: str | None = None
@@ -496,6 +537,10 @@ async def generate_prose(
         facts=world_facts,
     )
 
+    # Update generation state with world facts and locations
+    gen_state.locations = [f for f in world_facts if f.type == "location"]
+    gen_state.world_facts = [f for f in world_facts if f.type != "location"]
+
     if progress:
         progress.success(f"Created {len(world_facts)} world facts")
 
@@ -506,6 +551,7 @@ async def generate_prose(
     # =========================================================================
     # Phase 3.5: Enrichment (Optional)
     # =========================================================================
+    gen_state.current_stage = "enrichment"
 
     # Generate enrichment if enabled
     project_variation = None
@@ -576,6 +622,11 @@ async def generate_prose(
             # Combine ID mappings
             id_mapping = {**char_id_mapping, **world_id_mapping}
 
+            # Update generation state with enriched entities
+            gen_state.characters = list(characters)
+            gen_state.locations = [f for f in world.facts if f.type == "location"]
+            gen_state.world_facts = [f for f in world.facts if f.type != "location"]
+
             # Update outline with subplot/foreshadowing notes
             outline_content_output = merge_enrichment_plot(outline_content_output, enrichment, id_mapping)
 
@@ -626,6 +677,7 @@ async def generate_prose(
     # =========================================================================
     # Phase 4: Patterns & Beats
     # =========================================================================
+    gen_state.current_stage = "generating_beat_templates"
 
     # Assign required beats to scenes (if shape has required beats)
     beat_assignments: list[BeatAssignment] = []
@@ -707,6 +759,7 @@ async def generate_prose(
     # =========================================================================
     # Phase 5: Scene Expansion
     # =========================================================================
+    gen_state.current_stage = "generating_scenes"
 
     # Prepare available entity sets
     available_characters = {c.id for c in characters}
@@ -844,6 +897,7 @@ async def generate_prose(
             beats=scene_beats,
         )
         scenes.append(scene)
+        gen_state.scenes.append(scene)
 
         # Track summaries for context
         if scene_output.summary:
@@ -863,6 +917,7 @@ async def generate_prose(
     # =========================================================================
     # Phase 6: Assembly
     # =========================================================================
+    gen_state.current_stage = "assembling_project"
 
     # Build chapters (derive scene_ids from outline scenes' chapter_id)
     chapters: list[Chapter] = []

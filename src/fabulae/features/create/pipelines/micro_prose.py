@@ -48,6 +48,8 @@ from fabulae.features.create.service import (
     _write_style,
     run_stage,
 )
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
@@ -81,11 +83,38 @@ async def generate_micro_prose(
     """
     format_name: LiteratureFormat = "micro-prose"
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_micro_prose_impl(
+            idea=idea,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_micro_prose_impl(
+    idea: str,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    gen_state: GenerationState,
+) -> Project:
+    """Internal implementation of micro-prose generation with state tracking."""
+    format_name: LiteratureFormat = "micro-prose"
+
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, options.idea_language, language_config)
 
     # Initialize config
+    gen_state.current_stage = "setup"
     config = ProjectConfig(
         version=__version__,
         title=None,
@@ -97,6 +126,7 @@ async def generate_micro_prose(
     rng = _rng(llm_config.seed)
 
     # Step 1: Generate Style
+    gen_state.current_stage = "generating_style"
     style_prompt = build_style_prompt(format_name)
     style_user_prompt = _build_user_prompt(idea, format_name, {"Language": expected_language or "auto-detect"})
     style_result = await run_stage(
@@ -122,6 +152,7 @@ async def generate_micro_prose(
 
     style = _coerce_style(style_output)
     style_hint_str = _style_hint(style_output) if style_output else ""
+    gen_state.style = style_output
 
     if progress:
         progress.success("Style determined")
@@ -133,6 +164,7 @@ async def generate_micro_prose(
         _write_artifact(artifacts_dir, "style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
     # Step 2: Generate Fragment Plan
+    gen_state.current_stage = "generating_fragment_plan"
     fragment_count_range = _count_range(format_name, "fragments")
     fragment_plan_prompt = build_fragment_plan_prompt(format_name, style_hint_str or None, fragment_count_range)
     fragment_plan_user_prompt = _build_user_prompt(
@@ -160,10 +192,15 @@ async def generate_micro_prose(
     if progress:
         progress.success(f"Fragments planned: {len(fragment_plan_output.fragments)}")
 
+    # Store premise from fragment plan if available
+    if fragment_plan_output.premise:
+        gen_state.premise = fragment_plan_output.premise
+
     if artifacts_dir:
         _write_artifact(artifacts_dir, "fragments_plan.yml", fragment_plan_output.model_dump(exclude_none=True))
 
     # Step 3: Generate Fragments
+    gen_state.current_stage = "generating_fragments"
 
     fragment_outputs: dict[str, Fragment] = {}
     fragment_order = list(fragment_plan_output.fragments)
@@ -212,6 +249,7 @@ async def generate_micro_prose(
         fragment_output = fragment_result.output
         fragment = Fragment.model_validate(fragment_output.model_dump(exclude_none=True))
         fragment_outputs[fragment.id] = fragment
+        gen_state.fragments.append(fragment)
 
         if artifacts_dir:
             _write_artifact(
@@ -227,6 +265,7 @@ async def generate_micro_prose(
         progress.success(f"Written {len(fragments)} fragments")
 
     # Build plot
+    gen_state.current_stage = "assembling_project"
     plot_payload = {
         "format": format_name,
         "title": fragment_plan_output.title,

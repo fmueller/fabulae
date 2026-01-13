@@ -65,6 +65,8 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_plot_graph
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -137,9 +139,40 @@ async def generate_prose_sequential(
     elif options.shape_id:
         shape = load_shape(options.shape_id)
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_prose_sequential_impl(
+            idea=idea,
+            format=format,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            shape=shape,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_prose_sequential_impl(
+    idea: str,
+    format: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress,
+    artifacts_dir: Path | None,
+    shape: StoryShape | None,
+    gen_state: GenerationState,
+) -> Project:
+    """Internal implementation of prose sequential generation with state tracking."""
     # =========================================================================
     # Phase 1: Structure Generation (No LLM)
     # =========================================================================
+    gen_state.current_stage = "planning_structure"
 
     with progress.stage("Planning story structure..."):
         graph = generate_plot_graph(format_name, shape, options.variation, options.seed)
@@ -168,6 +201,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
+    gen_state.current_stage = "generating_style"
 
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
@@ -193,6 +227,7 @@ async def generate_prose_sequential(
     if expected_language and style_output.language != expected_language:
         style_output = style_output.model_copy(update={"language": expected_language})
 
+    gen_state.style = style_output
     progress.success("Style determined")
 
     # Write style artifact
@@ -202,6 +237,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 3: Premise Expansion
     # =========================================================================
+    gen_state.current_stage = "generating_premise"
 
     with progress.stage("Expanding premise..."):
         premise_result = await run_stage(
@@ -215,6 +251,7 @@ async def generate_prose_sequential(
         )
         premise = premise_result.output.premise
 
+    gen_state.premise = premise
     progress.success("Premise expanded")
 
     # Write premise artifact
@@ -227,6 +264,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 4: Character Generation (One at a time)
     # =========================================================================
+    gen_state.current_stage = "generating_characters"
 
     for i, char_slot in enumerate(graph.characters):
         with progress.stage(f"Creating character {i + 1}/{len(graph.characters)}..."):
@@ -253,6 +291,7 @@ async def generate_prose_sequential(
             char_data = char_result.output.model_dump(exclude_none=True)
             character = Character.model_validate(char_data)
             state.characters.append(character)
+            gen_state.characters.append(character)
 
     progress.success(f"Created {len(state.characters)} characters")
 
@@ -267,6 +306,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 5: Location Generation (One at a time)
     # =========================================================================
+    gen_state.current_stage = "generating_locations"
 
     for i, loc_slot in enumerate(graph.locations):
         with progress.stage(f"Creating location {i + 1}/{len(graph.locations)}..."):
@@ -295,6 +335,7 @@ async def generate_prose_sequential(
             loc_data = loc_result.output.model_dump(exclude_none=True)
             location = WorldFact.model_validate(loc_data)
             state.locations.append(location)
+            gen_state.locations.append(location)
 
     progress.success(f"Created {len(state.locations)} locations")
 
@@ -309,6 +350,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 6: Chapter Summary Generation (One at a time)
     # =========================================================================
+    gen_state.current_stage = "generating_chapters"
 
     if graph.chapters:
         # Define ChapterOutput class once outside the loop
@@ -347,6 +389,7 @@ async def generate_prose_sequential(
                     scene_ids=chapter_slot.scene_ids,
                 )
                 state.chapters.append(chapter)
+                gen_state.chapters.append(chapter)
 
         progress.success(f"Planned {len(state.chapters)} chapters")
 
@@ -361,6 +404,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 7: Scene Generation (One at a time with minimal context)
     # =========================================================================
+    gen_state.current_stage = "generating_scenes"
 
     # Build sets for validation
     available_characters = {c.id for c in state.characters}
@@ -440,6 +484,7 @@ async def generate_prose_sequential(
                 beats=beats,
             )
             state.scenes.append(scene)
+            gen_state.scenes.append(scene)
 
     progress.success(f"Written {len(state.scenes)} scenes")
 
@@ -454,6 +499,7 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 8: Project Assembly
     # =========================================================================
+    gen_state.current_stage = "assembling_project"
 
     with progress.stage("Assembling project..."):
         project = _assemble_project(
