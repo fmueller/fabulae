@@ -285,6 +285,7 @@ def register_create_command(app: typer.Typer) -> None:
                 idea_language=language_code,
                 progress=None,
                 options=create_options,
+                create_progress=progress,
             )
         except CreateProjectError as exc:
             error_message = _format_generation_error(exc, config.model)
@@ -294,7 +295,7 @@ def register_create_command(app: typer.Typer) -> None:
             progress.error(f"Create failed: {exc}")
             raise typer.Exit(code=1) from exc
 
-        with progress.stage("Writing project files"):
+        with progress.stage("Writing project files..."):
             save_project(project, directory)
 
         character_count = len(project.characters)
