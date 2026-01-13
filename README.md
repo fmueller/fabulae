@@ -121,7 +121,7 @@ fabulae create --idea "A fantasy epic" --seed 42 my-fantasy
 - `--shape` – Built-in story shape ID (use `fabulae shapes` to list)
 - `--shape-file` – Path to custom story shape YAML file
 - `--variation` – Variation level 0.0-1.0 (default: 0.5)
-- `--enrich/--no-enrich` – Enable/disable enrichment pass (default: enabled)
+- `--enrich/--no-enrich` – Enable/disable enrichment pass (default: auto - enabled for large models, disabled for small models <13B)
 - `--language, -l` – ISO 639-1 language code to enforce
 - `--seed` – Random seed for reproducible generation
 - `--model` – LLM model to use

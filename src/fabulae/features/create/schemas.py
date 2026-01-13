@@ -22,6 +22,9 @@ class CreateOptions:
     variation: float = 0.5
     seed: int | None = None
     enrich: bool = True
+    # Small model optimizations
+    is_small_model: bool = False
+    sliding_window_scenes: int | None = None  # None = unlimited, 5 recommended for small models
 
 
 class CharacterOutput(BaseModel):

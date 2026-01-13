@@ -22,29 +22,32 @@ from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, save_project
 
 # Patterns that indicate a small model that may struggle with structured output
 _SMALL_MODEL_PATTERNS = [
-    r":(\d+)b\b",  # Matches :3b, :7b, etc. (under 10B)
-    r"-(\d+)b\b",  # Matches -3b, -7b, etc.
+    r"[:\-](\d+(?:\.\d+)?)b\b",  # Matches :1.7b, :3b, :10b, -7b, etc.
     r"mini",
     r"tiny",
     r"small",
 ]
 
+# Threshold for "small" model in billions of parameters
+_SMALL_MODEL_THRESHOLD_B = 13
+
 
 def _is_small_model(model_name: str) -> bool:
-    """Check if a model name suggests it's a small model."""
+    """Check if a model name suggests it's a small model (<13B parameters)."""
     model_lower = model_name.lower()
     for pattern in _SMALL_MODEL_PATTERNS:
         match = re.search(pattern, model_lower)
         if match:
-            # For numeric patterns, check if < 10B
+            # For numeric patterns, check if < threshold
             if match.lastindex and match.lastindex >= 1:
                 try:
-                    size = int(match.group(1))
-                    if size < 10:
+                    size = float(match.group(1))
+                    if size < _SMALL_MODEL_THRESHOLD_B:
                         return True
                 except ValueError:
                     pass
             else:
+                # Non-numeric patterns like "mini", "tiny", "small"
                 return True
     return False
 
@@ -169,12 +172,15 @@ def register_create_command(app: typer.Typer) -> None:
             ),
         ] = 0.5,
         enrich: Annotated[
-            bool,
+            bool | None,
             typer.Option(
                 "--enrich/--no-enrich",
-                help="Enable/disable narrative enrichment (new characters, subplots, foreshadowing). Default: enabled.",
+                help=(
+                    "Enable/disable narrative enrichment (new characters, subplots, foreshadowing). "
+                    "Default: enabled for large models, disabled for small models (<13B)."
+                ),
             ),
-        ] = True,
+        ] = None,
     ) -> None:
         format_value = _validate_format(format_name)
         if directory.exists() and directory.is_file():
@@ -211,23 +217,37 @@ def register_create_command(app: typer.Typer) -> None:
 
         directory.mkdir(parents=True, exist_ok=True)
         config = resolve_config(model, None, None, temperature, seed)
+
+        progress = CreateProgress()
+        is_small = _is_small_model(config.model)
+
+        # Determine effective enrich setting based on model size
+        effective_enrich: bool
+        if enrich is None:
+            # Auto: disable enrichment for small models to reduce context pressure
+            effective_enrich = not is_small
+            if is_small:
+                progress.info("Enrichment auto-disabled for small model. Use --enrich to override.")
+        else:
+            effective_enrich = enrich
+
         create_options = CreateOptions(
             narrative_patterns_mode=narrative_patterns,
             use_narrative_patterns_in_prompts=use_narrative_patterns_in_prompts,
             shape_id=shape,
             shape_file=shape_file,
             variation=variation,
-            enrich=enrich,
+            enrich=effective_enrich,
+            is_small_model=is_small,
+            sliding_window_scenes=5 if is_small else None,  # Limit context for small models
         )
 
-        progress = CreateProgress()
-
         # Warn about small models that may struggle with structured output
-        if _is_small_model(config.model):
+        if is_small:
             progress.warn(
-                f"Model '{config.model}' appears to be a small model. "
+                f"Model '{config.model}' appears to be a small model (<{_SMALL_MODEL_THRESHOLD_B}B). "
                 "Small models may struggle with JSON output for complex formats. "
-                "Consider using a larger model (13B+) if generation fails."
+                "Consider using a larger model if generation fails."
             )
 
         try:

@@ -91,10 +91,16 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 - Deterministic RNG via optional `--seed` for reproducible results
 
 **Enrichment Pass** (`src/fabulae/features/create/enrichment.py`): Adds depth without changing structure:
-- `--enrich/--no-enrich` CLI flag (default: enabled)
+- `--enrich/--no-enrich` CLI flag (default: auto - enabled for large models, disabled for small models <13B)
 - Adds: new characters, locations, subplots, foreshadowing, thematic depth
 - Runs after initial generation to enhance existing scenes
 - Merges new entities while maintaining ID uniqueness and reference integrity
+
+**Small Model Optimizations** (`src/fabulae/features/create/cli.py`): Auto-detected for models <13B parameters:
+- Auto-detection via model name patterns (e.g., `:3b`, `:1.7b`, `mini`, `tiny`)
+- Enrichment auto-disabled to reduce context pressure
+- Sliding window for scene context (last 5 scenes instead of all prior scenes)
+- Warning displayed at startup about potential JSON output issues
 
 ## Key Validation Rules
 

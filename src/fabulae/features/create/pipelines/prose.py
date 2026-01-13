@@ -700,6 +700,13 @@ async def generate_prose(
         scene_outline = scene_outlines[scene_id]
         beat_template = beat_templates.get(scene_id)
 
+        # Apply sliding window for small model optimization
+        window_size = options.sliding_window_scenes
+        if window_size is not None and len(prior_scene_summaries) > window_size:
+            windowed_summaries = prior_scene_summaries[-window_size:]
+        else:
+            windowed_summaries = prior_scene_summaries
+
         # Build scene context
         scene_context = SceneContext(
             idea=idea,
@@ -716,11 +723,11 @@ async def generate_prose(
             available_character_summary=available_character_summary,
             available_location_summary=available_location_summary,
             world_summary=world_summary,
-            prior_scene_summaries=list(prior_scene_summaries),
+            prior_scene_summaries=list(windowed_summaries),
             beats_per_scene=beats_per_scene_range,
         )
 
-        existing_summaries = _summarize_outline_summaries(prior_scene_summaries)
+        existing_summaries = _summarize_outline_summaries(windowed_summaries)
 
         # Build validation functions that capture scene context
         def validate_scene(
