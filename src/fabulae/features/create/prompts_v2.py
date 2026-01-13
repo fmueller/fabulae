@@ -194,12 +194,25 @@ def build_chapter_prompt_v2(context: ChapterContext) -> str:
         recent = context.previous_chapter_summaries[-3:]  # Last 3 chapters
         sections["Previous Chapters"] = "\n".join(f"- {summary}" for summary in recent)
 
+    if context.previous_chapter_titles:
+        sections["Previously Used Titles (DO NOT REPEAT)"] = "\n".join(
+            f"- {title}" for title in context.previous_chapter_titles
+        )
+
     sections["Output Schema (JSON)"] = schema
-    sections["Notes"] = (
-        "Generate ONLY this chapter's title and summary. "
-        "Title should be evocative but not spoilery. "
-        "Summary should hint at the chapter's arc without full details."
-    )
+
+    # Build notes with title diversity emphasis
+    notes_lines = [
+        "Generate ONLY this chapter's title and summary.",
+        "Title should be evocative but not spoilery.",
+        "Summary should hint at the chapter's arc without full details.",
+    ]
+    if context.previous_chapter_titles:
+        notes_lines.append(
+            "IMPORTANT: Create a UNIQUE title that differs from the previously used titles above. "
+            "Avoid similar patterns, repeated words, or parallel structure."
+        )
+    sections["Notes"] = " ".join(notes_lines)
 
     return build_system_prompt(purpose, _format_guidelines()) + "\n\n" + format_sections(sections)
 
