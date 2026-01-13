@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 NarrativePatternsMode = Literal["off", "artifact", "project"]
 
@@ -36,6 +36,11 @@ class CharacterOutput(BaseModel):
     secret: str | None = Field(default=None, description="Hidden information about the character.")
     traits: list[str] = Field(default_factory=list, description="Personality traits (e.g., 'curious', 'impulsive').")
 
+    @field_validator("name", "role", "desire", "need", "flaw", "secret", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class CharacterBatchOutput(BaseModel):
     characters: list[CharacterOutput] = Field(default_factory=list)
@@ -48,6 +53,11 @@ class CharacterPlanItem(BaseModel):
     name: str = Field(description="Character's name.")
     role: str | None = Field(default=None, description="Role: 'protagonist', 'antagonist', etc.")
     purpose: str | None = Field(default=None, description="Brief description of character's purpose in the story.")
+
+    @field_validator("name", "role", "purpose", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class CharacterPlanOutput(BaseModel):
@@ -64,6 +74,11 @@ class WorldFactOutput(BaseModel):
     name: str = Field(description="Name of the location or concept.")
     facts: list[str] = Field(default_factory=list, description="List of specific details about this element.")
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class WorldOutput(BaseModel):
     setting: str | None = None
@@ -72,12 +87,22 @@ class WorldOutput(BaseModel):
     motifs: list[str] = Field(default_factory=list)
     facts: list[WorldFactOutput] = Field(default_factory=list)
 
+    @field_validator("setting", "time_period", "tone", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class WorldFactPlanItem(BaseModel):
     id: str
     type: Literal["location", "culture", "history", "rule", "object"]
     name: str
     purpose: str | None = None
+
+    @field_validator("name", "purpose", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class WorldPlanOutput(BaseModel):
@@ -87,16 +112,31 @@ class WorldPlanOutput(BaseModel):
     motifs: list[str] = Field(default_factory=list)
     facts: list[WorldFactPlanItem] = Field(default_factory=list)
 
+    @field_validator("setting", "time_period", "tone", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class HookOutput(BaseModel):
     line: str | None = None
     question: str | None = None
     promise: str | None = None
 
+    @field_validator("line", "question", "promise", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class StakesOutput(BaseModel):
     external: str | None = None
     internal: str | None = None
+
+    @field_validator("external", "internal", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class BeatOutput(BaseModel):
@@ -112,12 +152,22 @@ class BeatOutput(BaseModel):
     pace: str | None = Field(default=None, description="Pacing note (e.g., 'fast', 'slow', 'tense').")
     constraints: list[str] = Field(default_factory=list, description="Writing constraints for this beat.")
 
+    @field_validator("kind", "summary", "goal", "conflict", "outcome", "pace", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class BeatTemplateItem(BaseModel):
     kind: str
     required: bool = False
     plot_pattern_beat: str | None = None
     notes: str | None = None
+
+    @field_validator("kind", "plot_pattern_beat", "notes", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class SceneBeatTemplate(BaseModel):
@@ -141,6 +191,11 @@ class SceneOutput(BaseModel):
     outcome: str | None = Field(default=None, description="How the scene resolves (success, failure, complication).")
     beats: list[BeatOutput] = Field(default_factory=list, description="Beats list. MUST match beat_count exactly.")
 
+    @field_validator("time", "summary", "goal", "conflict", "outcome", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class OutlineSceneOutput(BaseModel):
     """A scene outline with planned beat count."""
@@ -153,6 +208,11 @@ class OutlineSceneOutput(BaseModel):
     outcome: str | None = Field(default=None, description="How the scene resolves.")
     beat_count: int = Field(default=1, ge=1, description="Number of beats. Must be within beats-per-scene range.")
 
+    @field_validator("summary", "goal", "conflict", "outcome", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class ChapterOutput(BaseModel):
     """A chapter in the narrative."""
@@ -161,6 +221,11 @@ class ChapterOutput(BaseModel):
     title: str | None = Field(default=None, description="Chapter title.")
     summary: str | None = Field(default=None, description="Brief summary of the chapter.")
     scene_ids: list[str] | None = Field(default=None, description="Scene IDs in this chapter. Must list all scenes.")
+
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class FragmentOutput(BaseModel):
@@ -171,6 +236,11 @@ class FragmentOutput(BaseModel):
     target_words: int | None = Field(default=None, ge=1, description="Target word count.")
     notes: str | None = Field(default=None, description="Optional notes about this fragment.")
 
+    @field_validator("content", "notes", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class StanzaOutput(BaseModel):
     """A stanza in a poem."""
@@ -179,6 +249,11 @@ class StanzaOutput(BaseModel):
     lines: list[str] = Field(default_factory=list, description="Lines in stanza. MUST have exactly line_count lines.")
     meter: str | None = Field(default=None, description="Meter pattern (e.g., 'iambic pentameter').")
     rhyme_scheme: str | None = Field(default=None, description="Rhyme scheme (e.g., 'ABAB').")
+
+    @field_validator("meter", "rhyme_scheme", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class PlotOutput(BaseModel):
@@ -198,6 +273,11 @@ class PlotOutput(BaseModel):
     poem_meter: str | None = None
     poem_rhyme_scheme: str | None = None
 
+    @field_validator("title", "premise", "poem_form", "poem_meter", "poem_rhyme_scheme", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class PlotOutlineOutput(BaseModel):
     format: Literal["novel", "novella", "short-story"]
@@ -210,12 +290,22 @@ class PlotOutlineOutput(BaseModel):
     scenes: list[OutlineSceneOutput] = Field(default_factory=list)
     scene_ids: list[str] | None = None
 
+    @field_validator("title", "premise", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class FragmentPlanItem(BaseModel):
     id: str
     target_words: int | None = Field(default=None, ge=1)
     notes: str | None = None
     intent: str | None = None
+
+    @field_validator("notes", "intent", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class FragmentPlanOutput(BaseModel):
@@ -224,11 +314,21 @@ class FragmentPlanOutput(BaseModel):
     themes: list[str] = Field(default_factory=list)
     fragments: list[FragmentPlanItem] = Field(default_factory=list)
 
+    @field_validator("title", "premise", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class StanzaPlanItem(BaseModel):
     id: str
     line_count: int = Field(default=1, ge=1)
     intent: str | None = None
+
+    @field_validator("intent", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class PoemPlanOutput(BaseModel):
@@ -239,6 +339,25 @@ class PoemPlanOutput(BaseModel):
     poem_meter: str | None = None
     poem_rhyme_scheme: str | None = None
     stanzas: list[StanzaPlanItem] = Field(default_factory=list)
+
+    @field_validator("title", "premise", "poem_form", "poem_meter", "poem_rhyme_scheme", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class PremiseOutput(BaseModel):
+    """Expanded premise generated from user's idea."""
+
+    premise: str = Field(
+        description="A 2-4 sentence narrative premise expanding on the original idea. "
+        "Should capture the core conflict, setting, and emotional hook."
+    )
+
+    @field_validator("premise", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class StyleOutput(BaseModel):
@@ -253,11 +372,21 @@ class StyleOutput(BaseModel):
     register_: str | None = Field(default=None, alias="register", description="Register: 'formal', 'informal'.")
     constraints: list[str] = Field(default_factory=list, description="Writing constraints.")
 
+    @field_validator("language", "pov", "tense", "voice", "register_", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class ChapterContentOutput(BaseModel):
     id: str
     title: str | None = None
     summary: str | None = None
+
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class SceneContentOutput(BaseModel):
@@ -266,6 +395,11 @@ class SceneContentOutput(BaseModel):
     title: str | None = None
     summary: str | None = None
     beat_count: int = Field(ge=1)
+
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class OutlineContentOutput(BaseModel):
@@ -280,6 +414,11 @@ class SubplotAddition(BaseModel):
     involved_characters: list[str] = Field(default_factory=list)
     scenes_to_modify: list[str] = Field(default_factory=list)
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
 
 class ForeshadowingElement(BaseModel):
     """A foreshadowing element to weave into the narrative."""
@@ -287,6 +426,11 @@ class ForeshadowingElement(BaseModel):
     description: str
     setup_scene: str | None = None
     payoff_scene: str | None = None
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
 
 
 class EnrichmentOutput(BaseModel):

@@ -6,6 +6,7 @@ featuring form-driven structure with stanzas and lines as primary units.
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from fabulae import __version__
@@ -26,6 +27,7 @@ from fabulae.features.create.service import (
 from fabulae.features.create.validation import validate_id_unchanged
 from fabulae.llm import LLMConfig
 from fabulae.models import (
+    GenerationMetadata,
     LiteratureFormat,
     Plot,
     Project,
@@ -220,9 +222,25 @@ async def generate_poem(
     style_dict = style_output.model_dump(exclude_none=True, by_alias=True)
     style = Style.model_validate(style_dict) if style_dict else None
 
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea=idea,
+        model=llm_config.model,
+        temperature=llm_config.temperature,
+        shape=options.shape_id,
+        shape_file=str(options.shape_file) if options.shape_file else None,
+        variation=options.variation,
+        seed=llm_config.seed,
+        enrichment_enabled=options.enrich,
+        format=format_name,
+        language=style_output.language,
+    )
+
     config = ProjectConfig(
         version=__version__,
         title=poem_plan.title,
+        metadata=metadata,
     )
 
     project = Project(

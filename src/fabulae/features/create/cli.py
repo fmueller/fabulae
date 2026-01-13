@@ -10,6 +10,8 @@ import typer
 from pydantic import ValidationError
 
 from fabulae.cli_options import model_option, seed_option, temperature_option
+from fabulae.features.create.errors import ErrorType, classify_error, get_error_guidance
+from fabulae.features.create.progress import CreateProgress
 from fabulae.features.create.schemas import CreateOptions, NarrativePatternsMode
 from fabulae.features.create.service import (
     CreateProjectError,
@@ -17,6 +19,55 @@ from fabulae.features.create.service import (
 )
 from fabulae.llm import resolve_config
 from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, save_project
+
+# Patterns that indicate a small model that may struggle with structured output
+_SMALL_MODEL_PATTERNS = [
+    r":(\d+)b\b",  # Matches :3b, :7b, etc. (under 10B)
+    r"-(\d+)b\b",  # Matches -3b, -7b, etc.
+    r"mini",
+    r"tiny",
+    r"small",
+]
+
+
+def _is_small_model(model_name: str) -> bool:
+    """Check if a model name suggests it's a small model."""
+    model_lower = model_name.lower()
+    for pattern in _SMALL_MODEL_PATTERNS:
+        match = re.search(pattern, model_lower)
+        if match:
+            # For numeric patterns, check if < 10B
+            if match.lastindex and match.lastindex >= 1:
+                try:
+                    size = int(match.group(1))
+                    if size < 10:
+                        return True
+                except ValueError:
+                    pass
+            else:
+                return True
+    return False
+
+
+def _format_generation_error(exc: CreateProjectError, model_name: str) -> str:
+    """Format a CreateProjectError with helpful context."""
+    error_str = str(exc)
+
+    # Try to classify the error for better messaging
+    error_type = classify_error(exc)
+    guidance = get_error_guidance(error_type)
+
+    lines = [f"Generation failed: {guidance}"]
+
+    # Add model-specific hints
+    if error_type in {ErrorType.JSON_TRUNCATED, ErrorType.JSON_PARSE_ERROR} and _is_small_model(model_name):
+        lines.append(f"Note: The model '{model_name}' may be too small for complex structured output.")
+        lines.append("Consider using a larger model (e.g., 13B+ parameters).")
+
+    lines.append("")
+    lines.append(f"Technical details: {error_str}")
+
+    return "\n".join(lines)
 
 
 def _resolve_idea(idea: str | None) -> str:
@@ -168,32 +219,48 @@ def register_create_command(app: typer.Typer) -> None:
             variation=variation,
             enrich=enrich,
         )
-        try:
-            project = generate_project_from_idea_sync(
-                idea_text,
-                format_value,
-                config,
-                output_dir=directory,
-                idea_language=language_code,
-                progress=typer.echo,
-                options=create_options,
+
+        progress = CreateProgress()
+
+        # Warn about small models that may struggle with structured output
+        if _is_small_model(config.model):
+            progress.warn(
+                f"Model '{config.model}' appears to be a small model. "
+                "Small models may struggle with JSON output for complex formats. "
+                "Consider using a larger model (13B+) if generation fails."
             )
-        except (CreateProjectError, ValidationError, ValueError) as exc:
-            typer.echo(f"Create failed: {exc}")
+
+        try:
+            with progress.stage(f"Generating {format_value} project from idea"):
+                project = generate_project_from_idea_sync(
+                    idea_text,
+                    format_value,
+                    config,
+                    output_dir=directory,
+                    idea_language=language_code,
+                    progress=None,
+                    options=create_options,
+                )
+        except CreateProjectError as exc:
+            error_message = _format_generation_error(exc, config.model)
+            progress.error(error_message)
+            raise typer.Exit(code=1) from exc
+        except (ValidationError, ValueError) as exc:
+            progress.error(f"Create failed: {exc}")
             raise typer.Exit(code=1) from exc
 
-        typer.echo("Writing project files...")
-        save_project(project, directory)
+        with progress.stage("Writing project files"):
+            save_project(project, directory)
 
         character_count = len(project.characters)
         scene_count = len(project.plot.scenes)
         fragment_count = len(project.plot.fragments)
         stanza_count = len(project.plot.stanzas)
-        typer.echo(f"Created Fabulae project in {directory}")
-        typer.echo(
-            "Summary: "
-            f"{character_count} characters, {scene_count} scenes, "
-            f"{fragment_count} fragments, {stanza_count} stanzas."
+
+        progress.success(f"Created Fabulae project in {directory}")
+        progress.info(
+            f"Summary: {character_count} characters, {scene_count} scenes, "
+            f"{fragment_count} fragments, {stanza_count} stanzas"
         )
 
 

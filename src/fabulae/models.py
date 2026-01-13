@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -261,6 +262,23 @@ class ProjectDefaults(BaseModel):
     language: str | None = None
 
 
+class GenerationMetadata(BaseModel):
+    """Metadata about how the project was generated."""
+
+    generated_at: datetime
+    generator_version: str
+    original_idea: str
+    model: str
+    temperature: float
+    shape: str | None = None
+    shape_file: str | None = None
+    variation: float
+    seed: int | None = None
+    enrichment_enabled: bool
+    format: str
+    language: str | None = None
+
+
 class ProjectConfig(BaseModel):
     """Project configuration loaded from fabulae.yml."""
 
@@ -268,6 +286,7 @@ class ProjectConfig(BaseModel):
     title: str | None = None
     paths: ProjectPaths | None = None
     defaults: ProjectDefaults | None = None
+    metadata: GenerationMetadata | None = None
 
 
 class CharactersFile(BaseModel):

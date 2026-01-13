@@ -28,6 +28,7 @@ from fabulae.features.create.schemas import (
     OutlineSceneOutput,
     PlotOutlineOutput,
     PoemPlanOutput,
+    PremiseOutput,
     SceneContentOutput,
     SceneOutput,
     StanzaOutput,
@@ -403,6 +404,7 @@ def test_generate_project_from_idea_builds_project(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -636,6 +638,7 @@ def test_generate_project_writes_artifacts_and_language(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -670,8 +673,9 @@ def test_generate_project_writes_artifacts_and_language(
     # New pipeline writes numbered artifacts to .fabulae-create/
     artifacts_dir = tmp_path / ".fabulae-create"
     assert (artifacts_dir / "01-style.yml").exists()
-    assert (artifacts_dir / "02-structure.yml").exists()
-    assert (artifacts_dir / "03-outline-content.yml").exists()
+    assert (artifacts_dir / "02-premise.yml").exists()
+    assert (artifacts_dir / "03-structure.yml").exists()
+    assert (artifacts_dir / "04-outline-content.yml").exists()
 
 
 def test_generate_project_retries_on_validation_error(
@@ -698,6 +702,7 @@ def test_generate_project_retries_on_validation_error(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [invalid_plan, fixed_plan],
         CharacterOutput: cast(
             list[object],
@@ -785,6 +790,7 @@ def test_generate_project_uses_provided_ids(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], character_outputs),
         WorldPlanOutput: [world_plan],
@@ -842,6 +848,7 @@ def test_world_fact_generation_retries_on_id_mismatch(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -911,6 +918,7 @@ def test_character_generation_retries_on_id_mismatch(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: [invalid_character, valid_character] + cast(list[object], character_outputs[1:]),
         WorldPlanOutput: [world_plan],
@@ -975,6 +983,7 @@ def test_scene_generation_retries_on_id_mismatch(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -1045,6 +1054,7 @@ def test_scene_generation_accepts_any_beat_ids(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -1096,6 +1106,7 @@ def test_scene_generation_retries_on_unknown_characters(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -1159,6 +1170,7 @@ def test_fragment_generation_retries_on_id_mismatch(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],
@@ -1218,6 +1230,7 @@ def test_stanza_generation_retries_on_id_mismatch(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         PoemPlanOutput: [poem_plan],
         StanzaOutput: [invalid_stanza, valid_stanza] + cast(list[object], stanza_outputs[1:]),
     }
@@ -1289,6 +1302,7 @@ def test_create_warns_but_does_not_fail_on_scene_count(
 
     outputs_by_type: dict[type[object], list[object]] = {
         StyleOutput: [style_output],
+        PremiseOutput: [PremiseOutput(premise="An expanded narrative premise based on the original idea.")],
         CharacterPlanOutput: [character_plan],
         CharacterOutput: cast(list[object], _character_outputs(character_plan)),
         WorldPlanOutput: [world_plan],

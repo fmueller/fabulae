@@ -64,6 +64,51 @@ def build_style_prompt(format_name: str) -> str:
     )
 
 
+def build_premise_expansion_prompt(format_name: str, expected_language: str | None = None) -> str:
+    """Build a prompt for expanding a simple idea into a richer narrative premise.
+
+    Args:
+        format_name: The narrative format (novel, novella, short-story, etc.).
+        expected_language: Optional ISO 639-1 language code for the expected output language.
+
+    Returns:
+        The system prompt for premise expansion.
+    """
+    purpose = (
+        "Expand a simple story idea into a compelling narrative premise. "
+        "The premise should be 2-4 sentences that capture the core conflict, setting, and emotional hook."
+    )
+    schema = (
+        "{\n"
+        '  "premise": "A 2-4 sentence narrative premise that expands the original idea. '
+        "Captures the core conflict, the setting, and what's emotionally at stake for the main character.\""
+        "\n}"
+    )
+    notes_lines = [
+        "The premise should feel more developed than the original idea.",
+        "Focus on: What happens? Who is affected? What's at stake?",
+        "Avoid spoiling the ending or over-explaining the plot.",
+        "Keep it concise but evocative - aim for 2-4 sentences.",
+    ]
+
+    sections: dict[str, str] = {
+        "Format": format_name,
+        "Notes": "\n".join(notes_lines),
+        "Output Schema (JSON)": schema,
+    }
+
+    if expected_language:
+        sections["Expected Language"] = f"ISO 639-1: {expected_language}"
+
+    return (
+        build_system_prompt(purpose, _format_guidelines())
+        + "\n\n"
+        + format_sections(sections)
+        + "\n\n"
+        + _format_example("Example Output", schema)
+    )
+
+
 def build_character_plan_prompt(
     format_name: str,
     style_hint: str | None,
@@ -668,6 +713,7 @@ __all__ = [
     "build_fragment_prompt",
     "build_plot_outline_prompt",
     "build_poem_plan_prompt",
+    "build_premise_expansion_prompt",
     "build_scene_prompt",
     "build_stanza_prompt",
     "build_style_prompt",

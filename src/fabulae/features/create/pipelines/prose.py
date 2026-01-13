@@ -16,9 +16,11 @@ The pipeline follows a plot-first approach:
 from __future__ import annotations
 
 import random
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from fabulae import __version__
 from fabulae.features.create.enrichment import (
     generate_enrichment,
     merge_enrichment_characters,
@@ -38,6 +40,7 @@ from fabulae.features.create.pipelines.plot_first import (
 from fabulae.features.create.prompts import (
     build_character_plan_prompt,
     build_character_prompt,
+    build_premise_expansion_prompt,
     build_scene_prompt,
     build_style_prompt,
     build_world_fact_prompt,
@@ -50,6 +53,7 @@ from fabulae.features.create.schemas import (
     CreateOptions,
     OutlineContentOutput,
     OutlineSceneOutput,
+    PremiseOutput,
     SceneBeatTemplate,
     SceneContentOutput,
     SceneOutput,
@@ -106,6 +110,7 @@ from fabulae.models import (
     Beat,
     Chapter,
     Character,
+    GenerationMetadata,
     LiteratureFormat,
     Plot,
     Project,
@@ -189,6 +194,22 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(artifacts_dir, "01-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
+    # Generate premise expansion
+    premise_result = await run_stage(
+        result_type=PremiseOutput,
+        system_prompt=build_premise_expansion_prompt(format_name, expected_language),
+        user_prompt=f"Idea: {idea.strip()}\nStyle: {style_hint_str}",
+        config=llm_config,
+        expected_language=expected_language,
+        extract_text=lambda p: p.premise,
+        error_mode=ErrorMode.STRICT,
+    )
+    premise = premise_result.output.premise
+
+    # Write premise artifact
+    if artifacts_dir:
+        _write_artifact(artifacts_dir, "02-premise.yml", {"premise": premise})
+
     # Load story shape if provided
     shape: StoryShape | None = None
     if options.shape_file:
@@ -232,7 +253,7 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(
             artifacts_dir,
-            "02-structure.yml",
+            "03-structure.yml",
             {
                 "num_chapters": structure.num_chapters,
                 "scenes_per_chapter": structure.scenes_per_chapter,
@@ -264,7 +285,7 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(
             artifacts_dir,
-            "03-outline-content.yml",
+            "04-outline-content.yml",
             {
                 "chapters": [
                     {"id": ch.id, "title": ch.title, "summary": ch.summary} for ch in outline_content.chapters
@@ -316,7 +337,7 @@ async def generate_prose(
 
         # Write character plan artifact
         if artifacts_dir:
-            _write_artifact(artifacts_dir, "04-character-plan.yml", char_plan.model_dump(exclude_none=True))
+            _write_artifact(artifacts_dir, "05-character-plan.yml", char_plan.model_dump(exclude_none=True))
 
         # Expand each character
         existing_char_ids: set[str] = set()
@@ -357,7 +378,7 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(
             artifacts_dir,
-            "05-characters.yml",
+            "06-characters.yml",
             {"characters": [c.model_dump(exclude_none=True) for c in characters]},
         )
 
@@ -412,7 +433,7 @@ async def generate_prose(
 
         # Write world plan artifact
         if artifacts_dir:
-            _write_artifact(artifacts_dir, "06-world-plan.yml", world_plan.model_dump(exclude_none=True))
+            _write_artifact(artifacts_dir, "07-world-plan.yml", world_plan.model_dump(exclude_none=True))
 
         # Expand each world fact
         existing_fact_ids: set[str] = set()
@@ -456,7 +477,7 @@ async def generate_prose(
 
     # Write world artifact
     if artifacts_dir:
-        _write_artifact(artifacts_dir, "07-world.yml", world.model_dump(exclude_none=True))
+        _write_artifact(artifacts_dir, "08-world.yml", world.model_dump(exclude_none=True))
 
     # =========================================================================
     # Phase 3.5: Enrichment (Optional)
@@ -545,22 +566,22 @@ async def generate_prose(
             if artifacts_dir:
                 _write_artifact(
                     artifacts_dir,
-                    "07a-enrichment.yml",
+                    "08a-enrichment.yml",
                     enrichment.model_dump(exclude_none=True),
                 )
                 _write_artifact(
                     artifacts_dir,
-                    "07b-enriched-characters.yml",
+                    "08b-enriched-characters.yml",
                     {"characters": [c.model_dump(exclude_none=True) for c in characters]},
                 )
                 _write_artifact(
                     artifacts_dir,
-                    "07c-enriched-world.yml",
+                    "08c-enriched-world.yml",
                     world.model_dump(exclude_none=True),
                 )
                 _write_artifact(
                     artifacts_dir,
-                    "07d-enriched-outline.yml",
+                    "08d-enriched-outline.yml",
                     outline_content_output.model_dump(exclude_none=True),
                 )
 
@@ -577,7 +598,7 @@ async def generate_prose(
         if artifacts_dir:
             _write_artifact(
                 artifacts_dir,
-                "08-beat-assignments.yml",
+                "09-beat-assignments.yml",
                 {"assignments": [{"beat_type": a.beat_type, "scene_id": a.scene_id} for a in beat_assignments]},
             )
 
@@ -599,7 +620,7 @@ async def generate_prose(
         if artifacts_dir:
             _write_artifact(
                 artifacts_dir,
-                "12-variation.yml",
+                "10-variation.yml",
                 {
                     "subplot_seeds": project_variation.subplot_seeds,
                     "scene_variations": [
@@ -631,7 +652,7 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(
             artifacts_dir,
-            "13-beat-templates.yml",
+            "11-beat-templates.yml",
             {
                 scene_id: {
                     "scene_id": template.scene_id,
@@ -786,7 +807,7 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(
             artifacts_dir,
-            "14-scenes.yml",
+            "12-scenes.yml",
             {"scenes": [s.model_dump(exclude_none=True) for s in scenes]},
         )
 
@@ -815,7 +836,7 @@ async def generate_prose(
     plot = Plot(
         format=format_name,
         title=outline_content.chapters[0].title if outline_content.chapters else None,
-        premise=idea.strip(),
+        premise=premise,
         themes=[],
         hook=None,
         stakes=None,
@@ -825,10 +846,26 @@ async def generate_prose(
     )
 
     # Build Project
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea=idea,
+        model=llm_config.model,
+        temperature=llm_config.temperature,
+        shape=options.shape_id,
+        shape_file=str(options.shape_file) if options.shape_file else None,
+        variation=options.variation,
+        seed=llm_config.seed,
+        enrichment_enabled=options.enrich,
+        format=format_name,
+        language=expected_language,
+    )
+
     project_config = ProjectConfig(
-        version="1.0",
+        version=__version__,
         title=plot.title,
         defaults=ProjectDefaults(language=expected_language) if expected_language else None,
+        metadata=metadata,
     )
 
     project = Project(

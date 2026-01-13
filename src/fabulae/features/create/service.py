@@ -15,6 +15,13 @@ from typing import Generic, TypeVar, cast
 
 from pydantic import ValidationError
 
+from fabulae.features.create.errors import (
+    ErrorType,
+    classify_error,
+    format_json_retry_hint,
+    is_json_error,
+    is_transient_error,
+)
 from fabulae.features.create.schemas import (
     CharacterOutput,
     CharacterPlanOutput,
@@ -173,11 +180,25 @@ def _format_stage_warning(warning_label: str | None, max_retries: int, error: st
     return f"Warning: Validation failed after {max_retries} retries: {details}"
 
 
-def _format_retry_prompt(user_prompt: str, error: str, attempt: int, max_retries: int) -> str:
+def _format_retry_prompt(
+    user_prompt: str,
+    error: str,
+    attempt: int,
+    max_retries: int,
+    *,
+    include_json_hint: bool = False,
+) -> str:
     """Format an actionable retry prompt with the validation error.
 
     Provides specific guidance to help the LLM understand what went wrong
     and how to fix it. This is especially important for smaller LLMs.
+
+    Args:
+        user_prompt: The original user prompt.
+        error: The error message from the previous attempt.
+        attempt: The current retry attempt number.
+        max_retries: Maximum number of retries allowed.
+        include_json_hint: If True, add extra JSON formatting guidance.
     """
     guidance_lines = [
         f"\n\n--- RETRY {attempt}/{max_retries} ---",
@@ -190,10 +211,18 @@ def _format_retry_prompt(user_prompt: str, error: str, attempt: int, max_retries
         "3. Ensuring required fields are present and have correct types",
         "4. Verifying counts match requirements (beat_count, line_count, etc.)",
         "5. Outputting ONLY valid JSON (no markdown, no explanation)",
-        "",
-        "ORIGINAL REQUEST:",
-        user_prompt,
     ]
+
+    if include_json_hint:
+        guidance_lines.append(format_json_retry_hint())
+
+    guidance_lines.extend(
+        [
+            "",
+            "ORIGINAL REQUEST:",
+            user_prompt,
+        ]
+    )
     return "\n".join(guidance_lines)
 
 
@@ -212,6 +241,7 @@ async def run_stage(
     progress: Callable[[str], None] | None = None,
     max_retries: int = 2,
     error_mode: ErrorMode = ErrorMode.STRICT,
+    stage_name: str | None = None,
 ) -> StageResult[T]:
     prompt_state = {"system": system_prompt}
     warnings: list[str] = []
@@ -240,6 +270,7 @@ async def run_stage(
     current_prompt = user_prompt
     last_output: T | None = None
     last_error: str | None = None
+    last_error_type: ErrorType | None = None
 
     while True:
         try:
@@ -247,8 +278,18 @@ async def run_stage(
             if normalize:
                 output = normalize(output)
             last_output = output
+            last_error_type = None  # Reset on success
         except Exception as exc:
+            # Classify the error to determine retry strategy
+            last_error_type = classify_error(exc)
             last_error = f"Output error: {exc}"
+
+            # For non-transient errors, fail immediately without retrying
+            if not is_transient_error(last_error_type):
+                error_msg = "Failed to generate valid output"
+                if stage_name:
+                    error_msg = f"[{stage_name}] {error_msg}"
+                raise CreateProjectError(f"{error_msg}: {last_error}") from exc
         else:
             strict_error = validate(output) if validate else None
             warn_error = None
@@ -257,17 +298,30 @@ async def run_stage(
             if strict_error is None and warn_error is None:
                 return StageResult(output=output, warnings=warnings, attempts=attempt + 1)
             last_error = strict_error or warn_error
+            last_error_type = ErrorType.VALIDATION_ERROR
 
         attempt += 1
         if attempt > max_retries:
             if last_output is None or error_mode == ErrorMode.STRICT:
-                raise CreateProjectError(f"Failed to generate valid output: {last_error}")
+                error_msg = "Failed to generate valid output"
+                if stage_name:
+                    error_msg = f"[{stage_name}] {error_msg}"
+                raise CreateProjectError(f"{error_msg}: {last_error}")
             warning_message = _format_stage_warning(warning_label, max_retries, last_error)
             warnings.append(warning_message)
             if progress:
                 progress(warning_message)
             return StageResult(output=last_output, warnings=warnings, attempts=attempt)
-        current_prompt = _format_retry_prompt(user_prompt, last_error or "Unknown error", attempt, max_retries)
+
+        # Include JSON-specific hints for JSON-related errors
+        include_json_hint = last_error_type is not None and is_json_error(last_error_type)
+        current_prompt = _format_retry_prompt(
+            user_prompt,
+            last_error or "Unknown error",
+            attempt,
+            max_retries,
+            include_json_hint=include_json_hint,
+        )
 
 
 def _resolve_language(

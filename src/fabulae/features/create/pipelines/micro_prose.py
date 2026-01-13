@@ -12,8 +12,10 @@ The micro-prose pipeline is simpler than prose formats:
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
+from fabulae import __version__
 from fabulae.features.create.prompts import (
     build_fragment_plan_prompt,
     build_fragment_prompt,
@@ -51,6 +53,7 @@ from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
     Fragment,
+    GenerationMetadata,
     LiteratureFormat,
     Plot,
     Project,
@@ -84,7 +87,7 @@ async def generate_micro_prose(
 
     # Initialize config
     config = ProjectConfig(
-        version="1.0.0",
+        version=__version__,
         title=None,
         paths=None,
         defaults=ProjectDefaults(language=expected_language) if expected_language else None,
@@ -225,8 +228,24 @@ async def generate_micro_prose(
     }
     plot = Plot.model_validate(plot_payload)
 
-    # Update config title
+    # Update config with title and metadata
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea=idea,
+        model=llm_config.model,
+        temperature=llm_config.temperature,
+        shape=options.shape_id,
+        shape_file=str(options.shape_file) if options.shape_file else None,
+        variation=options.variation,
+        seed=llm_config.seed,
+        enrichment_enabled=options.enrich,
+        format=format_name,
+        language=expected_language,
+    )
+
     config.title = plot.title
+    config.metadata = metadata
 
     if artifacts_dir:
         _write_plot(plot, config, artifacts_dir)
