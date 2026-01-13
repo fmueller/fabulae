@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -45,6 +46,11 @@ def custom_shape_file(tmp_path: Path, mock_shape: StoryShape) -> Path:
     with open(shape_file, "w", encoding="utf-8") as f:
         yaml.dump(mock_shape.model_dump(exclude_none=True), f)
     return shape_file
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
 
 
 def test_create_with_shape_flag_loads_shape(runner: CliRunner, tmp_path: Path, mock_shape: StoryShape) -> None:
@@ -141,7 +147,7 @@ def test_create_with_both_shape_flags_fails(runner: CliRunner, tmp_path: Path) -
     )
 
     assert result.exit_code != 0
-    output = result.stdout + result.stderr
+    output = strip_ansi(result.stdout + result.stderr)
     assert "Cannot specify both --shape and --shape-file" in output
 
 
