@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -12,6 +13,9 @@ from fabulae.history.models import ActionType
 from fabulae.main import app
 
 runner = CliRunner()
+
+# Regex to strip ANSI escape codes from output (Rich/Typer adds these even with NO_COLOR in some environments)
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
 
 class TestHistoryCommand:
@@ -95,10 +99,11 @@ class TestNoHistoryFlag:
 
     def test_no_history_flag_in_help(self) -> None:
         """--no-history flag should appear in help output."""
-        # Use NO_COLOR to disable ANSI escape codes which can split text and break string matching
-        result = runner.invoke(app, ["--help"], env={"NO_COLOR": "1"})
+        result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "--no-history" in result.output
+        # Strip ANSI escape codes which can split text like "--no-history" into "-", "-no", "-history"
+        clean_output = ANSI_ESCAPE_PATTERN.sub("", result.output)
+        assert "--no-history" in clean_output
 
     def test_no_history_flag_is_global(self) -> None:
         """--no-history flag should be available at the app level."""
