@@ -1,5 +1,6 @@
 """Tests for character CRUD commands."""
 
+import re
 from pathlib import Path
 
 import yaml
@@ -9,6 +10,11 @@ from fabulae.main import app
 from fabulae.models import load_project
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def create_test_project(tmp_path: Path) -> Path:
@@ -219,7 +225,8 @@ class TestCharacterSuggest:
         """Suggest command help shows all options."""
         result = runner.invoke(app, ["character", "suggest", "--help"])
         assert result.exit_code == 0
-        assert "--idea" in result.output
-        assert "--model" in result.output
-        assert "--temperature" in result.output
-        assert "--yes" in result.output
+        output = strip_ansi(result.output)
+        assert "--idea" in output
+        assert "--model" in output
+        assert "--temperature" in output
+        assert "--yes" in output
