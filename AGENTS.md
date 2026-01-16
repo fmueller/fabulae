@@ -32,6 +32,7 @@
 - Prefer naming test files with the `_test.py` suffix (e.g., `tests/unit/models_test.py`).
 - Run `uv run pytest` before submitting changes, and add tests for validation or parsing logic.
 - Tests must not call live LLMs; use the fake LLM hook (`FABULAE_FAKE_LLM=1`) or stub `create_agent`.
+- CLI tests using `CliRunner` that check for specific text in output should disable ANSI colors by passing `env={"NO_COLOR": "1"}` to `runner.invoke()`. This prevents string matching failures in CI where ANSI codes can split text.
 
 ## Commit & Pull Request Guidelines
 

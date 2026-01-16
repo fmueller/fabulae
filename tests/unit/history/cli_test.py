@@ -95,7 +95,8 @@ class TestNoHistoryFlag:
 
     def test_no_history_flag_in_help(self) -> None:
         """--no-history flag should appear in help output."""
-        result = runner.invoke(app, ["--help"])
+        # Use NO_COLOR to disable ANSI escape codes which can split text and break string matching
+        result = runner.invoke(app, ["--help"], env={"NO_COLOR": "1"})
         assert result.exit_code == 0
         assert "--no-history" in result.output
 
