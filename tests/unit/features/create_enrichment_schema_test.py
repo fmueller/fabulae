@@ -166,15 +166,11 @@ def test_create_options_enrich_can_be_disabled() -> None:
 def test_create_options_with_all_fields() -> None:
     """Test CreateOptions with all fields including enrich."""
     options = CreateOptions(
-        narrative_patterns_mode="artifact",
-        use_narrative_patterns_in_prompts=True,
         shape_id="heros-journey",
         variation=0.7,
         seed=42,
         enrich=False,
     )
-    assert options.narrative_patterns_mode == "artifact"
-    assert options.use_narrative_patterns_in_prompts is True
     assert options.shape_id == "heros-journey"
     assert options.variation == 0.7
     assert options.seed == 42

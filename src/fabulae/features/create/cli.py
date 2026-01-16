@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from fabulae.cli_options import model_option, seed_option, temperature_option
 from fabulae.features.create.errors import ErrorType, classify_error, get_error_guidance
 from fabulae.features.create.progress import CreateProgress
-from fabulae.features.create.schemas import CreateOptions, NarrativePatternsMode, PipelineMode
+from fabulae.features.create.schemas import CreateOptions, PipelineMode
 from fabulae.features.create.service import (
     CreateProjectError,
     generate_project_from_idea_sync,
@@ -124,28 +124,6 @@ def register_create_command(app: typer.Typer) -> None:
             bool,
             typer.Option("--force", help="Overwrite existing directory."),
         ] = False,
-        narrative_patterns: Annotated[
-            NarrativePatternsMode,
-            typer.Option(
-                "--narrative-patterns",
-                help=(
-                    "Control narrative pattern generation: "
-                    "'off' = do not generate (default), "
-                    "'artifact' = generate and save to .fabulae-create/ only, "
-                    "'project' = generate and save to both .fabulae-create/ and project root."
-                ),
-            ),
-        ] = "off",
-        use_narrative_patterns_in_prompts: Annotated[
-            bool,
-            typer.Option(
-                "--use-narrative-patterns-in-prompts",
-                help=(
-                    "Include narrative patterns in prompt context for plot outline and scene expansion. "
-                    "Only meaningful if --narrative-patterns is not 'off'. Default: off."
-                ),
-            ),
-        ] = False,
         shape: Annotated[
             str | None,
             typer.Option(
@@ -241,8 +219,6 @@ def register_create_command(app: typer.Typer) -> None:
         effective_pipeline: PipelineMode = ("sequential" if is_small else "batch") if pipeline is None else pipeline
 
         create_options = CreateOptions(
-            narrative_patterns_mode=narrative_patterns,
-            use_narrative_patterns_in_prompts=use_narrative_patterns_in_prompts,
             shape_id=shape,
             shape_file=shape_file,
             variation=variation,

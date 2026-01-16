@@ -74,8 +74,6 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (180, 360),
         "characters": (6, 12),
         "world_facts": (10, 20),
-        "plot_patterns": (1, 2),
-        "narrative_patterns": (0, 1),
     },
     "novella": {
         "chapters": (6, 16),
@@ -83,8 +81,6 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (72, 192),
         "characters": (4, 8),
         "world_facts": (6, 12),
-        "plot_patterns": (1, 2),
-        "narrative_patterns": (0, 1),
     },
     "short-story": {
         "chapters": (0, 6),
@@ -92,8 +88,6 @@ FORMAT_COUNT_RANGES: dict[LiteratureFormat, dict[str, tuple[int, int]]] = {
         "beats": (6, 24),
         "characters": (2, 5),
         "world_facts": (2, 6),
-        "plot_patterns": (1, 1),
-        "narrative_patterns": (0, 1),
     },
     "micro-prose": {
         "fragments": (1, 5),
