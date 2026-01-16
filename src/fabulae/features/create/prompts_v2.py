@@ -148,6 +148,87 @@ def build_location_prompt_v2(context: LocationContext) -> str:
     return build_system_prompt(purpose, _format_guidelines()) + "\n\n" + format_sections(sections)
 
 
+def _extract_title_patterns(titles: list[str]) -> dict[str, list[str]]:
+    """Extract overused patterns from previous titles (language-agnostic)."""
+    from collections import Counter
+
+    starters: list[str] = []
+    all_words: list[str] = []
+
+    for title in titles:
+        words = title.split()
+        if words:
+            starters.append(words[0])
+            all_words.extend(w for w in words if len(w) > 2)
+
+    starter_counts = Counter(starters)
+    overused_starters = [word for word, count in starter_counts.items() if count >= 2]
+
+    word_counts = Counter(w.lower() for w in all_words)
+    overused_keywords = [word for word, count in word_counts.items() if count >= 2]
+
+    phrase_counts: Counter[str] = Counter()
+    for title in titles:
+        words = title.lower().split()
+        for i in range(len(words) - 1):
+            phrase = f"{words[i]} {words[i+1]}"
+            phrase_counts[phrase] += 1
+    phrases = [phrase for phrase, count in phrase_counts.items() if count >= 2]
+
+    return {"starters": overused_starters, "phrases": phrases, "keywords": overused_keywords}
+
+
+TITLE_STRUCTURES = [
+    ("Possessive", "[Character]'s [Noun]"),
+    ("Action", "[Verb] + [Object]"),
+    ("Question", "[What/When/Where] + [Clause]"),
+    ("Number", "[Number] + [Noun]"),
+    ("Single Word", "[One evocative word]"),
+    ("Preposition", "[Preposition] + [Noun]"),
+    ("Adjective First", "[Adjective] + [Noun]"),
+]
+
+
+def _build_title_diversity_guidance(previous_titles: list[str], language: str | None = None) -> str:
+    """Build effective title diversity guidance based on what's been used."""
+    lang_hint = ""
+    if language:
+        lang_hint = f"\nGenerate titles in {language.upper()} language.\n"
+
+    if not previous_titles:
+        structures = "\n".join(f"- {name}: {pattern}" for name, pattern in TITLE_STRUCTURES[:4])
+        return f"""Title Guidelines:{lang_hint}
+Vary your title structures. Consider:
+{structures}
+"""
+
+    patterns = _extract_title_patterns(previous_titles)
+    lines = []
+
+    if lang_hint:
+        lines.append(lang_hint.strip())
+
+    if patterns["starters"]:
+        banned = ", ".join(patterns["starters"][:3])
+        lines.append(f"DO NOT start title with: {banned}")
+
+    if patterns["keywords"]:
+        banned = ", ".join(patterns["keywords"][:5])
+        lines.append(f"DO NOT use these overused words: {banned}")
+
+    if patterns["phrases"]:
+        banned = ", ".join(f'"{p}"' for p in patterns["phrases"][:3])
+        lines.append(f"DO NOT use these repeated phrases: {banned}")
+
+    lines.append("")
+    lines.append("USE ONE OF THESE STRUCTURES INSTEAD:")
+
+    for struct_name, pattern in TITLE_STRUCTURES[:4]:
+        lines.append(f"- {struct_name}: {pattern}")
+
+    return "\n".join(lines)
+
+
 def build_chapter_prompt_v2(context: ChapterContext) -> str:
     """Build a focused prompt for generating a single chapter summary.
 
@@ -194,10 +275,12 @@ def build_chapter_prompt_v2(context: ChapterContext) -> str:
         recent = context.previous_chapter_summaries[-3:]  # Last 3 chapters
         sections["Previous Chapters"] = "\n".join(f"- {summary}" for summary in recent)
 
-    if context.previous_chapter_titles:
-        sections["Previously Used Titles (DO NOT REPEAT)"] = "\n".join(
-            f"- {title}" for title in context.previous_chapter_titles
-        )
+    # Add title diversity guidance (more effective than simple "do not repeat" list)
+    title_guidance = _build_title_diversity_guidance(
+        context.previous_chapter_titles,
+        language=context.style.language,
+    )
+    sections["Title Requirements"] = title_guidance
 
     sections["Output Schema (JSON)"] = schema
 
@@ -209,8 +292,8 @@ def build_chapter_prompt_v2(context: ChapterContext) -> str:
     ]
     if context.previous_chapter_titles:
         notes_lines.append(
-            "IMPORTANT: Create a UNIQUE title that differs from the previously used titles above. "
-            "Avoid similar patterns, repeated words, or parallel structure."
+            "CRITICAL: Follow the Title Requirements above exactly. "
+            "Your title MUST use a different structure than previous titles."
         )
     sections["Notes"] = " ".join(notes_lines)
 

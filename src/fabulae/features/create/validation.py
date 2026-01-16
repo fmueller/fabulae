@@ -110,11 +110,46 @@ def validate_title_diversity(project: Project, threshold: float = 0.5) -> list[s
     # Check chapter titles
     if project.plot.chapters:
         chapter_titles = [ch.title for ch in project.plot.chapters if ch.title]
+
+        # Check for uniform starters (more than 50% same starting word)
+        uniform_starter_warning = _check_uniform_starters(chapter_titles)
+        if uniform_starter_warning:
+            warnings.append(uniform_starter_warning)
+
+        # Check for similar titles
         similar_chapters = _find_similar_titles(chapter_titles, threshold)
         if similar_chapters:
             warnings.append(f"Similar chapter titles detected: {', '.join(similar_chapters)}")
 
     return warnings
+
+
+def _check_uniform_starters(titles: list[str], threshold: float = 0.5) -> str | None:
+    """Check if more than threshold fraction of titles start with the same word.
+
+    Args:
+        titles: List of titles to check
+        threshold: Fraction of titles that must share a starter to trigger warning (default 0.5)
+
+    Returns:
+        Warning message if uniform starters detected, None otherwise.
+    """
+    if len(titles) < 3:
+        return None  # Too few titles to meaningfully check
+
+    from collections import Counter
+
+    starters = [title.split()[0] for title in titles if title.split()]
+    if not starters:
+        return None
+
+    starter_counts = Counter(starters)
+    most_common_starter, count = starter_counts.most_common(1)[0]
+
+    if count / len(starters) > threshold:
+        return f"Uniform chapter title starters: {count}/{len(starters)} titles start with '{most_common_starter}'"
+
+    return None
 
 
 def _find_similar_titles(titles: list[str], threshold: float = 0.5) -> list[str]:
