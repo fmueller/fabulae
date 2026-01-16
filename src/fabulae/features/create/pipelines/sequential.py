@@ -65,6 +65,8 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_plot_graph
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
@@ -165,6 +167,34 @@ async def generate_prose_sequential(
             },
         )
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_prose_sequential_inner(
+            idea=idea,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            graph=graph,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_prose_sequential_inner(
+    idea: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress,
+    artifacts_dir: Path | None,
+    graph: PlotGraph,
+    gen_state: GenerationState,
+) -> Project:
+    """Inner generation logic wrapped by graceful shutdown handler."""
     # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
@@ -195,6 +225,10 @@ async def generate_prose_sequential(
 
     progress.success("Style determined")
 
+    # Update generation state
+    gen_state.style = style_output
+    gen_state.current_stage = "style_complete"
+
     # Write style artifact
     if artifacts_dir:
         _write_artifact(artifacts_dir, "02-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
@@ -216,6 +250,10 @@ async def generate_prose_sequential(
         premise = premise_result.output.premise
 
     progress.success("Premise expanded")
+
+    # Update generation state
+    gen_state.premise = premise
+    gen_state.current_stage = "premise_complete"
 
     # Write premise artifact
     if artifacts_dir:
@@ -255,7 +293,12 @@ async def generate_prose_sequential(
             character = Character.model_validate(char_data)
             state.characters.append(character)
 
+            # Update generation state
+            gen_state.characters.append(character)
+            gen_state.current_stage = f"generating_characters ({i + 1}/{len(graph.characters)})"
+
     progress.success(f"Created {len(state.characters)} characters")
+    gen_state.current_stage = "characters_complete"
 
     # Write characters artifact
     if artifacts_dir and state.characters:
@@ -298,7 +341,12 @@ async def generate_prose_sequential(
             location = WorldFact.model_validate(loc_data)
             state.locations.append(location)
 
+            # Update generation state
+            gen_state.locations.append(location)
+            gen_state.current_stage = f"generating_locations ({i + 1}/{len(graph.locations)})"
+
     progress.success(f"Created {len(state.locations)} locations")
+    gen_state.current_stage = "locations_complete"
 
     # Write locations artifact
     if artifacts_dir and state.locations:
@@ -351,7 +399,12 @@ async def generate_prose_sequential(
                 )
                 state.chapters.append(chapter)
 
+                # Update generation state
+                gen_state.chapters.append(chapter.model_dump(exclude_none=True))
+                gen_state.current_stage = f"generating_chapters ({i + 1}/{len(graph.chapters)})"
+
         progress.success(f"Planned {len(state.chapters)} chapters")
+        gen_state.current_stage = "chapters_complete"
 
         # Write chapters artifact
         if artifacts_dir and state.chapters:
@@ -445,7 +498,12 @@ async def generate_prose_sequential(
             )
             state.scenes.append(scene)
 
+            # Update generation state
+            gen_state.scenes.append(scene)
+            gen_state.current_stage = f"generating_scenes ({i + 1}/{len(graph.scenes)})"
+
     progress.success(f"Written {len(state.scenes)} scenes")
+    gen_state.current_stage = "scenes_complete"
 
     # Write scenes artifact
     if artifacts_dir and state.scenes:
@@ -458,6 +516,8 @@ async def generate_prose_sequential(
     # =========================================================================
     # Phase 8: Project Assembly
     # =========================================================================
+
+    gen_state.current_stage = "assembling_project"
 
     with progress.stage("Assembling project..."):
         project = _assemble_project(

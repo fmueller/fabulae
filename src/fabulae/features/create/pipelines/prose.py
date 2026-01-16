@@ -101,6 +101,8 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shutdown import graceful_shutdown
+from fabulae.features.create.state import GenerationState
 from fabulae.features.create.variation import (
     VariationEngine,
     create_variation_config_from_level,
@@ -120,6 +122,7 @@ from fabulae.models import (
     Scene,
     SemanticValue,
     StoryShape,
+    Style,
     World,
     WorldFact,
 )
@@ -161,9 +164,6 @@ async def generate_prose(
 
     format_name = cast(LiteratureFormat, format)
 
-    # Initialize RNG for reproducibility
-    rng = random.Random(options.seed)
-
     # =========================================================================
     # Phase 1: Setup
     # =========================================================================
@@ -204,6 +204,44 @@ async def generate_prose(
     if artifacts_dir:
         _write_artifact(artifacts_dir, "01-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
+    # Initialize generation state for graceful shutdown
+    gen_state = GenerationState(idea=idea, format_name=format_name)
+    gen_state.style = style_output
+    gen_state.current_stage = "style_complete"
+    output_dir = artifacts_dir or Path.cwd()
+
+    with graceful_shutdown(gen_state, output_dir, progress):
+        return await _generate_prose_inner(
+            idea=idea,
+            format_name=format_name,
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            style_output=style_output,
+            style_hint_str=style_hint_str,
+            style=style,
+            expected_language=expected_language,
+            gen_state=gen_state,
+        )
+
+
+async def _generate_prose_inner(
+    idea: str,
+    format_name: LiteratureFormat,
+    options: CreateOptions,
+    llm_config: LLMConfig,
+    progress: CreateProgress | None,
+    artifacts_dir: Path | None,
+    style_output: StyleOutput,
+    style_hint_str: str,
+    style: Style | None,
+    expected_language: str,
+    gen_state: GenerationState,
+) -> Project:
+    """Inner generation logic wrapped by graceful shutdown handler."""
+    rng = random.Random(options.seed)
+
     # Generate premise expansion
     with maybe_stage(progress, "Expanding premise..."):
         premise_result = await run_stage(
@@ -219,6 +257,10 @@ async def generate_prose(
 
     if progress:
         progress.success("Premise expanded")
+
+    # Update generation state
+    gen_state.premise = premise
+    gen_state.current_stage = "premise_complete"
 
     # Write premise artifact
     if artifacts_dir:
@@ -370,13 +412,8 @@ async def generate_prose(
                 def validate_char(output: CharacterOutput, expected_id: str = plan_item.id) -> str | None:
                     return _validate_character_output(output, expected_id, existing_char_ids)
 
-                char_prompt = build_character_prompt(
-                    format_name, style_hint_str, existing_summary, plan_item.id
-                )
-                char_user = (
-                    f"Idea: {idea.strip()}\n"
-                    f"Character: {plan_item.name} ({plan_item.role or 'unknown role'})"
-                )
+                char_prompt = build_character_prompt(format_name, style_hint_str, existing_summary, plan_item.id)
+                char_user = f"Idea: {idea.strip()}\nCharacter: {plan_item.name} ({plan_item.role or 'unknown role'})"
                 char_result = await run_stage(
                     result_type=CharacterOutput,
                     system_prompt=char_prompt,
@@ -406,6 +443,10 @@ async def generate_prose(
 
     if progress:
         progress.success(f"Created {len(characters)} characters")
+
+    # Update generation state
+    gen_state.characters = list(characters)
+    gen_state.current_stage = "characters_complete"
 
     # Write characters artifact
     if artifacts_dir:
@@ -477,13 +518,8 @@ async def generate_prose(
                 def validate_fact(output: WorldFactOutput, expected_id: str = fact_plan_item.id) -> str | None:
                     return _validate_world_fact_output(output, expected_id, existing_fact_ids)
 
-                fact_prompt = build_world_fact_prompt(
-                    format_name, style_hint_str, existing_summary, fact_plan_item.id
-                )
-                fact_user = (
-                    f"Idea: {idea.strip()}\n"
-                    f"World fact: {fact_plan_item.name} ({fact_plan_item.type})"
-                )
+                fact_prompt = build_world_fact_prompt(format_name, style_hint_str, existing_summary, fact_plan_item.id)
+                fact_user = f"Idea: {idea.strip()}\nWorld fact: {fact_plan_item.name} ({fact_plan_item.type})"
                 fact_result = await run_stage(
                     result_type=WorldFactOutput,
                     system_prompt=fact_prompt,
@@ -518,6 +554,10 @@ async def generate_prose(
 
     if progress:
         progress.success(f"Created {len(world_facts)} world facts")
+
+    # Update generation state
+    gen_state.locations = [f for f in world_facts if f.type == "location"]
+    gen_state.current_stage = "world_complete"
 
     # Write world artifact
     if artifacts_dir:
@@ -868,12 +908,17 @@ async def generate_prose(
             )
             scenes.append(scene)
 
+            # Update generation state
+            gen_state.scenes.append(scene)
+            gen_state.current_stage = f"generating_scenes ({len(scenes)}/{len(project_ids.scenes)})"
+
             # Track summaries for context
             if scene_output.summary:
                 prior_scene_summaries.append(scene_output.summary)
 
     if progress:
         progress.success(f"Written {len(scenes)} scenes")
+    gen_state.current_stage = "scenes_complete"
 
     # Write scenes artifact
     if artifacts_dir:
