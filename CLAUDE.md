@@ -28,6 +28,7 @@ If any check fails, fix the issues before considering the task complete.
 ## Test Isolation
 
 - Tests must never call live LLMs. Use the fake LLM hook (`FABULAE_FAKE_LLM=1`) or stub `create_agent` in tests.
+- CLI tests using `CliRunner` that check for specific text in output should disable ANSI colors by passing `env={"NO_COLOR": "1"}` to `runner.invoke()`. This prevents string matching failures in CI where ANSI codes can split text (e.g., `--no-history` becomes `-`, `-no`, `-history`).
 
 ## Architecture
 
