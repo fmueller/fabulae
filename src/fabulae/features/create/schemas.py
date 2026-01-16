@@ -8,7 +8,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-NarrativePatternsMode = Literal["off", "artifact", "project"]
 PipelineMode = Literal["batch", "sequential"]
 
 
@@ -16,8 +15,6 @@ PipelineMode = Literal["batch", "sequential"]
 class CreateOptions:
     """Configuration options for create command behavior."""
 
-    narrative_patterns_mode: NarrativePatternsMode = "off"
-    use_narrative_patterns_in_prompts: bool = False
     shape_id: str | None = None
     shape_file: Path | None = None
     variation: float = 0.5

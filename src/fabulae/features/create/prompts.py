@@ -297,13 +297,7 @@ def build_plot_outline_prompt(
         "Format": format_name,
         "Count Targets": "\n".join(count_lines),
         "Output Schema (JSON)": schema,
-        "Notes": (
-            "Scene beat_count drives later beat generation; keep it within the range. "
-            "Plot patterns (if provided) are structural constraints; align the outline to them. "
-            "Narrative patterns (if provided) are optional guidance for voice and tone, not requirements. "
-            "Use narrative pattern tone/motifs/roles to shape chapter and scene summaries when present. "
-            "Do not invent new pattern IDs."
-        ),
+        "Notes": "Scene beat_count drives later beat generation; keep it within the range.",
     }
     if style_hint:
         sections["Style"] = style_hint
