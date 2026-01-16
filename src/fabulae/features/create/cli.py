@@ -18,6 +18,9 @@ from fabulae.features.create.service import (
     generate_project_from_idea_sync,
 )
 from fabulae.features.create.validation import validate_title_diversity
+from fabulae.history.manager import HistoryManager
+from fabulae.history.models import ActionType
+from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
 from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, save_project
 
@@ -280,33 +283,52 @@ def register_create_command(app: typer.Typer) -> None:
                     "Consider a larger model if generation fails."
                 )
 
-        try:
-            # Pipeline reports progress directly via CreateProgress
-            project = generate_project_from_idea_sync(
-                idea_text,
-                format_value,
-                config,
-                output_dir=directory,
-                idea_language=language_code,
-                progress=None,
-                options=create_options,
-                create_progress=progress,
-            )
-        except CreateProjectError as exc:
-            error_message = _format_generation_error(exc, config.model)
-            progress.error(error_message)
-            raise typer.Exit(code=1) from exc
-        except (ValidationError, ValueError) as exc:
-            progress.error(f"Create failed: {exc}")
-            raise typer.Exit(code=1) from exc
+        # Set up history tracking
+        history_manager = HistoryManager(directory, enabled=get_history_enabled())
+        history_params = {
+            "format": format_name,
+            "model": config.model,
+            "temperature": temperature,
+            "seed": seed,
+            "shape": shape,
+            "variation": variation,
+            "enrich": effective_enrich,
+            "pipeline": effective_pipeline,
+            "language": language_code,
+        }
 
-        # Validate generated content for quality issues
-        quality_warnings = validate_title_diversity(project)
-        for warning in quality_warnings:
-            progress.warn(warning)
+        with history_manager.track_action(
+            action=ActionType.CREATE,
+            command=f"fabulae create {directory} --format {format_name}",
+            parameters=history_params,
+        ):
+            try:
+                # Pipeline reports progress directly via CreateProgress
+                project = generate_project_from_idea_sync(
+                    idea_text,
+                    format_value,
+                    config,
+                    output_dir=directory,
+                    idea_language=language_code,
+                    progress=None,
+                    options=create_options,
+                    create_progress=progress,
+                )
+            except CreateProjectError as exc:
+                error_message = _format_generation_error(exc, config.model)
+                progress.error(error_message)
+                raise typer.Exit(code=1) from exc
+            except (ValidationError, ValueError) as exc:
+                progress.error(f"Create failed: {exc}")
+                raise typer.Exit(code=1) from exc
 
-        with progress.stage("Writing project files..."):
-            save_project(project, directory)
+            # Validate generated content for quality issues
+            quality_warnings = validate_title_diversity(project)
+            for warning in quality_warnings:
+                progress.warn(warning)
+
+            with progress.stage("Writing project files..."):
+                save_project(project, directory)
 
         character_count = len(project.characters)
         scene_count = len(project.plot.scenes)

@@ -88,6 +88,7 @@ def test_init_command_creates_novel_project_by_default(tmp_path: Path) -> None:
     assert "format: novel" in result.output
 
     expected_files = {path.name for path in NOVEL_TEMPLATE_DIR.glob("*.yml")}
+    expected_files.add(".gitignore")  # Also copies .gitignore
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files
@@ -104,6 +105,7 @@ def test_init_command_creates_poem_project(tmp_path: Path) -> None:
     assert "format: poem" in result.output
 
     expected_files = {path.name for path in POEM_TEMPLATE_DIR.glob("*.yml")}
+    expected_files.add(".gitignore")  # Also copies .gitignore
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files
@@ -116,6 +118,7 @@ def test_init_command_creates_micro_prose_project(tmp_path: Path) -> None:
     assert "format: micro-prose" in result.output
 
     expected_files = {path.name for path in MICRO_PROSE_TEMPLATE_DIR.glob("*.yml")}
+    expected_files.add(".gitignore")  # Also copies .gitignore
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files
@@ -128,6 +131,7 @@ def test_init_command_creates_novella_project(tmp_path: Path) -> None:
     assert "format: novella" in result.output
 
     expected_files = {path.name for path in NOVELLA_TEMPLATE_DIR.glob("*.yml")}
+    expected_files.add(".gitignore")  # Also copies .gitignore
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files
@@ -140,6 +144,7 @@ def test_init_command_creates_short_story_project(tmp_path: Path) -> None:
     assert "format: short-story" in result.output
 
     expected_files = {path.name for path in SHORT_STORY_TEMPLATE_DIR.glob("*.yml")}
+    expected_files.add(".gitignore")  # Also copies .gitignore
     created_files = {path.name for path in tmp_path.iterdir() if path.is_file()}
     assert expected_files
     assert created_files == expected_files

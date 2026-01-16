@@ -9,6 +9,8 @@ from pydantic import ValidationError
 
 from fabulae.features.create.cli import register_create_command
 from fabulae.features.create.shapes_cli import register_shapes_commands
+from fabulae.features.history.cli import register_history_command
+from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
 
@@ -19,8 +21,19 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def app_callback(ctx: typer.Context) -> None:
+def app_callback(
+    ctx: typer.Context,
+    no_history: Annotated[
+        bool,
+        typer.Option(
+            "--no-history",
+            help="Disable project history tracking for this command.",
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
     """Root callback invoked when no subcommand is provided."""
+    set_history_enabled(not no_history)
     if ctx.invoked_subcommand is None:
         typer.echo(ctx.get_help())
 
@@ -28,6 +41,7 @@ def app_callback(ctx: typer.Context) -> None:
 app.command(name="version", help="Display the current version.")(version_command)
 register_create_command(app)
 register_shapes_commands(app)
+register_history_command(app)
 
 
 DEFAULT_PROJECT_PATH = Path(".")
@@ -83,6 +97,11 @@ def init_command(
     if not template_files:
         typer.echo(f"No template files found in {template_path}")
         raise typer.Exit(code=1)
+
+    # Also include .gitignore if present
+    gitignore_file = template_path / ".gitignore"
+    if gitignore_file.exists():
+        template_files = list(template_files) + [gitignore_file]
 
     path.mkdir(parents=True, exist_ok=True)
 
