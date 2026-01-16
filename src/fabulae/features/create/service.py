@@ -959,9 +959,21 @@ async def generate_project_from_idea(
     if create_progress is None:
         create_progress = CreateProgress()
 
-    # Dispatch to appropriate pipeline based on format and pipeline option
+    # Dispatch to appropriate pipeline based on format, full flag, and pipeline option
     if format_name in ("novel", "novella", "short-story"):
-        if options.pipeline == "sequential":
+        # Check if outline-only mode (default when --full not specified)
+        if not options.full:
+            from fabulae.features.create.pipelines.outline import generate_outline_only
+
+            project = await generate_outline_only(
+                idea=idea,
+                format=format_name,
+                options=options,
+                llm_config=config,
+                progress=create_progress,
+                artifacts_dir=output_dir,
+            )
+        elif options.pipeline == "sequential":
             from fabulae.features.create.pipelines.sequential import generate_prose_sequential
 
             project = await generate_prose_sequential(

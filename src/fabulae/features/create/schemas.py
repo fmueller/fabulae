@@ -27,6 +27,8 @@ class CreateOptions:
     sliding_window_scenes: int | None = None  # None = unlimited, 5 recommended for small models
     # Pipeline selection
     pipeline: PipelineMode = "batch"  # "batch" (current) or "sequential" (new)
+    # Full mode: when False, generates outline only; when True, generates complete project
+    full: bool = False
 
 
 class CharacterOutput(BaseModel):
@@ -444,3 +446,78 @@ class EnrichmentOutput(BaseModel):
     new_world_facts: list[WorldFactOutput] = Field(default_factory=list)
     subplot_additions: list[SubplotAddition] = Field(default_factory=list)
     foreshadowing_elements: list[ForeshadowingElement] = Field(default_factory=list)
+
+
+# ============================================================================
+# Outline-only schemas (for outline mode without --full flag)
+# ============================================================================
+
+
+class CharacterSketchOutput(BaseModel):
+    """Minimal character info for outline mode."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'character-01').")
+    name: str = Field(description="Character's name.")
+    role: str | None = Field(default=None, description="Role: 'protagonist', 'antagonist', 'supporting', etc.")
+    description: str | None = Field(default=None, description="One-line character description.")
+
+    @field_validator("name", "role", "description", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class SceneSketchOutput(BaseModel):
+    """Minimal scene info for outline mode."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01').")
+    title: str | None = Field(default=None, description="Brief scene title.")
+    summary: str | None = Field(default=None, description="2-3 sentence scene summary.")
+    character_ids: list[str] = Field(default_factory=list, description="Character IDs appearing in this scene.")
+
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class ChapterSketchOutput(BaseModel):
+    """Chapter with scene sketches for outline mode."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'chapter-01').")
+    title: str | None = Field(default=None, description="Chapter title.")
+    summary: str | None = Field(default=None, description="2-3 sentence chapter summary.")
+    scene_ids: list[str] = Field(default_factory=list, description="Scene IDs in this chapter.")
+
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class LocationSketchOutput(BaseModel):
+    """Minimal location info for outline mode."""
+
+    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'location-01').")
+    name: str = Field(description="Location name.")
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class OutlineOutput(BaseModel):
+    """Complete outline for outline-only mode (no --full flag)."""
+
+    title: str | None = Field(default=None, description="Story title.")
+    premise: str = Field(description="Expanded premise (2-4 sentences).")
+    chapters: list[ChapterSketchOutput] = Field(default_factory=list, description="Chapter outlines.")
+    scenes: list[SceneSketchOutput] = Field(default_factory=list, description="Scene sketches.")
+    characters: list[CharacterSketchOutput] = Field(default_factory=list, description="Character sketches.")
+    locations: list[LocationSketchOutput] = Field(default_factory=list, description="Location names.")
+
+    @field_validator("title", "premise", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v

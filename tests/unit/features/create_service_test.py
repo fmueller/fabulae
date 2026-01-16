@@ -288,7 +288,7 @@ def test_scene_context_can_be_instantiated() -> None:
 
 @pytest.mark.anyio
 async def test_dispatcher_routes_novel_to_prose_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
-    """Test that format='novel' dispatches to generate_prose."""
+    """Test that format='novel' with full=True dispatches to generate_prose."""
     from pathlib import Path
 
     from fabulae.features.create.schemas import CreateOptions
@@ -317,12 +317,13 @@ async def test_dispatcher_routes_novel_to_prose_pipeline(monkeypatch: pytest.Mon
 
     monkeypatch.setattr("fabulae.features.create.pipelines.prose.generate_prose", fake_generate_prose)
 
+    # Note: full=True is required to test prose pipeline routing (default is outline mode)
     result = await generate_project_from_idea(
         idea="A test novel",
         format_name="novel",
         config=LLMConfig(model="claude-3-haiku-20240307"),
         output_dir=tmp_path,
-        options=CreateOptions(),
+        options=CreateOptions(full=True),
     )
 
     assert called["prose"] is True
@@ -333,7 +334,7 @@ async def test_dispatcher_routes_novel_to_prose_pipeline(monkeypatch: pytest.Mon
 
 @pytest.mark.anyio
 async def test_dispatcher_routes_novella_to_prose_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
-    """Test that format='novella' dispatches to generate_prose."""
+    """Test that format='novella' with full=True dispatches to generate_prose."""
     from pathlib import Path
 
     from fabulae.features.create.schemas import CreateOptions
@@ -361,12 +362,13 @@ async def test_dispatcher_routes_novella_to_prose_pipeline(monkeypatch: pytest.M
 
     monkeypatch.setattr("fabulae.features.create.pipelines.prose.generate_prose", fake_generate_prose)
 
+    # Note: full=True is required to test prose pipeline routing (default is outline mode)
     await generate_project_from_idea(
         idea="A test novella",
         format_name="novella",
         config=LLMConfig(model="claude-3-haiku-20240307"),
         output_dir=tmp_path,
-        options=CreateOptions(),
+        options=CreateOptions(full=True),
     )
 
     assert called["format"] == "novella"
@@ -374,7 +376,7 @@ async def test_dispatcher_routes_novella_to_prose_pipeline(monkeypatch: pytest.M
 
 @pytest.mark.anyio
 async def test_dispatcher_routes_short_story_to_prose_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
-    """Test that format='short-story' dispatches to generate_prose."""
+    """Test that format='short-story' with full=True dispatches to generate_prose."""
     from pathlib import Path
 
     from fabulae.features.create.schemas import CreateOptions
@@ -402,12 +404,13 @@ async def test_dispatcher_routes_short_story_to_prose_pipeline(monkeypatch: pyte
 
     monkeypatch.setattr("fabulae.features.create.pipelines.prose.generate_prose", fake_generate_prose)
 
+    # Note: full=True is required to test prose pipeline routing (default is outline mode)
     await generate_project_from_idea(
         idea="A test short story",
         format_name="short-story",
         config=LLMConfig(model="claude-3-haiku-20240307"),
         output_dir=tmp_path,
-        options=CreateOptions(),
+        options=CreateOptions(full=True),
     )
 
     assert called["format"] == "short-story"

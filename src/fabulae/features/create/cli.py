@@ -102,7 +102,17 @@ def _validate_language(language: str | None) -> str | None:
 
 
 def register_create_command(app: typer.Typer) -> None:
-    @app.command(name="create", help="Create a Fabulae project from an idea.")
+    @app.command(
+        name="create",
+        help=(
+            "Create a Fabulae project from an idea.\n\n"
+            "By default, generates a rough outline (chapters, scene summaries, character sketches). "
+            "Use --full to generate complete project with all beats and details.\n\n"
+            "Examples:\n\n"
+            "  fabulae create ./my-novel --idea '...' --format novel          # Outline only\n\n"
+            "  fabulae create ./my-novel --idea '...' --format novel --full   # Full details"
+        ),
+    )
     def create_command(
         directory: Annotated[Path, typer.Argument(help="Target project directory.")],
         idea: Annotated[
@@ -172,6 +182,17 @@ def register_create_command(app: typer.Typer) -> None:
                 ),
             ),
         ] = None,
+        full: Annotated[
+            bool,
+            typer.Option(
+                "--full",
+                "-F",
+                help=(
+                    "Generate full project with all details including beats and scene content. "
+                    "Default generates outline only (chapters, scene summaries, character sketches)."
+                ),
+            ),
+        ] = False,
     ) -> None:
         format_value = _validate_format(format_name)
         if directory.exists() and directory.is_file():
@@ -218,16 +239,20 @@ def register_create_command(app: typer.Typer) -> None:
         # Auto: use sequential for small models (better for limited context)
         effective_pipeline: PipelineMode = ("sequential" if is_small else "batch") if pipeline is None else pipeline
 
+        # Auto: disable enrichment for outline mode (no detailed content to enrich)
+        effective_enrich_for_full = effective_enrich if full else False
+
         create_options = CreateOptions(
             shape_id=shape,
             shape_file=shape_file,
             variation=variation,
             seed=seed,
-            enrich=effective_enrich,
+            enrich=effective_enrich_for_full,
             idea_language=language_code,
             is_small_model=is_small,
             sliding_window_scenes=5 if is_small else None,  # Limit context for small models
             pipeline=effective_pipeline,
+            full=full,
         )
 
         # Show small model optimizations info
