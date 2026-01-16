@@ -212,8 +212,9 @@ async def _generate_poem_sequential_inner(
 
     state = PoemState()
 
-    for i, stanza_slot in enumerate(graph.stanza_slots):
-        with progress.stage(f"Writing stanza {i + 1}/{graph.total_stanzas()}..."):
+    with progress.phase("Writing stanzas...") as phase:
+        for i, stanza_slot in enumerate(graph.stanza_slots):
+            phase.update(f"Writing stanza {i + 1}/{graph.total_stanzas()}...")
             context = build_stanza_context(
                 stanza_slot=stanza_slot,
                 graph=graph,

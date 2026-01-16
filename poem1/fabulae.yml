@@ -1,0 +1,13 @@
+version: 0.1.0+a7febd2
+title: ''
+metadata:
+  generated_at: 2026-01-16 10:06:51.095679
+  generator_version: 0.1.0+a7febd2
+  original_idea: A story about change killing the culture at a tech company
+  model: ministral-3:3b
+  temperature: 0.7
+  shape: betrayal-arc
+  variation: 0.5
+  enrichment_enabled: false
+  format: poem
+  language: en

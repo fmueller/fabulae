@@ -201,8 +201,9 @@ async def _generate_micro_prose_sequential_inner(
 
     state = MicroProseState()
 
-    for i, fragment_slot in enumerate(graph.fragment_slots):
-        with progress.stage(f"Writing fragment {i + 1}/{graph.total_fragments()}..."):
+    with progress.phase("Writing fragments...") as phase:
+        for i, fragment_slot in enumerate(graph.fragment_slots):
+            phase.update(f"Writing fragment {i + 1}/{graph.total_fragments()}...")
             context = build_fragment_context(
                 fragment_slot=fragment_slot,
                 graph=graph,

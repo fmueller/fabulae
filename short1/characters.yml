@@ -1,0 +1,37 @@
+characters:
+- id: character-01
+  name: Elena Voss
+  role: protagonist
+  desire: To protect the startup's original vision of collaborative innovation
+  need: To reconcile her loyalty to the company with the moral compromises demanded
+    by profitability
+  flaw: Idealistic naivety
+  secret: She secretly maintains a private repository of the company's original, uncorrupted
+    codebase
+  traits:
+  - compassionate
+  - loyal
+  - perfectionistic
+- id: character-02
+  name: Jordan Hale
+  role: protagonist
+  desire: To prove their worth to the venture capitalist and secure a promotion
+  need: To escape the suffocating weight of their father's failing legacy
+  flaw: Desperation
+  secret: Their sibling is secretly in debt to a predatory lending company
+  traits:
+  - ambitious
+  - analytical
+  - self-doubting
+- id: character-03
+  name: Mira Chen
+  role: protagonist
+  desire: To preserve the company's original mission of creative innovation
+  need: To find a way to reconcile profitability with artistic integrity without losing
+    her identity
+  flaw: Idealism
+  secret: She secretly owes money to the venture capitalist's firm
+  traits:
+  - loyal
+  - analytical
+  - idealistic

@@ -1,0 +1,28 @@
+characters:
+- id: character-01
+  name: Daniel Mercer
+  role: protagonist
+  desire: to preserve the human spirit that defined Echo Labs against the CEO’s machine-driven
+    revolution
+  need: to reconnect with his estranged colleague Lena Morales before the company’s
+    culture collapses into code
+  flaw: naïvely idealistic
+  secret: He secretly documents the fading traditions of Echo Labs in an old notebook.
+  traits:
+  - compassionate
+  - wary
+  - reflective
+  - creative
+- id: character-02
+  name: Daniel Mercer
+  role: protagonist
+  desire: To preserve the creative and human essence of Echo Labs at any cost, even
+    if it means defying Dr. Elias Voss’s AI-driven reforms.
+  need: To reconnect with their old friend Lena Morales and earn her trust through
+    action, not words.
+  flaw: naivety
+  traits:
+  - introspective
+  - idealistic
+  - resilient
+  - guilty

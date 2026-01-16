@@ -1,0 +1,222 @@
+chapters:
+- id: chapter-01
+  title: The Echo in the Machine
+  summary: In the neon-lit halls of Echo Labs, the pressure to modernize pushes against
+    the legacy of human collaboration. Dr. Elias Voss’s directive for AI integration
+    sets off a collision between legacy thinkers and corporate ambition, revealing
+    the fractures in the company’s identity as the first rebellion simmers in quiet
+    defiance.
+  scene_ids:
+  - scene-01
+  - scene-02
+  - scene-03
+- id: chapter-02
+  title: The Fracture of Silent Rebellion
+  summary: Echo Labs’ human core fractures under Elias Voss’s AI mandate, as Lena
+    Morales and the legacy thinkers rally in quiet resistance, uncovering the fragility
+    of corporate ambition—and the price of cultural erosion in the name of progress.
+  scene_ids:
+  - scene-04
+  - scene-05
+- id: chapter-03
+  title: The Last Light of Echo’s Fire
+  summary: Amidst the strain of revolutionary change, the legacy thinkers of Echo
+    Labs gather their final defenses, exposing the fractures beneath Voss’s overhaul
+    and probing the quiet desperation of those who refuse to let humanity slip into
+    algorithms. The chapter charts the first cracks in the rebellion—where whispered
+    defiance turns to action, highlighting the cost of ambition when culture is distilled
+    into code.
+  scene_ids:
+  - scene-06
+  - scene-07
+- id: chapter-04
+  title: The Fracture of Echo’s Soul
+  summary: As Lena Morales and her allies challenge Elias Voss’s cultural transformation,
+    the chapter delves into the personal and political fractures within Echo Labs.
+    Small acts of resistance and widening alliances underscore the growing rebellion
+    against the erosion of human identity in favor of an algorithmic future.
+  scene_ids:
+  - scene-08
+  - scene-09
+  - scene-10
+- id: chapter-05
+  title: The Last Light of Echo’s Spirit
+  summary: In this pivotal chapter, Lena Morales and the resistance at Echo Labs confront
+    the consequences of corporate transformation, where personal and professional
+    fractures deepen into an uneasy alliance. The tension between legacy culture and
+    algorithmic ambition culminates in a quiet yet powerful act of defiance, setting
+    the stage for a broader rebellion against the erosion of human values within the
+    company.
+  scene_ids:
+  - scene-11
+  - scene-12
+- id: chapter-06
+  title: The Code and the Spark
+  summary: As the rebellion against Echo Labs’ homogenizing overhaul takes its earliest,
+    stealthy form, Lena Morales and her allies uncover the fragile humanity buried
+    beneath the algorithms. The chapter balances quiet dissent with explosive tension,
+    mapping the personal stakes of those caught between tradition and progress, and
+    setting the rebellion’s reckoning with corporate pragmatism.
+  scene_ids:
+  - scene-13
+  - scene-14
+  - scene-15
+- id: chapter-07
+  title: The Fracture in Echo’s Code
+  summary: As the remnants of Echo Labs’ legacy culture resist the CEO’s algorithmic
+    overhaul, Lena Morales and her allies uncover the cracks in the rebellion’s quiet
+    resistance. The chapter explores personal betrayals and fragile alliances, revealing
+    the tension between those clinging to humanity and those swept into the future—setting
+    the stage for a reckoning.
+  scene_ids:
+  - scene-16
+  - scene-17
+- id: chapter-08
+  title: The Weight of Echoing Memories
+  summary: Lena Morales and the resistance at Echo Labs face the human cost of corporate
+    transformation, where quiet acts of defiance and fractured loyalties mark the
+    first stirrings of rebellion against the CEO’s algorithms. The chapter explores
+    the stakes of legacy culture versus the relentless march of progress, revealing
+    the fragile bonds holding the company together as old doubts and new betrayals
+    surface.
+  scene_ids:
+  - scene-18
+- id: chapter-09
+  title: The Weight of Human Code
+  summary: Lena Morales and her resistance faction confront the personal and professional
+    fractures within Echo Labs as they uncover the consequences of the CEO’s algorithmic
+    overhaul. The chapter explores betrayals, the erosion of trust, and the fragile
+    alliances between those fighting to preserve the company’s soul amid the relentless
+    march of progress, marking a turning point in the rebellion’s struggle.
+  scene_ids:
+  - scene-19
+  - scene-20
+- id: chapter-10
+  title: The Weight of Echo’s Legacy
+  summary: Lena Morales and the resistance confront the personal and professional
+    fractures within Echo Labs as the rebellion against the CEO’s algorithmic overhaul
+    reveals betrayals and the slow unraveling of trust. The chapter bridges the tension
+    between humanity and progress, marking a critical juncture where the legacy of
+    Echo’s culture faces its darkest test.
+  scene_ids:
+  - scene-21
+  - scene-22
+  - scene-23
+- id: chapter-11
+  title: The Weight of Code and Memory
+  summary: As Echo Labs’ legacy thinkers confront the repercussions of Dr. Elias Voss’s
+    algorithm-driven overhaul, Lena Morales and her allies uncover the fractures in
+    the rebellion’s alliances. The chapter tensions reveal the human cost of progress—where
+    loyalty is tested, secrets unravel, and the fragile equilibrium between Echo’s
+    soul and its machine-driven future hangs in the balance.
+  scene_ids:
+  - scene-24
+  - scene-25
+- id: chapter-12
+  title: The Algorithm’s Shadow
+  summary: As the rebellion against Echo Labs’ cultural erosion deepens, Scene 3 forces
+    Lena Morales to confront the consequences of her alliance when a betrayal exposes
+    the fragile bonds of resistance. The chapter escalates the conflict between human
+    legacy and machine-driven ambition, revealing the internal fractures that threaten
+    to undermine the rebellion’s cohesion and leaving the legacy thinkers teetering
+    on the edge of revelation.
+  scene_ids:
+  - scene-26
+  - scene-27
+  - scene-28
+- id: chapter-13
+  title: Silent Rebellion in the Shade of Neon
+  summary: In this pivotal chapter, the echoes of Echo Labs’ fractured culture resound
+    as Lena Morales and her allies confront the moral and operational consequences
+    of their rebellion. The tension between legacy and algorithmic transformation
+    reaches its breaking point, revealing hidden fractures within the resistance and
+    forcing Lena to question whether preserving human connection is worth the cost
+    of defiance.
+  scene_ids:
+  - scene-29
+  - scene-30
+- id: chapter-14
+  title: The Weight of Echoes
+  summary: In this chapter, the rebellion against Echo Labs’ cultural transformation
+    faces its first critical test, with betrayals and fractured bonds threatening
+    to expose the legacy thinkers’ rebellion. Lena Morales is forced to confront the
+    moral and operational consequences of her leadership, while the rebellion’s internal
+    divisions reveal deeper tensions between idealism and the cost of defiance against
+    machine-driven change.
+  scene_ids:
+  - scene-31
+  - scene-32
+  - scene-33
+- id: chapter-15
+  title: 'The Weight of Echoes: Legacy vs. Algorithm'
+  summary: Lena Morales faces the brink of exposing Echo Labs’ cultural betrayal,
+    where the rebellion’s fragile alliances unravel under the pressure of betrayal
+    and internal dissent. The chapter forces her to choose between preserving the
+    human legacy of Echo Labs or surrendering to the inevitability of its algorithmic
+    transformation, marking a turning point in the rebellion’s fate.
+  scene_ids:
+  - scene-34
+- id: chapter-16
+  title: The Weight of Echoes
+  summary: Lena Morales and her legacy-thinking allies face the brink of exposure
+    as their rebellion against Echo Labs’ cultural transformation collapses under
+    internal betrayals and moral strain. The chapter forces Lena to confront whether
+    the human spirit left in Echo can survive the erosion of its legacy—or if the
+    rebellion must choose between defiance and surrender.
+  scene_ids:
+  - scene-35
+  - scene-36
+  - scene-37
+  - scene-38
+- id: chapter-17
+  title: The Weight of Echo’s Silence
+  summary: Lena Morales is pushed to confront the consequences of her rebellion against
+    Echo Labs’ cultural transformation, as betrayals and internal divisions threaten
+    to unravel the rebellion’s efforts to preserve humanity amid AI-driven change.
+    The chapter culminates in a pivotal moral choice that forces Lena to either expose
+    the truth or risk her mission’s collapse.
+  scene_ids:
+  - scene-39
+  - scene-40
+  - scene-41
+- id: chapter-18
+  title: The Last Defender’s Gambit
+  summary: 'As Echo Labs'' cultural rebellion faces its breaking point, Lena Morales
+    and her allies are pushed to a critical decision: expose the company’s betrayal
+    of its human identity or let the rebellion collapse under internal fractures.
+    The chapter culminates in a high-stakes confrontation that tests the limits of
+    defiance against the relentless march of algorithmic transformation.'
+  scene_ids:
+  - scene-42
+  - scene-43
+- id: chapter-19
+  title: The Weight of Silence
+  summary: Lena Morales and her allies stand at Echo Labs’ threshold of reckoning,
+    forced to choose between exposing the company’s betrayal of human legacy or surrendering
+    their resistance as the rebellion fractures under moral ambiguity. The chapter
+    culminates in a pivotal confrontation that tests the boundaries of defiance amid
+    the relentless tide of AI-driven transformation.
+  scene_ids:
+  - scene-44
+  - scene-45
+- id: chapter-20
+  title: The Weight of Silence
+  summary: 'As Lena Morales and her allies confront the fractures within the Echo
+    Labs rebellion, this chapter forces a reckoning: revealing the truth to expose
+    the company’s betrayal or choosing silence to preserve the fragile bonds of defiance
+    against AI-driven dominance. The final showdown exposes the tension between morality
+    and loyalty, setting the stage for the impending climax.'
+  scene_ids:
+  - scene-46
+  - scene-47
+- id: chapter-21
+  title: The Last Stand of Legacy Echo
+  summary: As Echo Labs stands on the precipice of irreversible transformation, Lena
+    Morales and her allies deliver a final, decisive act of defiance. The confrontation
+    exposes the moral weight of their rebellion, forcing Echo’s future—or its soul—to
+    choose between progress and the human essence that once defined them. The chapter’s
+    resolution burns brightly, offering closure but leaving an unshakable legacy for
+    those who dared resist the algorithms.
+  scene_ids:
+  - scene-48
+  - scene-49

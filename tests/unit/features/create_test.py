@@ -469,6 +469,7 @@ def test_create_command_reads_idea_from_file(
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
         options: object = None,
+        create_progress: object = None,
     ) -> Project:
         captured.append(idea)
         return _minimal_project(format_name)
@@ -498,6 +499,7 @@ def test_create_command_prompts_for_idea(
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
         options: object = None,
+        create_progress: object = None,
     ) -> Project:
         captured.append(idea)
         return _minimal_project(format_name)
@@ -547,6 +549,7 @@ def test_create_command_writes_format_to_plot(
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
         options: object = None,
+        create_progress: object = None,
     ) -> Project:
         return _minimal_project(format_name)
 
@@ -586,6 +589,7 @@ def test_create_command_passes_language_override(
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
         options: CreateOptions | None = None,
+        create_progress: object = None,
     ) -> Project:
         captured_options.append(options)
         return _minimal_project(format_name)
@@ -617,6 +621,7 @@ def test_create_command_passes_seed(
         idea_language: str | None = None,
         progress: Callable[[str], None] | None = None,
         options: object = None,
+        create_progress: object = None,
     ) -> Project:
         captured.append(config.seed)
         return _minimal_project(format_name)

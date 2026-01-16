@@ -1,0 +1,32 @@
+format: poem
+title: ''
+premise: 'Tech-driven cultural erosion: a sequence of incremental shifts where digitalization
+  displaces human connection in a corporate environment.'
+themes:
+- cultural erosion
+- silence
+- irony
+stanzas:
+- id: stanza-01
+  lines:
+  - Whispers linger where once the trees stood tall.
+  - Now only dust remembers the wind’s old call.
+  - A screen glows cold where the earth once grew well.
+- id: stanza-02
+  lines:
+  - The chatbot’s voice hums where poets once stood,
+  - a screen’s glow fades the ink-stained hands we used to hold.
+  - No soul remains to mourn the code’s new command.
+- id: stanza-03
+  lines:
+  - Code hums in the air where poets once would hum,
+  - a keyboard’s glow outshines the ink’s slow, patient hum.
+  - The screen replaces the page—what’s lost is left unasked,
+  - but data lasts where words once whispered, cracked, and broke.
+- id: stanza-04
+  lines:
+  - Keys click sharp where quills once found their grip.
+  - A screen replaces the ink-stained hands now still.
+  - Legends of paper hum in the hollow light
+  - The office breathes but never remembers its old name.
+poem_form: free verse

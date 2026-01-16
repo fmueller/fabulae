@@ -1,0 +1,225 @@
+format: short-story
+premise: At a once-innovative Silicon Valley startup, the arrival of a hardened venture
+  capitalist sparks a ruthless push for profitability, replacing the company's collaborative
+  ethos with soul-crushing metrics and hierarchical control. Veteran developers watch
+  in silent despair as their beloved product becomes a hollow shell, its creative
+  heart replaced by algorithmic efficiency—until a junior engineer's rebellious code
+  forces the entire organization to confront what it's willing to sacrifice in the
+  name of progress.
+chapters:
+- id: chapter-01
+  title: The Fracture of Founders
+  summary: Chapter 1 establishes the once-innovative startup's toxic transformation
+    under a venture capitalist's relentless drive for profit, contrasting the team's
+    fading idealism with emerging resistance. Key scenes reveal the cultural shift
+    from collaboration to control, culminating in a junior engineer's disruptive code
+    that forces the company to confront its moral compromises.
+  scene_ids:
+  - scene-01
+  - scene-02
+  - scene-03
+  - scene-04
+  - scene-05
+  - scene-06
+scenes:
+- id: scene-01
+  location: location-01
+  time: late night
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: Elena, Jordan, and Mira confront the growing rift between their visions
+    for the startup, their fragile camaraderie strained by competing priorities. As
+    Jordan advocates for aggressive venture capital backing, Elena and Mira cling
+    to the company's grassroots ethos, their desperation to hold the line palpable
+    in the sterile glow of the Foundry.
+  goal: Protect the startup's original vision of collaborative innovation
+  conflict: Jordan's insistence on courting venture capital threatens to undermine
+    the company's mission-driven core
+  outcome: An uneasy truce is reached, but the fractures between the trio are now
+    visible
+  beats:
+  - id: scene-01-beat-01
+    kind: trust-building
+    summary: Elena and Mira revisit the startup's founding manifesto on the whiteboard,
+      tracing the faded Sharpie lines with reverent fingers as Jordan watches, arms
+      crossed
+  - id: scene-01-beat-02
+    kind: investment
+    summary: Jordan produces a venture capital proposal, its glossy pages contrasting
+      with the grimy walls, and insists on immediate consideration despite Mira's
+      objections
+- id: scene-02
+  location: location-04
+  time: late afternoon
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: The trio's ideological rift fractures further in the eerie stillness of
+    the forest, their voices echoing against the trees as Jordan's ambition clashes
+    with Elena and Mira's stubborn idealism. The weight of their diverging paths becomes
+    tangible in the damp air, each step toward compromise shadowed by the looming
+    presence of the venture capitalist's offer.
+  goal: Elena Voss wants to protect the startup's original vision of collaborative
+    innovation
+  conflict: Jordan Hale's relentless pursuit of venture capital funding directly opposes
+    Elena and Mira's commitment to the company's grassroots ethos
+  outcome: The confrontation escalates into a standoff, with the forest's natural
+    silence amplifying the growing chasm between their visions
+  beats:
+  - id: scene-02-beat-01
+    kind: setup
+    summary: Elena and Mira arrive at The Hollow, their footsteps muffled by the damp
+      pine needles as they find Jordan already waiting by the stream, a tablet glowing
+      with venture capital projections
+  - id: scene-02-beat-02
+    kind: bridge
+    summary: Jordan presents a detailed pitch to Mira, gesturing toward the stream's
+      relentless current as a metaphor for the startup's need for aggressive growth,
+      while Elena's hands tremble with suppressed frustration
+  - id: scene-02-beat-03
+    kind: setup
+    summary: Mira's voice cracks as she recounts the founders' original manifesto,
+      her words dissolving into the forest's thick humidity as Jordan's tablet reflects
+      the dimming light of the fading afternoon
+- id: scene-03
+  location: location-04
+  time: late afternoon
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: The trio's ideological rift crystallizes as Jordan's ambition collides
+    with Elena and Mira's idealism, their fragile unity unraveling in the oppressive
+    stillness of the forest. The weight of their diverging paths becomes unbearable,
+    each word a stone added to the growing chasm between them.
+  goal: Elena Voss wants to protect the startup's original vision of collaborative
+    innovation
+  conflict: Jordan Hale's relentless pursuit of venture capital funding threatens
+    to dismantle the company's grassroots ethos
+  outcome: The group fractures into irreconcilable positions, setting the stage for
+    inevitable confrontation
+  beats:
+  - id: scene-03-beat-01
+    kind: seeds-of-doubt
+    summary: Elena hesitates as Jordan's polished arguments about scalability echo
+      through the forest, their words laced with a persuasive logic that makes her
+      question if their idealism is naivety
+  - id: scene-03-beat-02
+    kind: growing-suspicion
+    summary: Mira's voice trembles as she accuses Jordan of betraying their founding
+      principles, her usual composure fraying as she notices Elena's flickering resolve
+  - id: scene-03-beat-03
+    kind: complication
+    summary: Jordan produces a detailed investor proposal, its pages rustling like
+      a challenge, as Elena's hands clenched into fists at the sight of the venture
+      capitalist's name
+  - id: scene-03-beat-04
+    kind: complication
+    summary: Mira's desperate attempt to find common ground collapses when Jordan
+      reveals the offer's苛刻 terms, their voices rising in a cacophony of conflicting
+      visions
+- id: scene-04
+  location: location-04
+  time: late afternoon
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: The trio's ideological rift reaches a boiling point as Jordan's insistence
+    on venture capital clashes with Elena and Mira's defense of the startup's ethos.
+    The forest's oppressive stillness mirrors their fractured unity, leaving the group
+    teetering on the edge of dissolution.
+  goal: Elena wants to protect the startup's original vision from Jordan's aggressive
+    VC push
+  conflict: Jordan's ambition and the group's ideological divide
+  outcome: The confrontation leaves the group more divided than ever, with no resolution
+    but heightened tension
+  beats:
+  - id: scene-04-beat-01
+    kind: escalation
+    summary: Jordan abruptly tears a page from the company's mission statement, demanding
+      Elena and Mira 'stop living in the past' as the stream's murmur grows faint
+      beneath their raised voices.
+  - id: scene-04-beat-02
+    kind: complication
+    summary: Elena's hands tremble as she retrieves the torn page, her voice steady
+      but charged as she recounts the founders' original pact to 'build without borders'—a
+      principle Jordan now calls 'naive idealism'.
+  - id: scene-04-beat-03
+    kind: complication
+    summary: Mira's quiet intervention—pointing out Jordan's recent oversight of a
+      grassroots project—triggers a sharp retort from Jordan about 'short-term sacrifices,'
+      their words cutting through the forest's damp air like a blade.
+  - id: scene-04-beat-04
+    kind: complication
+    summary: The argument fractures into silence as Elena stares at the stream, torn
+      between loyalty to Mira's vision and the pragmatic reality of Jordan's offer,
+      the weight of their diverging paths crystallizing in the stillness.
+- id: scene-05
+  location: location-01
+  time: late night
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: Elena's desperate plea to preserve the startup's ethos collides with Jordan's
+    ruthless pragmatism as the group confronts the venture capitalist's ultimatum,
+    exposing the fragility of their alliance. The revelation of a hidden clause in
+    the investment deal forces a reckoning that fractures their trust irreparably.
+  goal: Elena wants to expose the venture capitalist's hidden clause that would dilute
+    the startup's mission
+  conflict: Jordan's refusal to disclose the full terms of the investment deal, fearing
+    it would derail their promotion prospects
+  outcome: Mira's sudden betrayal by revealing she already signed the contract, leaving
+    Elena and Jordan to confront the irreversible consequences of their divided priorities
+  beats:
+  - id: scene-05-beat-01
+    kind: revelation
+    summary: Elena discovers a hidden clause in the investment agreement that would
+      grant the venture capitalist majority control over product decisions, triggering
+      a visceral confrontation with Jordan who had kept it secret
+  - id: scene-05-beat-02
+    kind: turn
+    summary: Mira abruptly reveals she signed the contract hours earlier, shattering
+      Elena's final hope to preserve the startup's autonomy and forcing Jordan to
+      confront the cost of their ambition
+- id: scene-06
+  location: location-01
+  time: late evening
+  characters:
+  - character-01
+  - character-02
+  - character-03
+  summary: The trio's ideological war culminates in a shattering confrontation over
+    the venture capitalist's hidden clause, exposing the cost of compromise. As trust
+    disintegrates, the startup's future fractures into irreconcilable paths.
+  goal: Elena Voss wants to protect the startup's vision from the investment deal's
+    corrosive terms
+  conflict: Jordan Hale's ruthless pragmatism and the revelation of the venture capitalist's
+    hidden clause
+  outcome: The group splinters, with Elena and Mira vowing to rebuild the startup's
+    ethos independently while Jordan accepts the deal
+  beats:
+  - id: scene-06-beat-01
+    kind: confrontation
+    summary: Elena slams the projector's power button, its flickering light illuminating
+      Jordan's face as she demands to know why he didn't disclose the investment clause's
+      non-compete provisions
+  - id: scene-06-beat-02
+    kind: aftermath
+    summary: Mira's trembling hands erase the whiteboard's neon Sharpie markings as
+      she pleads for a middle path, but Jordan's cold calculation fractures the room's
+      fragile silence
+  - id: scene-06-beat-03
+    kind: revelation
+    summary: 'Jordan produces the contract''s hidden clause: the startup''s intellectual
+      property would be transferred to the venture capitalist if they failed to meet
+      aggressive growth metrics'
+  - id: scene-06-beat-04
+    kind: confrontation
+    summary: Elena hurls her coffee cup at the wall, shards of ceramic scattering
+      like broken promises as she declares the startup's death if they accept the
+      terms, leaving Jordan and Mira in stunned opposition
