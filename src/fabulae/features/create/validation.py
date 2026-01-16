@@ -91,6 +91,97 @@ def validate_world_fact_references(refs: list[str], available: list[str]) -> str
     return None
 
 
+def is_title_acceptable(
+    new_title: str,
+    previous_titles: list[str],
+    similarity_threshold: float = 0.6,
+) -> tuple[bool, str | None]:
+    """Check if a new chapter title is acceptable given previous titles.
+
+    Validates that the new title:
+    1. Is not empty
+    2. Is not an exact duplicate of any previous title
+    3. Does not share the same opening words (first 3 words) as any previous title
+    4. Does not have excessive word overlap with any previous title
+
+    Args:
+        new_title: The new title to validate
+        previous_titles: List of previously generated titles
+        similarity_threshold: Maximum allowed word overlap ratio (0.0-1.0)
+
+    Returns:
+        Tuple of (is_acceptable, rejection_reason).
+        If acceptable, returns (True, None).
+        If not acceptable, returns (False, "reason string").
+    """
+    if not new_title or not new_title.strip():
+        return False, "Title is empty"
+
+    new_title = new_title.strip()
+
+    # Check for exact duplicates (case-insensitive)
+    for prev in previous_titles:
+        if new_title.lower() == prev.lower():
+            return False, f"Exact duplicate of '{prev}'"
+
+    # Check for repeated starting pattern (first 3+ words match)
+    new_words = new_title.lower().split()[:3]
+    if len(new_words) >= 2:
+        new_start = " ".join(new_words)
+        for prev in previous_titles:
+            prev_words = prev.lower().split()[:3]
+            if len(prev_words) >= 2:
+                prev_start = " ".join(prev_words)
+                if new_start == prev_start:
+                    return False, f"Same opening pattern as '{prev}'"
+
+    # Check for high word overlap
+    new_significant = _get_significant_words(new_title)
+    for prev in previous_titles:
+        prev_significant = _get_significant_words(prev)
+        if new_significant and prev_significant:
+            overlap = len(new_significant & prev_significant)
+            max_size = max(len(new_significant), len(prev_significant))
+            if max_size > 0:
+                overlap_ratio = overlap / max_size
+                if overlap_ratio >= similarity_threshold:
+                    return False, f"Too similar to '{prev}' ({overlap_ratio:.0%} word overlap)"
+
+    return True, None
+
+
+def _get_significant_words(title: str) -> set[str]:
+    """Extract significant words from a title (excluding stop words).
+
+    Args:
+        title: The title to extract words from
+
+    Returns:
+        Set of significant lowercase words
+    """
+    stop_words = {
+        "the",
+        "a",
+        "an",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "with",
+    }
+    words = title.lower().split()
+    return {w for w in words if w not in stop_words and len(w) > 2}
+
+
 def validate_title_diversity(project: Project, threshold: float = 0.5) -> list[str]:
     """Check for repetitive titles in a generated project.
 

@@ -68,6 +68,7 @@ from fabulae.features.create.shapes.loader import load_shape, load_shape_from_fi
 from fabulae.features.create.shutdown import graceful_shutdown
 from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_plot_graph
+from fabulae.features.create.validation import is_title_acceptable
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
@@ -372,29 +373,64 @@ async def _generate_prose_sequential_inner(
         with progress.phase("Planning chapters...") as phase:
             for i, chapter_slot in enumerate(graph.chapters):
                 phase.update(f"Planning chapter {i + 1}/{len(graph.chapters)}...")
-                chapter_context = build_chapter_context(chapter_slot, graph, premise, style_output, state)
 
-                def validate_chapter(output: ChapterOutput, slot_id: str = chapter_slot.id) -> str | None:
-                    if output.id != slot_id:
-                        return f"Chapter ID {output.id!r} does not match expected {slot_id!r}."
-                    return None
+                # Get previous titles for validation
+                previous_titles = [c.title for c in state.chapters if c.title]
 
-                chapter_result = await run_stage(
-                    result_type=ChapterOutput,
-                    system_prompt=build_chapter_prompt_v2(chapter_context),
-                    user_prompt=f"Create chapter {i + 1} summary",
-                    config=llm_config,
-                    expected_language=expected_language,
-                    extract_text=lambda c: f"{c.title or ''}\n{c.summary or ''}",
-                    validate=validate_chapter,
-                    error_mode=ErrorMode.WARN,
-                )
+                # Try to generate a chapter with acceptable title (retry once if needed)
+                max_retries = 1
+                rejection_feedback: str | None = None
+                final_chapter_result = None
+
+                for attempt in range(max_retries + 1):
+                    chapter_context = build_chapter_context(chapter_slot, graph, premise, style_output, state)
+
+                    # Build prompt, adding rejection feedback on retry
+                    system_prompt = build_chapter_prompt_v2(chapter_context)
+                    if rejection_feedback:
+                        system_prompt += f"\n\nPREVIOUS ATTEMPT REJECTED: {rejection_feedback}"
+
+                    def validate_chapter(output: ChapterOutput, slot_id: str = chapter_slot.id) -> str | None:
+                        if output.id != slot_id:
+                            return f"Chapter ID {output.id!r} does not match expected {slot_id!r}."
+                        return None
+
+                    chapter_result = await run_stage(
+                        result_type=ChapterOutput,
+                        system_prompt=system_prompt,
+                        user_prompt=f"Create chapter {i + 1} summary",
+                        config=llm_config,
+                        expected_language=expected_language,
+                        extract_text=lambda c: f"{c.title or ''}\n{c.summary or ''}",
+                        validate=validate_chapter,
+                        error_mode=ErrorMode.WARN,
+                    )
+                    final_chapter_result = chapter_result
+
+                    # Validate title diversity
+                    generated_title = chapter_result.output.title or ""
+                    is_ok, reason = is_title_acceptable(generated_title, previous_titles)
+
+                    if is_ok:
+                        break  # Title is acceptable, proceed
+
+                    if attempt < max_retries:
+                        # Prepare rejection feedback for retry
+                        rejection_feedback = (
+                            f"Your title '{generated_title}' was rejected: {reason}. "
+                            "Generate a COMPLETELY DIFFERENT title following the Required Structure."
+                        )
+                        continue
+
+                    # Final attempt still failed - log warning but accept
+                    progress.warn(f"Chapter {chapter_slot.id} title diversity issue: {reason}")
 
                 # Convert to domain model and add to state
+                assert final_chapter_result is not None  # Guaranteed by loop structure
                 chapter = Chapter(
-                    id=chapter_result.output.id,
-                    title=chapter_result.output.title,
-                    summary=chapter_result.output.summary,
+                    id=final_chapter_result.output.id,
+                    title=final_chapter_result.output.title,
+                    summary=final_chapter_result.output.summary,
                     scene_ids=chapter_slot.scene_ids,
                 )
                 state.chapters.append(chapter)
