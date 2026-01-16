@@ -1,0 +1,220 @@
+"""Tests for chapter CRUD commands."""
+
+from pathlib import Path
+
+import yaml
+from typer.testing import CliRunner
+
+from fabulae.main import app
+from fabulae.models import load_project
+
+runner = CliRunner()
+
+
+def create_test_project(tmp_path: Path) -> Path:
+    """Create a minimal test project with chapters."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump({
+            "premise": "A test story.",
+            "format": "novel",
+            "chapters": [
+                {"id": "chapter-01", "title": "Beginning", "scene_ids": ["scene-01"]},
+            ],
+            "scenes": [
+                {"id": "scene-01", "summary": "First scene"},
+            ],
+        })
+    )
+    return tmp_path
+
+
+class TestChapterAdd:
+    """Tests for chapter add command."""
+
+    def test_add_chapter(self, tmp_path: Path) -> None:
+        """Add a new chapter to the project."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "add", str(tmp_path), "--id", "chapter-02"],
+        )
+        assert result.exit_code == 0
+        assert "Added chapter" in result.output
+        assert "chapter-02" in result.output
+
+        project = load_project(tmp_path)
+        assert any(c.id == "chapter-02" for c in project.plot.chapters)
+
+    def test_add_chapter_with_title(self, tmp_path: Path) -> None:
+        """Add a chapter with title."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "chapter", "add", str(tmp_path),
+                "--id", "chapter-03",
+                "--title", "The Middle",
+                "--summary", "Things get complicated",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        chapter = next(c for c in project.plot.chapters if c.id == "chapter-03")
+        assert chapter.title == "The Middle"
+        assert chapter.summary == "Things get complicated"
+
+    def test_add_chapter_duplicate_id_fails(self, tmp_path: Path) -> None:
+        """Adding a chapter with duplicate ID fails."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "add", str(tmp_path), "--id", "chapter-01"],
+        )
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+
+class TestChapterList:
+    """Tests for chapter list command."""
+
+    def test_list_chapters(self, tmp_path: Path) -> None:
+        """List all chapters in the project."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(app, ["chapter", "list", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "chapter-01" in result.output
+        assert "Beginning" in result.output
+
+    def test_list_chapters_json(self, tmp_path: Path) -> None:
+        """List chapters in JSON format."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "list", str(tmp_path), "--format", "json"],
+        )
+        assert result.exit_code == 0
+        assert '"id": "chapter-01"' in result.output
+
+    def test_list_chapters_yaml(self, tmp_path: Path) -> None:
+        """List chapters in YAML format."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "list", str(tmp_path), "--format", "yaml"],
+        )
+        assert result.exit_code == 0
+        assert "id: chapter-01" in result.output
+
+
+class TestChapterRemove:
+    """Tests for chapter remove command."""
+
+    def test_remove_empty_chapter_with_force(self, tmp_path: Path) -> None:
+        """Remove an empty chapter with force flag."""
+        create_test_project(tmp_path)
+        # First add an empty chapter
+        runner.invoke(app, ["chapter", "add", str(tmp_path), "--id", "chapter-empty"])
+
+        result = runner.invoke(
+            app,
+            ["chapter", "remove", str(tmp_path), "chapter-empty", "--force"],
+        )
+        assert result.exit_code == 0
+        assert "Removed chapter" in result.output
+
+    def test_remove_chapter_with_scenes_requires_force(self, tmp_path: Path) -> None:
+        """Removing chapter with scenes requires --force."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "remove", str(tmp_path), "chapter-01"],
+        )
+        assert result.exit_code == 1
+        assert "scene(s)" in result.output
+
+    def test_remove_chapter_with_scenes_using_force(self, tmp_path: Path) -> None:
+        """Remove chapter with scenes using force flag."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "remove", str(tmp_path), "chapter-01", "--force"],
+        )
+        assert result.exit_code == 0
+        assert "Removed chapter" in result.output
+
+    def test_remove_nonexistent_chapter_fails(self, tmp_path: Path) -> None:
+        """Removing nonexistent chapter fails."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "remove", str(tmp_path), "chapter-99", "--force"],
+        )
+        assert result.exit_code == 1
+        assert "not found" in result.output
+
+
+class TestChapterEdit:
+    """Tests for chapter edit command."""
+
+    def test_edit_chapter_title(self, tmp_path: Path) -> None:
+        """Edit a chapter's title."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "edit", str(tmp_path), "chapter-01", "--title", "New Title"],
+        )
+        assert result.exit_code == 0
+        assert "Updated chapter" in result.output
+
+        project = load_project(tmp_path)
+        chapter = next(c for c in project.plot.chapters if c.id == "chapter-01")
+        assert chapter.title == "New Title"
+
+    def test_edit_chapter_summary(self, tmp_path: Path) -> None:
+        """Edit a chapter's summary."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "edit", str(tmp_path), "chapter-01", "--summary", "New summary"],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        chapter = next(c for c in project.plot.chapters if c.id == "chapter-01")
+        assert chapter.summary == "New summary"
+
+    def test_edit_nonexistent_chapter_fails(self, tmp_path: Path) -> None:
+        """Editing nonexistent chapter fails."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "edit", str(tmp_path), "chapter-99", "--title", "None"],
+        )
+        assert result.exit_code == 1
+        assert "not found" in result.output
+
+
+class TestChapterSuggest:
+    """Tests for chapter suggest command."""
+
+    def test_suggest_help_shows_options(self, tmp_path: Path) -> None:
+        """Suggest command help shows all options."""
+        result = runner.invoke(app, ["chapter", "suggest", "--help"])
+        assert result.exit_code == 0
+        assert "--idea" in result.output
+        assert "--model" in result.output
+        assert "--yes" in result.output

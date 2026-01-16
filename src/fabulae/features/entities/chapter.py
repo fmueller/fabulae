@@ -1,0 +1,240 @@
+"""Chapter CRUD commands for Fabulae projects."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Annotated
+
+import typer
+import yaml
+from rich.console import Console
+from rich.table import Table
+
+from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
+from fabulae.features.entities.prompts import build_chapter_suggest_prompt
+from fabulae.features.entities.schemas import ChapterSuggestion
+from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.utils import (
+    confirm,
+    get_all_entity_ids,
+    resolve_idea_input,
+)
+from fabulae.llm import resolve_config
+from fabulae.models import Chapter, load_project, save_project
+
+chapter_app = typer.Typer(help="Manage chapters in a Fabulae project.")
+console = Console()
+
+
+def _find_chapter_by_id(project: object, chapter_id: str) -> Chapter | None:
+    """Find a chapter by ID in the project."""
+    from fabulae.models import Project
+
+    if not isinstance(project, Project):
+        return None
+    for chapter in project.plot.chapters:
+        if chapter.id == chapter_id:
+            return chapter
+    return None
+
+
+@chapter_app.command("add")
+def add(
+    project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
+    id: Annotated[str, typer.Option("--id", help="Chapter ID (lowercase-with-hyphens).")],
+    title: Annotated[str | None, typer.Option("--title", "-t", help="Chapter title.")] = None,
+    summary: Annotated[str | None, typer.Option("--summary", help="Chapter summary.")] = None,
+) -> None:
+    """Add a new chapter to the project.
+
+    Example:
+        fabulae chapter add ./my-novel --id chapter-03 --title "The Revelation"
+    """
+    project = load_project(project_dir)
+
+    # Check for duplicate ID
+    existing_ids = get_all_entity_ids(project)
+    if id in existing_ids:
+        typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
+        raise typer.Exit(code=1)
+
+    chapter = Chapter(
+        id=id,
+        title=title,
+        summary=summary,
+        scene_ids=[],
+    )
+    project.plot.chapters.append(chapter)
+    save_project(project, project_dir)
+    typer.echo(f"Added chapter: {title or id} ({id})")
+
+
+@chapter_app.command("suggest")
+def suggest(
+    project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
+    idea: Annotated[str | None, typer.Option("--idea", "-i", help="Guidance text or file path.")] = None,
+    model: str = model_option(),
+    temperature: float = temperature_option(),
+    base_url: str | None = base_url_option(),
+    api_key: str | None = api_key_option(),
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Add without confirmation.")] = False,
+) -> None:
+    """Suggest a new chapter based on project context.
+
+    Example:
+        fabulae chapter suggest ./my-novel --idea "a climactic confrontation"
+    """
+    project = load_project(project_dir)
+
+    # Resolve idea input
+    guidance = resolve_idea_input(idea) if idea else None
+
+    # Build prompt and get suggestion
+    config = resolve_config(model, base_url, api_key, temperature, None)
+    prompt = build_chapter_suggest_prompt(project, guidance)
+
+    typer.echo("Generating chapter suggestion...")
+    suggestion = suggest_entity_sync(ChapterSuggestion, prompt, config)
+
+    # Display suggestion
+    console.print("\n[bold]Suggested chapter:[/bold]")
+    console.print(f"  ID: {suggestion.id}")
+    if suggestion.title:
+        console.print(f"  Title: {suggestion.title}")
+    if suggestion.summary:
+        console.print(f"  Summary: {suggestion.summary}")
+    console.print()
+
+    # Confirm and add
+    if yes or confirm("Add this chapter?"):
+        # Check for duplicate ID
+        existing_ids = get_all_entity_ids(project)
+        if suggestion.id in existing_ids:
+            typer.echo(
+                f"Error: ID '{suggestion.id}' already exists. Try again or use 'chapter add' manually.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        chapter = Chapter(
+            id=suggestion.id,
+            title=suggestion.title,
+            summary=suggestion.summary,
+            scene_ids=[],
+        )
+        project.plot.chapters.append(chapter)
+        save_project(project, project_dir)
+        typer.echo(f"Added chapter: {suggestion.title or suggestion.id} ({suggestion.id})")
+    else:
+        typer.echo("Chapter not added.")
+
+
+@chapter_app.command("list")
+def list_chapters(
+    project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
+    format: Annotated[str, typer.Option("--format", "-f", help="Output format: table, json, yaml.")] = "table",
+) -> None:
+    """List chapters in the project.
+
+    Example:
+        fabulae chapter list ./my-novel
+    """
+    project = load_project(project_dir)
+
+    if not project.plot.chapters:
+        typer.echo("No chapters in project.")
+        return
+
+    if format == "table":
+        table = Table(title="Chapters")
+        table.add_column("ID", style="cyan")
+        table.add_column("Title", style="green")
+        table.add_column("Scenes")
+        table.add_column("Summary")
+
+        for chapter in project.plot.chapters:
+            scene_count = len(chapter.scene_ids) if chapter.scene_ids else 0
+            if chapter.summary and len(chapter.summary) > 40:
+                summary = chapter.summary[:40] + "..."
+            else:
+                summary = chapter.summary or ""
+            table.add_row(chapter.id, chapter.title or "", str(scene_count), summary)
+
+        console.print(table)
+
+    elif format == "json":
+        data = [c.model_dump(exclude_none=True) for c in project.plot.chapters]
+        typer.echo(json.dumps(data, indent=2))
+
+    elif format == "yaml":
+        data = [c.model_dump(exclude_none=True) for c in project.plot.chapters]
+        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
+
+    else:
+        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
+        raise typer.Exit(code=1)
+
+
+@chapter_app.command("remove")
+def remove(
+    project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
+    chapter_id: Annotated[str, typer.Argument(help="Chapter ID to remove.")],
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation and orphan scenes.")] = False,
+) -> None:
+    """Remove a chapter from the project.
+
+    Example:
+        fabulae chapter remove ./my-novel chapter-03
+    """
+    project = load_project(project_dir)
+
+    chapter = _find_chapter_by_id(project, chapter_id)
+    if not chapter:
+        typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
+        raise typer.Exit(code=1)
+
+    # Warn about scenes
+    if chapter.scene_ids:
+        scene_count = len(chapter.scene_ids)
+        typer.echo(f"Warning: Chapter contains {scene_count} scene(s) that will be orphaned.")
+        if not force:
+            typer.echo("Use --force to remove anyway.")
+            raise typer.Exit(code=1)
+
+    if not force and not confirm(f"Remove chapter '{chapter.title or chapter_id}' ({chapter_id})?"):
+        typer.echo("Chapter not removed.")
+        return
+
+    project.plot.chapters = [c for c in project.plot.chapters if c.id != chapter_id]
+    save_project(project, project_dir)
+    typer.echo(f"Removed chapter: {chapter_id}")
+
+
+@chapter_app.command("edit")
+def edit(
+    project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
+    chapter_id: Annotated[str, typer.Argument(help="Chapter ID to edit.")],
+    title: Annotated[str | None, typer.Option("--title", "-t", help="New title.")] = None,
+    summary: Annotated[str | None, typer.Option("--summary", help="New summary.")] = None,
+) -> None:
+    """Edit an existing chapter.
+
+    Example:
+        fabulae chapter edit ./my-novel chapter-03 --title "The Big Reveal"
+    """
+    project = load_project(project_dir)
+
+    chapter = _find_chapter_by_id(project, chapter_id)
+    if not chapter:
+        typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
+        raise typer.Exit(code=1)
+
+    # Update only provided fields
+    if title is not None:
+        chapter.title = title if title else None
+    if summary is not None:
+        chapter.summary = summary if summary else None
+
+    save_project(project, project_dir)
+    typer.echo(f"Updated chapter: {chapter_id}")
