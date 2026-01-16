@@ -171,60 +171,135 @@ def _extract_title_patterns(titles: list[str]) -> dict[str, list[str]]:
     for title in titles:
         words = title.lower().split()
         for i in range(len(words) - 1):
-            phrase = f"{words[i]} {words[i+1]}"
+            phrase = f"{words[i]} {words[i + 1]}"
             phrase_counts[phrase] += 1
     phrases = [phrase for phrase, count in phrase_counts.items() if count >= 2]
 
     return {"starters": overused_starters, "phrases": phrases, "keywords": overused_keywords}
 
 
+# Title structures with concrete examples for structure rotation
 TITLE_STRUCTURES = [
-    ("Possessive", "[Character]'s [Noun]"),
-    ("Action", "[Verb] + [Object]"),
-    ("Question", "[What/When/Where] + [Clause]"),
-    ("Number", "[Number] + [Noun]"),
-    ("Single Word", "[One evocative word]"),
-    ("Preposition", "[Preposition] + [Noun]"),
-    ("Adjective First", "[Adjective] + [Noun]"),
+    {
+        "name": "possessive",
+        "instruction": "Use possessive format: [Name]'s [Noun]",
+        "examples": ["Elena's Gambit", "The Captain's Doubt", "Marcus's Betrayal"],
+    },
+    {
+        "name": "question",
+        "instruction": "Start with What/When/Where/Why/How",
+        "examples": ["What the River Knows", "When Shadows Fall", "Where Trust Dies"],
+    },
+    {
+        "name": "verb_phrase",
+        "instruction": "Start with a verb (-ing or imperative)",
+        "examples": ["Burning Bridges", "Breaking Silence", "Chasing Ghosts"],
+    },
+    {
+        "name": "single_word",
+        "instruction": "Use exactly ONE evocative word",
+        "examples": ["Reckoning", "Descent", "Shattered", "Awakening"],
+    },
+    {
+        "name": "preposition",
+        "instruction": "Start with a preposition (Beyond, Into, Through, etc.)",
+        "examples": ["Beyond the Wall", "Into Darkness", "Through Fire"],
+    },
+    {
+        "name": "the_last_first",
+        "instruction": "Use 'The Last/First/Final [Noun]' format",
+        "examples": ["The Last Stand", "The First Lie", "The Final Hour"],
+    },
+    {
+        "name": "number",
+        "instruction": "Include a number in the title",
+        "examples": ["Seven Days", "The Third Door", "One Last Chance"],
+    },
+    {
+        "name": "contrast",
+        "instruction": "Use contrast/opposition with 'and' or 'of'",
+        "examples": ["Blood and Stone", "Ashes of Hope", "Truth in Lies"],
+    },
 ]
 
 
-def _build_title_diversity_guidance(previous_titles: list[str], language: str | None = None) -> str:
-    """Build effective title diversity guidance based on what's been used."""
-    lang_hint = ""
+def get_title_structure(chapter_index: int, total_chapters: int) -> dict[str, str | list[str]]:
+    """Get the assigned title structure for a chapter position.
+
+    Rotates through structures to ensure variety. The rotation is deterministic
+    based on chapter index.
+
+    Args:
+        chapter_index: 0-based index of the chapter
+        total_chapters: Total number of chapters (for potential future use)
+
+    Returns:
+        Structure dict with name, instruction, and examples
+    """
+    _ = total_chapters  # Reserved for future use
+    structure_index = chapter_index % len(TITLE_STRUCTURES)
+    structure = TITLE_STRUCTURES[structure_index]
+    # Cast to satisfy mypy - the structure dict has known string keys
+    name: str = str(structure["name"])
+    instruction: str = str(structure["instruction"])
+    examples: list[str] = list(structure["examples"])
+    return {
+        "name": name,
+        "instruction": instruction,
+        "examples": examples,
+    }
+
+
+def _build_title_requirement(
+    chapter_index: int,
+    total_chapters: int,
+    previous_titles: list[str],
+    language: str | None = None,
+) -> str:
+    """Build strict title requirement with assigned structure.
+
+    Forces structural variety by assigning a specific structure to each chapter.
+    Also includes bans on overused words/patterns from previous titles.
+
+    Args:
+        chapter_index: 0-based index of the current chapter
+        total_chapters: Total number of chapters
+        previous_titles: List of titles already generated
+        language: Optional language code for the title
+
+    Returns:
+        Formatted title requirement string for the prompt
+    """
+    structure = get_title_structure(chapter_index, total_chapters)
+
+    lines = ["TITLE REQUIREMENT (MANDATORY):"]
+
+    # Language hint
     if language:
-        lang_hint = f"\nGenerate titles in {language.upper()} language.\n"
+        lines.append(f"  Language: Generate title in {language.upper()}")
 
-    if not previous_titles:
-        structures = "\n".join(f"- {name}: {pattern}" for name, pattern in TITLE_STRUCTURES[:4])
-        return f"""Title Guidelines:{lang_hint}
-Vary your title structures. Consider:
-{structures}
-"""
+    # Required structure
+    lines.append(f"  Required Structure: {structure['instruction']}")
+    examples = ", ".join(f'"{ex}"' for ex in structure["examples"][:2])
+    lines.append(f"  Examples: {examples}")
 
-    patterns = _extract_title_patterns(previous_titles)
-    lines = []
+    # Add bans based on previous titles
+    if previous_titles:
+        patterns = _extract_title_patterns(previous_titles)
 
-    if lang_hint:
-        lines.append(lang_hint.strip())
+        # Ban overused starters
+        if patterns["starters"]:
+            banned = ", ".join(f'"{s}"' for s in patterns["starters"][:3])
+            lines.append(f"  DO NOT start with: {banned}")
 
-    if patterns["starters"]:
-        banned = ", ".join(patterns["starters"][:3])
-        lines.append(f"DO NOT start title with: {banned}")
+        # Ban overused keywords
+        if patterns["keywords"]:
+            banned = ", ".join(f'"{k}"' for k in patterns["keywords"][:4])
+            lines.append(f"  DO NOT use words: {banned}")
 
-    if patterns["keywords"]:
-        banned = ", ".join(patterns["keywords"][:5])
-        lines.append(f"DO NOT use these overused words: {banned}")
-
-    if patterns["phrases"]:
-        banned = ", ".join(f'"{p}"' for p in patterns["phrases"][:3])
-        lines.append(f"DO NOT use these repeated phrases: {banned}")
-
-    lines.append("")
-    lines.append("USE ONE OF THESE STRUCTURES INSTEAD:")
-
-    for struct_name, pattern in TITLE_STRUCTURES[:4]:
-        lines.append(f"- {struct_name}: {pattern}")
+        # Show recent titles to avoid similarity
+        recent = previous_titles[-3:]
+        lines.append(f"  Recent titles (avoid similarity): {', '.join(recent)}")
 
     return "\n".join(lines)
 
@@ -275,26 +350,26 @@ def build_chapter_prompt_v2(context: ChapterContext) -> str:
         recent = context.previous_chapter_summaries[-3:]  # Last 3 chapters
         sections["Previous Chapters"] = "\n".join(f"- {summary}" for summary in recent)
 
-    # Add title diversity guidance (more effective than simple "do not repeat" list)
-    title_guidance = _build_title_diversity_guidance(
-        context.previous_chapter_titles,
+    # Add strict title requirement with structure rotation
+    title_requirement = _build_title_requirement(
+        chapter_index=context.position,
+        total_chapters=context.total_chapters,
+        previous_titles=context.previous_chapter_titles,
         language=context.style.language,
     )
-    sections["Title Requirements"] = title_guidance
+    sections["Title Requirements"] = title_requirement
 
     sections["Output Schema (JSON)"] = schema
 
-    # Build notes with title diversity emphasis
+    # Build notes with title structure emphasis
     notes_lines = [
         "Generate ONLY this chapter's title and summary.",
-        "Title should be evocative but not spoilery.",
         "Summary should hint at the chapter's arc without full details.",
     ]
-    if context.previous_chapter_titles:
-        notes_lines.append(
-            "CRITICAL: Follow the Title Requirements above exactly. "
-            "Your title MUST use a different structure than previous titles."
-        )
+    notes_lines.append(
+        "CRITICAL: Your title MUST follow the Required Structure above exactly. "
+        "Failure to use the specified structure will be rejected."
+    )
     sections["Notes"] = " ".join(notes_lines)
 
     return build_system_prompt(purpose, _format_guidelines()) + "\n\n" + format_sections(sections)
