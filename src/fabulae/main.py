@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from fabulae.features.create.cli import register_create_command
 from fabulae.features.create.shapes_cli import register_shapes_commands
+from fabulae.features.entities import beat_app, chapter_app, character_app, scene_app, world_app
 from fabulae.features.history.cli import register_history_command
 from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
@@ -42,6 +43,13 @@ app.command(name="version", help="Display the current version.")(version_command
 register_create_command(app)
 register_shapes_commands(app)
 register_history_command(app)
+
+# Entity CRUD commands
+app.add_typer(character_app, name="character")
+app.add_typer(beat_app, name="beat")
+app.add_typer(scene_app, name="scene")
+app.add_typer(chapter_app, name="chapter")
+app.add_typer(world_app, name="world")
 
 
 DEFAULT_PROJECT_PATH = Path(".")
