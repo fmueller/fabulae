@@ -1,6 +1,7 @@
 """Tests for create validation functions."""
 
 from fabulae.features.create.validation import (
+    _check_uniform_starters,
     _find_similar_titles,
     validate_character_references,
     validate_id_unchanged,
@@ -213,6 +214,36 @@ class TestValidateWorldFactReferences:
         assert "none" in result.lower() or "available" in result.lower()
 
 
+class TestCheckUniformStarters:
+    """Tests for _check_uniform_starters function."""
+
+    def test_detects_uniform_starters(self) -> None:
+        """Test that uniform starters are detected."""
+        titles = ["The Beginning", "The Middle", "The End", "The Finale"]
+        result = _check_uniform_starters(titles)
+        assert result is not None
+        assert "The" in result
+
+    def test_no_warning_for_varied_starters(self) -> None:
+        """Test that varied starters produce no warning."""
+        titles = ["A Beginning", "The Middle", "One End", "Final Chapter"]
+        result = _check_uniform_starters(titles)
+        assert result is None
+
+    def test_no_warning_for_few_titles(self) -> None:
+        """Test that too few titles produce no warning."""
+        titles = ["The Beginning", "The End"]
+        result = _check_uniform_starters(titles)
+        assert result is None
+
+    def test_threshold_respected(self) -> None:
+        """Test that threshold is respected."""
+        titles = ["The Beginning", "The Middle", "A Different", "Another One"]
+        # 2/4 = 50% start with "The", threshold is > 50% so should not warn
+        result = _check_uniform_starters(titles, threshold=0.5)
+        assert result is None
+
+
 class TestFindSimilarTitles:
     """Tests for _find_similar_titles function."""
 
@@ -307,7 +338,9 @@ class TestValidateTitleDiversity:
         ])
         warnings = validate_title_diversity(project)
         assert len(warnings) > 0
-        assert "chapter titles" in warnings[0].lower()
+        # Should detect either uniform starters or similar titles (or both)
+        all_warnings = " ".join(warnings).lower()
+        assert "chapter" in all_warnings or "title" in all_warnings
 
     def test_validate_title_diversity_empty_chapters(self) -> None:
         """Test that empty chapter list produces no warnings."""
