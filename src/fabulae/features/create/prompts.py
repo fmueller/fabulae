@@ -696,12 +696,131 @@ def build_enrichment_prompt(
     )
 
 
+def build_outline_only_prompt(
+    format_name: str,
+    style: StyleOutput,
+    count_ranges: dict[str, tuple[int, int]],
+) -> str:
+    """Build prompt for outline-only generation (no --full flag).
+
+    This generates a high-level story outline with:
+    - Title and expanded premise
+    - Chapter structure with titles and summaries
+    - Scene sketches with titles, summaries, and character assignments
+    - Character sketches with name, role, and brief description
+    - Location list (names only)
+
+    Does NOT generate:
+    - Detailed character attributes (desire, need, flaw, secret, traits)
+    - Beats for scenes
+    - Detailed world facts
+
+    Args:
+        format_name: The narrative format (novel, novella, short-story).
+        style: The style output for voice and tone guidance.
+        count_ranges: Dictionary with count ranges for chapters, scenes, characters, locations.
+
+    Returns:
+        The system prompt for outline-only generation.
+    """
+    purpose = (
+        "Create a story outline from the idea provided. This is an OUTLINE only - "
+        "generate high-level structure without detailed beats, character backstories, or world facts. "
+        "Keep it structural and concise."
+    )
+
+    schema = (
+        "{\n"
+        '  "title": "Story Title",\n'
+        '  "premise": "A 2-4 sentence narrative premise expanding on the original idea.",\n'
+        '  "chapters": [\n'
+        "    {\n"
+        '      "id": "chapter-01",\n'
+        '      "title": "Chapter Title",\n'
+        '      "summary": "2-3 sentence summary.",\n'
+        '      "scene_ids": ["scene-01", "scene-02"]\n'
+        "    }\n"
+        "  ],\n"
+        '  "scenes": [\n'
+        "    {\n"
+        '      "id": "scene-01",\n'
+        '      "title": "Scene Title",\n'
+        '      "summary": "1-2 sentence summary.",\n'
+        '      "character_ids": ["character-01"]\n'
+        "    }\n"
+        "  ],\n"
+        '  "characters": [\n'
+        "    {\n"
+        '      "id": "character-01",\n'
+        '      "name": "Character Name",\n'
+        '      "role": "protagonist",\n'
+        '      "description": "One-line description."\n'
+        "    }\n"
+        "  ],\n"
+        '  "locations": [\n'
+        '    {"id": "location-01", "name": "Location Name"}\n'
+        "  ]\n"
+        "}"
+    )
+
+    # Build count target lines
+    count_lines = []
+    if "chapters" in count_ranges:
+        count_lines.append(_format_count_range("Chapters", count_ranges["chapters"]))
+    if "scenes" in count_ranges:
+        count_lines.append(_format_count_range("Scenes", count_ranges["scenes"]))
+    if "characters" in count_ranges:
+        count_lines.append(_format_count_range("Characters", count_ranges["characters"]))
+    if "locations" in count_ranges:
+        count_lines.append(_format_count_range("Locations", count_ranges["locations"]))
+
+    # Build style hint
+    style_parts = []
+    if style.pov:
+        style_parts.append(f"POV: {style.pov}")
+    if style.tense:
+        style_parts.append(f"Tense: {style.tense}")
+    if style.voice:
+        style_parts.append(f"Voice: {style.voice}")
+    if style.register_:
+        style_parts.append(f"Register: {style.register_}")
+    if style.language:
+        style_parts.append(f"Language: {style.language}")
+    style_hint = "; ".join(style_parts) if style_parts else "Not specified"
+
+    notes_lines = [
+        "This is an OUTLINE only - do not generate detailed beats or character backstories.",
+        "Keep scene summaries to 1-2 sentences each.",
+        "Keep character descriptions to one line each.",
+        "Every scene must be assigned to exactly one chapter via scene_ids.",
+        "Every scene must list at least one character in character_ids.",
+        "All IDs must be lowercase-hyphenated and unique.",
+    ]
+
+    sections: dict[str, str] = {
+        "Format": format_name,
+        "Style": style_hint,
+        "Count Targets": "\n".join(count_lines),
+        "Notes": "\n".join(notes_lines),
+        "Output Schema (JSON)": schema,
+    }
+
+    return (
+        build_system_prompt(purpose, _format_guidelines())
+        + "\n\n"
+        + format_sections(sections)
+        + "\n\n"
+        + _format_example("Example Output", schema)
+    )
+
+
 __all__ = [
     "build_character_plan_prompt",
     "build_character_prompt",
     "build_enrichment_prompt",
     "build_fragment_plan_prompt",
     "build_fragment_prompt",
+    "build_outline_only_prompt",
     "build_plot_outline_prompt",
     "build_poem_plan_prompt",
     "build_premise_expansion_prompt",

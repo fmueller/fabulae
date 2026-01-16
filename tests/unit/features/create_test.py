@@ -433,13 +433,15 @@ def test_generate_project_from_idea_builds_project(
 
     monkeypatch.setattr(create_service, "create_agent", _fake_agent_factory(outputs_by_type))
 
+    # Use full=True for prose formats to test full pipeline (default is now outline mode)
+    use_full = format_value in {"novel", "novella", "short-story"}
     project = asyncio.run(
         create_service.generate_project_from_idea(
             "An idea.",
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=use_full),
         )
     )
 
@@ -668,7 +670,7 @@ def test_generate_project_writes_artifacts_and_language(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -751,7 +753,7 @@ def test_generate_project_retries_on_validation_error(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -819,7 +821,7 @@ def test_generate_project_uses_provided_ids(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -891,7 +893,7 @@ def test_world_fact_generation_retries_on_id_mismatch(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -960,7 +962,7 @@ def test_character_generation_retries_on_id_mismatch(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1025,7 +1027,7 @@ def test_scene_generation_retries_on_id_mismatch(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1082,7 +1084,7 @@ def test_scene_generation_accepts_any_beat_ids(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1148,7 +1150,7 @@ def test_scene_generation_retries_on_unknown_characters(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1331,7 +1333,7 @@ def test_create_warns_but_does_not_fail_on_scene_count(
             LLMConfig(),
             output_dir=tmp_path,
             progress=messages.append,
-            options=CreateOptions(seed=seed),
+            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1372,7 +1374,7 @@ def test_language_override_flows_to_output_files(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, idea_language="fr"),
+            options=CreateOptions(seed=seed, idea_language="fr", full=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1421,7 +1423,7 @@ def test_language_detection_from_idea_when_no_override(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),  # No idea_language override
+            options=CreateOptions(seed=seed, full=True),  # No idea_language override; full=True for prose pipeline
         )
     )
 
@@ -1469,7 +1471,7 @@ def test_language_defaults_to_english_when_not_detected(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed),  # No idea_language override
+            options=CreateOptions(seed=seed, full=True),  # No idea_language override; full=True for prose pipeline
         )
     )
 
