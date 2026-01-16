@@ -6,10 +6,14 @@ import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from rich.console import Console
-from rich.progress import Progress, ProgressColumn, SpinnerColumn, Task, TextColumn
+from rich.progress import Progress, ProgressColumn, SpinnerColumn, Task, TaskID, TextColumn
 from rich.text import Text
+
+if TYPE_CHECKING:
+    from rich.progress import Progress as ProgressType
 
 
 @dataclass
@@ -21,7 +25,7 @@ class StepTiming:
 
 
 class DualTimeColumn(ProgressColumn):
-    """Custom column showing step time / total time."""
+    """Custom column showing phase time / total time."""
 
     def __init__(self, get_total_elapsed: Callable[[], float]) -> None:
         super().__init__()
@@ -29,13 +33,13 @@ class DualTimeColumn(ProgressColumn):
 
     def render(self, task: Task) -> Text:
         """Render the dual time display."""
-        step_elapsed = task.elapsed or 0.0
+        phase_elapsed = task.elapsed or 0.0
         total_elapsed = self._get_total_elapsed()
 
-        step_str = self._format_time(step_elapsed)
+        phase_str = self._format_time(phase_elapsed)
         total_str = self._format_time(total_elapsed)
 
-        return Text(f"{step_str} / {total_str}", style="progress.elapsed")
+        return Text(f"{phase_str} / {total_str}", style="progress.elapsed")
 
     @staticmethod
     def _format_time(seconds: float) -> str:
@@ -45,6 +49,18 @@ class DualTimeColumn(ProgressColumn):
         if hours > 0:
             return f"{hours}:{minutes:02d}:{secs:02d}"
         return f"{minutes}:{secs:02d}"
+
+
+class PhaseContext:
+    """Context for an active phase, allowing description updates without timer reset."""
+
+    def __init__(self, progress: ProgressType, task_id: TaskID) -> None:
+        self._progress = progress
+        self._task_id = task_id
+
+    def update(self, description: str) -> None:
+        """Update the phase description without resetting the timer."""
+        self._progress.update(self._task_id, description=description)
 
 
 class CreateProgress:
@@ -68,7 +84,11 @@ class CreateProgress:
 
     @contextmanager
     def stage(self, description: str) -> Generator[None, None, None]:
-        """Context manager for a generation stage with dual timer display (step / total)."""
+        """Context manager for a generation stage with dual timer display (phase / total).
+
+        Use this for single-step operations. For multi-step operations where you
+        want to update the description without resetting the timer, use phase().
+        """
         if self._start_time is None:
             self._start_time = time.monotonic()
 
@@ -88,6 +108,46 @@ class CreateProgress:
         # Record step duration
         step_duration = time.monotonic() - self._current_step_start
         self._step_timings.append(StepTiming(name=step_name, duration_seconds=step_duration))
+
+    @contextmanager
+    def phase(self, description: str) -> Generator[PhaseContext, None, None]:
+        """Context manager for a generation phase with updatable description.
+
+        Use this for multi-step operations where you want to update the description
+        (e.g., "Creating character 1/10...", "Creating character 2/10...") without
+        resetting the phase timer. The timer runs continuously for the entire phase.
+
+        Example:
+            with progress.phase("Creating characters...") as phase:
+                for i, char in enumerate(characters):
+                    phase.update(f"Creating character {i+1}/{len(characters)}...")
+                    # do work
+
+        Args:
+            description: Initial phase description for spinner display
+
+        Yields:
+            PhaseContext with update() method to change description
+        """
+        if self._start_time is None:
+            self._start_time = time.monotonic()
+
+        self._current_step_start = time.monotonic()
+        phase_name = description.rstrip(".").strip()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            DualTimeColumn(self._get_total_elapsed),
+            console=self.console,
+            transient=True,
+        ) as progress:
+            task_id = progress.add_task(description, total=None)
+            yield PhaseContext(progress, task_id)
+
+        # Record phase duration
+        phase_duration = time.monotonic() - self._current_step_start
+        self._step_timings.append(StepTiming(name=phase_name, duration_seconds=phase_duration))
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -144,4 +204,35 @@ def maybe_stage(progress: CreateProgress | None, description: str) -> Generator[
         yield
 
 
-__all__ = ["CreateProgress", "StepTiming", "maybe_stage"]
+class _NoOpPhaseContext:
+    """No-op phase context when progress is None."""
+
+    def update(self, description: str) -> None:
+        """No-op update."""
+        pass
+
+
+@contextmanager
+def maybe_phase(
+    progress: CreateProgress | None, description: str
+) -> Generator[PhaseContext | _NoOpPhaseContext, None, None]:
+    """Context manager that wraps phase() if progress is available.
+
+    This helper allows pipelines to use phase() for timing tracking
+    while still supporting the optional progress parameter.
+
+    Args:
+        progress: Optional CreateProgress instance
+        description: Initial phase description for spinner display
+
+    Yields:
+        PhaseContext with update() method, or no-op context if progress is None
+    """
+    if progress:
+        with progress.phase(description) as phase:
+            yield phase
+    else:
+        yield _NoOpPhaseContext()
+
+
+__all__ = ["CreateProgress", "PhaseContext", "StepTiming", "maybe_phase", "maybe_stage"]

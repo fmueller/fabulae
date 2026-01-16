@@ -228,8 +228,9 @@ async def generate_prose_sequential(
     # Phase 4: Character Generation (One at a time)
     # =========================================================================
 
-    for i, char_slot in enumerate(graph.characters):
-        with progress.stage(f"Creating character {i + 1}/{len(graph.characters)}..."):
+    with progress.phase("Creating characters...") as phase:
+        for i, char_slot in enumerate(graph.characters):
+            phase.update(f"Creating character {i + 1}/{len(graph.characters)}...")
             context = build_character_context(char_slot, premise, style_output, state)
 
             def validate_char(output: CharacterOutput, slot_id: str = char_slot.id) -> str | None:
@@ -268,8 +269,9 @@ async def generate_prose_sequential(
     # Phase 5: Location Generation (One at a time)
     # =========================================================================
 
-    for i, loc_slot in enumerate(graph.locations):
-        with progress.stage(f"Creating location {i + 1}/{len(graph.locations)}..."):
+    with progress.phase("Creating locations...") as phase:
+        for i, loc_slot in enumerate(graph.locations):
+            phase.update(f"Creating location {i + 1}/{len(graph.locations)}...")
             loc_context = build_location_context(loc_slot, premise, style_output, state)
 
             def validate_loc(output: WorldFactOutput, slot_id: str = loc_slot.id) -> str | None:
@@ -319,8 +321,9 @@ async def generate_prose_sequential(
             title: str | None = Field(default=None, description="Chapter title")
             summary: str | None = Field(default=None, description="Chapter summary")
 
-        for i, chapter_slot in enumerate(graph.chapters):
-            with progress.stage(f"Planning chapter {i + 1}/{len(graph.chapters)}..."):
+        with progress.phase("Planning chapters...") as phase:
+            for i, chapter_slot in enumerate(graph.chapters):
+                phase.update(f"Planning chapter {i + 1}/{len(graph.chapters)}...")
                 chapter_context = build_chapter_context(chapter_slot, graph, premise, style_output, state)
 
                 def validate_chapter(output: ChapterOutput, slot_id: str = chapter_slot.id) -> str | None:
@@ -388,8 +391,9 @@ async def generate_prose_sequential(
 
         return validate_scene
 
-    for i, scene_slot in enumerate(graph.scenes):
-        with progress.stage(f"Writing scene {i + 1}/{len(graph.scenes)}..."):
+    with progress.phase("Writing scenes...") as phase:
+        for i, scene_slot in enumerate(graph.scenes):
+            phase.update(f"Writing scene {i + 1}/{len(graph.scenes)}...")
             scene_context = build_scene_context(scene_slot, graph, state, options)
 
             validate_scene = make_scene_validator(
