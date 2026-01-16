@@ -8,7 +8,14 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from fabulae.features.create.progress import CreateProgress, DualTimeColumn, StepTiming, maybe_stage
+from fabulae.features.create.progress import (
+    CreateProgress,
+    DualTimeColumn,
+    PhaseContext,
+    StepTiming,
+    maybe_phase,
+    maybe_stage,
+)
 
 
 class TestStepTiming:
@@ -331,3 +338,138 @@ class TestCreateProgressIntegration:
 
         # Verify all steps are tracked
         assert len(progress._step_timings) == 3
+
+
+class TestPhase:
+    """Tests for phase() context manager."""
+
+    def test_phase_returns_phase_context(self) -> None:
+        """phase() yields a PhaseContext for updating description."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        with progress.phase("Initial...") as phase:
+            assert isinstance(phase, PhaseContext)
+
+    def test_phase_records_timing(self) -> None:
+        """phase() records timing after completion."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        with progress.phase("Test phase...") as _phase:
+            time.sleep(0.01)
+
+        assert len(progress._step_timings) == 1
+        assert progress._step_timings[0].name == "Test phase"
+        assert progress._step_timings[0].duration_seconds >= 0.01
+
+    def test_phase_update_changes_description(self) -> None:
+        """PhaseContext.update() allows changing description without resetting timer."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        with progress.phase("Creating items...") as phase:
+            time.sleep(0.01)
+            phase.update("Creating item 1/3...")
+            time.sleep(0.01)
+            phase.update("Creating item 2/3...")
+            time.sleep(0.01)
+            phase.update("Creating item 3/3...")
+            time.sleep(0.01)
+
+        # Should only record ONE timing for the whole phase
+        assert len(progress._step_timings) == 1
+        # Total duration should be roughly 0.04 seconds (all 4 sleeps)
+        assert progress._step_timings[0].duration_seconds >= 0.04
+
+    def test_phase_timer_runs_continuously(self) -> None:
+        """Phase timer continues running while description is updated."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        progress.start()
+
+        with progress.phase("Processing...") as phase:
+            time.sleep(0.02)
+            phase.update("Processing 1/2...")
+            time.sleep(0.02)
+            phase.update("Processing 2/2...")
+            time.sleep(0.02)
+
+        # Total elapsed should reflect all the time in the phase
+        total = progress._get_total_elapsed()
+        assert total >= 0.06
+
+    def test_phase_auto_starts_if_not_started(self) -> None:
+        """phase() auto-starts timing if not already started."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        assert progress._start_time is None
+        with progress.phase("Test phase..."):
+            pass
+        assert progress._start_time is not None
+
+    def test_phase_strips_trailing_dots_and_spaces(self) -> None:
+        """phase() strips trailing dots and spaces from phase names."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        with progress.phase("Creating characters..."):
+            pass
+
+        assert progress._step_timings[0].name == "Creating characters"
+
+
+class TestMaybePhase:
+    """Tests for maybe_phase helper function."""
+
+    def test_maybe_phase_with_progress(self) -> None:
+        """maybe_phase() uses phase() when progress is available."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        with maybe_phase(progress, "Test phase...") as phase:
+            phase.update("Test 1/2...")
+            time.sleep(0.01)
+            phase.update("Test 2/2...")
+            time.sleep(0.01)
+
+        assert len(progress._step_timings) == 1
+        assert progress._step_timings[0].name == "Test phase"
+
+    def test_maybe_phase_without_progress(self) -> None:
+        """maybe_phase() is a no-op when progress is None."""
+        result = []
+
+        with maybe_phase(None, "Test phase...") as phase:
+            phase.update("Updated description")  # Should not raise
+            result.append("executed")
+
+        assert result == ["executed"]
+
+    def test_maybe_phase_noop_update(self) -> None:
+        """maybe_phase() with None progress has no-op update method."""
+        updates = []
+
+        with maybe_phase(None, "Test phase...") as phase:
+            phase.update("Update 1")
+            updates.append("1")
+            phase.update("Update 2")
+            updates.append("2")
+
+        # Code should execute normally without errors
+        assert updates == ["1", "2"]
+
+    def test_maybe_phase_context_manager_behavior(self) -> None:
+        """maybe_phase() works as a proper context manager."""
+        console = Console(file=StringIO(), force_terminal=True)
+        progress = CreateProgress(console=console)
+
+        value = None
+        with maybe_phase(progress, "Test phase...") as phase:
+            phase.update("Working...")
+            value = 42
+
+        assert value == 42
+        assert len(progress._step_timings) == 1
