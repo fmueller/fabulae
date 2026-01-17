@@ -106,8 +106,10 @@ def register_create_command(app: typer.Typer) -> None:
         name="create",
         help=(
             "Create a Fabulae project from an idea.\n\n"
-            "By default, generates a rough outline (chapters, scene summaries, character sketches). "
-            "Use --full to generate complete project with all beats and details.\n\n"
+            "For prose formats (novel, novella, short-story), generates a rough outline by default "
+            "(chapters, scene summaries, character sketches). Use --full to generate complete "
+            "project with all beats and details. Other formats (micro-prose, poem) always "
+            "generate full content.\n\n"
             "Examples:\n\n"
             "  fabulae create ./my-novel --idea '...' --format novel          # Outline only\n\n"
             "  fabulae create ./my-novel --idea '...' --format novel --full   # Full details"
@@ -189,7 +191,8 @@ def register_create_command(app: typer.Typer) -> None:
                 "-F",
                 help=(
                     "Generate full project with all details including beats and scene content. "
-                    "Default generates outline only (chapters, scene summaries, character sketches)."
+                    "Default generates outline only for prose formats (novel, novella, short-story). "
+                    "Has no effect on micro-prose or poem formats."
                 ),
             ),
         ] = False,
