@@ -50,6 +50,11 @@ plot.yml
 characters.yml
 world.yml
 style.yml
+.fabulae/           # Auto-generated, gitignored
+├── history/        # Command history entries
+├── create/         # Generation artifacts and partial results
+├── cache/          # Temporary cache files
+└── temp/           # Temporary working files
 ```
 
 Key rules:
@@ -74,6 +79,10 @@ Templates:
 - `fabulae create [OPTIONS] <dir>` generates a complete project from an idea using LLM.
 - `fabulae shapes` lists all available story shapes.
 - `fabulae shape <id>` shows details of a specific story shape.
+- `fabulae history [OPTIONS] <dir>` views or manages project history.
+
+**Global options:**
+- `--no-history` disables project history tracking for the command.
 
 ### Initializing a Project
 
@@ -137,6 +146,27 @@ fabulae shapes
 # Show details of a specific shape
 fabulae shape heros-journey
 fabulae shape betrayal-arc
+```
+
+### Managing Project History
+
+Fabulae tracks command history in the `.fabulae/history/` folder. Use the `history` command to view or manage it.
+
+```bash
+# View recent history (default: last 10 entries)
+fabulae history my-project
+
+# View more entries
+fabulae history -n 20 my-project
+
+# Output as JSON
+fabulae history --json my-project
+
+# Clear all history
+fabulae history --clear my-project
+
+# Disable history for a command
+fabulae --no-history create --idea "A story" my-project
 ```
 
 ## Development

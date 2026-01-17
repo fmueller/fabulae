@@ -120,6 +120,26 @@ The `create` feature generates narrative projects from ideas using a multi-stage
   - Poem: last 5 stanzas
 - Warning displayed at startup about potential JSON output issues
 
+### History Feature Architecture
+
+The history system tracks all commands executed on a project in the `.fabulae/` folder:
+
+**Folder Structure** (`.fabulae/`):
+- `history/` - YAML files storing command history entries
+- `create/` - Generation artifacts (style, premise, structure) and partial results on interruption
+- `cache/` - Temporary cache files
+- `temp/` - Temporary working files
+
+**Core Components** (`src/fabulae/history/`):
+- `manager.py` - `HistoryManager` class handles all `.fabulae/` folder operations
+- `models.py` - `HistoryEntry` Pydantic model for history records
+- `state.py` - Global state for history manager access across the application
+
+**CLI Integration**:
+- Global `--no-history` flag disables tracking for any command
+- `fabulae history` command views/manages history (`src/fabulae/features/history/cli.py`)
+- History entries include: timestamp, command, arguments, duration, success status
+
 ## Key Validation Rules
 
 - All entity IDs must be globally unique across the entire project
