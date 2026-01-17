@@ -14,6 +14,24 @@ from fabulae.history.models import ActionType, HistoryEntry
 class TestHistoryManager:
     """Tests for HistoryManager class."""
 
+    def test_get_history_skips_corrupted_entries(self, tmp_path: Path) -> None:
+        """get_history should skip corrupted JSON files gracefully."""
+        manager = HistoryManager(tmp_path)
+        manager.ensure_dirs()
+
+        # Create a valid entry
+        with manager.track_action(ActionType.CREATE, "valid", {"index": 1}):
+            pass
+
+        # Create a corrupted file (will sort after the valid one due to date)
+        corrupted = tmp_path / FABULAE_DIR / HISTORY_DIR / "2099-01-01_000000_000000_bad00000_create.json"
+        corrupted.write_text("not valid json {{{")
+
+        # Should return only the valid entry, not crash
+        entries = manager.get_history()
+        assert len(entries) == 1
+        assert entries[0].parameters["index"] == 1
+
     def test_ensure_dirs_creates_fabulae_structure(self, tmp_path: Path) -> None:
         """ensure_dirs should create .fabulae directory structure."""
         manager = HistoryManager(tmp_path)
@@ -53,10 +71,13 @@ class TestHistoryManager:
         """track_action should record failed actions with error message."""
         manager = HistoryManager(tmp_path)
 
-        with pytest.raises(ValueError, match="Test error"), manager.track_action(
-            action=ActionType.CREATE,
-            command="fabulae create ./test",
-            parameters={},
+        with (
+            pytest.raises(ValueError, match="Test error"),
+            manager.track_action(
+                action=ActionType.CREATE,
+                command="fabulae create ./test",
+                parameters={},
+            ),
         ):
             raise ValueError("Test error")
 
@@ -190,6 +211,61 @@ class TestHistoryManager:
         assert data["command"] == "fabulae build ./test"
         assert data["parameters"]["output"] == "test.txt"
         assert data["result"] == "success"
+
+    def test_history_filename_format(self, tmp_path: Path) -> None:
+        """History files should follow the expected naming convention."""
+        import re
+
+        manager = HistoryManager(tmp_path)
+
+        with manager.track_action(ActionType.BUILD, "test", {}):
+            pass
+
+        files = list((tmp_path / FABULAE_DIR / HISTORY_DIR).glob("*.json"))
+        assert len(files) == 1
+
+        # Format: YYYY-MM-DD_HHMMSS_microseconds_shortid_action.json
+        pattern = r"^\d{4}-\d{2}-\d{2}_\d{6}_\d{6}_[a-f0-9]{8}_build\.json$"
+        assert re.match(pattern, files[0].name), f"Filename {files[0].name} doesn't match expected pattern"
+
+    def test_track_action_records_duration(self, tmp_path: Path) -> None:
+        """track_action should record actual duration."""
+        import time
+
+        manager = HistoryManager(tmp_path)
+
+        with manager.track_action(ActionType.CREATE, "test", {}):
+            time.sleep(0.05)
+
+        entries = manager.get_history()
+        assert entries[0].duration_seconds is not None
+        assert entries[0].duration_seconds >= 0.05
+        assert entries[0].duration_seconds < 1.0  # Sanity check
+
+    def test_rapid_entries_have_unique_filenames(self, tmp_path: Path) -> None:
+        """Entries created rapidly should have unique filenames."""
+        manager = HistoryManager(tmp_path)
+
+        # Create many entries without any delay
+        for i in range(10):
+            with manager.track_action(ActionType.CREATE, f"cmd-{i}", {"i": i}):
+                pass
+
+        files = list((tmp_path / FABULAE_DIR / HISTORY_DIR).glob("*.json"))
+        assert len(files) == 10  # All entries saved, none overwritten
+
+    def test_clean_temp_ignores_subdirectories(self, tmp_path: Path) -> None:
+        """clean_temp should only remove files, not subdirectories."""
+        manager = HistoryManager(tmp_path)
+        temp_dir = manager.get_temp_dir()
+
+        (temp_dir / "file.txt").write_text("test")
+        (temp_dir / "subdir").mkdir()
+        (temp_dir / "subdir" / "nested.txt").write_text("nested")
+
+        count = manager.clean_temp()
+        assert count == 1  # Only the file, not the subdir
+        assert (temp_dir / "subdir").exists()
 
 
 class TestHistoryEntry:
