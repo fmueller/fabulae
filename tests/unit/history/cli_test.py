@@ -93,6 +93,20 @@ class TestHistoryCommand:
         assert data[0]["action"] == "build"
         assert data[0]["parameters"]["seed"] == 42
 
+    def test_history_shows_failed_entries_with_error(self, tmp_path: Path) -> None:
+        """history command should display error message for failed entries."""
+        manager = HistoryManager(tmp_path)
+        try:
+            with manager.track_action(ActionType.BUILD, "test", {}):
+                raise ValueError("Something went wrong")
+        except ValueError:
+            pass
+
+        result = runner.invoke(app, ["history", str(tmp_path)])
+        assert result.exit_code == 0
+        clean_output = ANSI_ESCAPE_PATTERN.sub("", result.output)
+        assert "Something went wrong" in clean_output
+
 
 class TestNoHistoryFlag:
     """Tests for the global --no-history flag."""
