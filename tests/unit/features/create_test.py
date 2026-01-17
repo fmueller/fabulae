@@ -682,8 +682,8 @@ def test_generate_project_writes_artifacts_and_language(
     assert (tmp_path / "characters.yml").exists()
     assert (tmp_path / "world.yml").exists()
     assert (tmp_path / "plot.yml").exists()
-    # New pipeline writes numbered artifacts to .fabulae-create/
-    artifacts_dir = tmp_path / ".fabulae-create"
+    # New pipeline writes numbered artifacts to .fabulae/create/
+    artifacts_dir = tmp_path / ".fabulae" / "create"
     assert (artifacts_dir / "01-style.yml").exists()
     assert (artifacts_dir / "02-premise.yml").exists()
     assert (artifacts_dir / "03-structure.yml").exists()

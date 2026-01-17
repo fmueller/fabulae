@@ -610,7 +610,7 @@ def _write_config(config: ProjectConfig, output_dir: Path) -> None:
 
 
 def _artifact_root(output_dir: Path) -> Path:
-    return output_dir / ".fabulae-create"
+    return output_dir / ".fabulae" / "create"
 
 
 def _write_artifact(output_dir: Path, name: str, payload: dict[str, object]) -> None:
