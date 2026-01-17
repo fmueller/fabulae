@@ -47,7 +47,7 @@ class GenerationState:
         Returns:
             Path to the partial output directory.
         """
-        partial_dir = output_dir / ".fabulae-create" / "partial"
+        partial_dir = output_dir / ".fabulae" / "create" / "partial"
         partial_dir.mkdir(parents=True, exist_ok=True)
 
         # Write state.yml with current progress

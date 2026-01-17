@@ -19,6 +19,7 @@ FABULAE_DIR = ".fabulae"
 HISTORY_DIR = "history"
 CACHE_DIR = "cache"
 TEMP_DIR = "temp"
+CREATE_DIR = "create"
 
 
 class HistoryManager:
@@ -52,6 +53,19 @@ class HistoryManager:
         """
         self.ensure_dirs()
         return self.fabulae_dir / TEMP_DIR
+
+    def get_create_dir(self) -> Path:
+        """Get the create artifacts directory, creating if needed.
+
+        This directory stores intermediate artifacts during project creation,
+        including partial results saved on interruption.
+
+        Returns:
+            Path to the create directory.
+        """
+        create_dir = self.fabulae_dir / CREATE_DIR
+        create_dir.mkdir(parents=True, exist_ok=True)
+        return create_dir
 
     def clean_temp(self) -> int:
         """Remove all temp files.

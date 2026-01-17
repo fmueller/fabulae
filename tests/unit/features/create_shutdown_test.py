@@ -186,7 +186,7 @@ class TestGenerationState:
         state = GenerationState(idea="test", format_name="novel")
         partial_dir = state.write_partial(tmp_path)
 
-        assert partial_dir == tmp_path / ".fabulae-create" / "partial"
+        assert partial_dir == tmp_path / ".fabulae" / "create" / "partial"
         assert partial_dir.is_dir()
 
 

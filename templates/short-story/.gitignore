@@ -1,6 +1,5 @@
 # Fabulae project ignores
 .fabulae/
-.fabulae-create/
 output/
 
 # Python
