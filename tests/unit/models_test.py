@@ -515,3 +515,76 @@ class TestFileIO:
         assert len(project.plot.scenes) == 2
         assert project.plot.scenes[0].location is None
         assert project.plot.scenes[0].time == "morning"
+
+
+class TestSaveProjectValidation:
+    """Tests for save_project format validation."""
+
+    def test_save_project_rejects_scene_in_micro_prose(self, tmp_path: Path) -> None:
+        """save_project should reject adding scenes to micro-prose format."""
+        import yaml
+
+        # Create valid micro-prose project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A micro story",
+                    "format": "micro-prose",
+                    "fragments": [{"id": "frag-01", "content": "Opening fragment."}],
+                }
+            )
+        )
+
+        project = load_project(tmp_path)
+        # Add a scene (invalid for micro-prose)
+        project.plot.scenes.append(Scene(id="scene-bad", summary="Invalid"))
+
+        with pytest.raises(ValueError, match="micro-prose.*should use fragments"):
+            save_project(project, tmp_path)
+
+    def test_save_project_rejects_fragment_in_prose(self, tmp_path: Path) -> None:
+        """save_project should reject adding fragments to prose format."""
+        import yaml
+
+        # Create valid prose project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A novel",
+                    "format": "novel",
+                    "scenes": [{"id": "scene-01", "summary": "Opening"}],
+                }
+            )
+        )
+
+        project = load_project(tmp_path)
+        # Add a fragment (invalid for prose)
+        project.plot.fragments.append(Fragment(id="frag-bad", content="Invalid"))
+
+        with pytest.raises(ValueError, match="novel.*should not have fragments"):
+            save_project(project, tmp_path)
+
+    def test_save_project_rejects_stanza_in_micro_prose(self, tmp_path: Path) -> None:
+        """save_project should reject adding stanzas to micro-prose format."""
+        import yaml
+
+        # Create valid micro-prose project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A micro story",
+                    "format": "micro-prose",
+                    "fragments": [{"id": "frag-01", "content": "Opening fragment."}],
+                }
+            )
+        )
+
+        project = load_project(tmp_path)
+        # Add a stanza (invalid for micro-prose)
+        project.plot.stanzas.append(Stanza(id="stanza-bad", lines=["Invalid"]))
+
+        with pytest.raises(ValueError, match="micro-prose.*should not have stanzas"):
+            save_project(project, tmp_path)

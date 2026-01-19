@@ -519,6 +519,7 @@ def load_project(path: Path) -> Project:
 
 def save_project(project: Project, path: Path) -> None:
     """Save a Fabulae project to a directory structure."""
+    _validate_project(project)
     path.mkdir(parents=True, exist_ok=True)
 
     config = project.config

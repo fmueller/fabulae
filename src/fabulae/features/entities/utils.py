@@ -146,3 +146,87 @@ def get_all_entity_ids(project: Project) -> set[str]:
     for stanza in project.plot.stanzas:
         ids.add(stanza.id)
     return ids
+
+
+# Format constants
+PROSE_FORMATS = {"novel", "novella", "short-story"}
+
+
+def get_project_format(project: Project) -> str:
+    """Get the project's literature format."""
+    return project.plot.format or "novel"
+
+
+def require_prose_format(project: Project, command: str) -> None:
+    """Require project to be a prose format. Exit with error if not.
+
+    Args:
+        project: The project to check
+        command: The command name for error message (e.g., "scene add")
+    """
+    fmt = get_project_format(project)
+    if fmt not in PROSE_FORMATS:
+        if fmt == "micro-prose":
+            typer.echo(
+                f"Error: '{command}' requires a prose format (novel/novella/short-story). "
+                f"This project uses '{fmt}'. Use 'fragment' commands instead.",
+                err=True,
+            )
+        elif fmt == "poem":
+            typer.echo(
+                f"Error: '{command}' requires a prose format (novel/novella/short-story). "
+                f"This project uses '{fmt}'. Use 'stanza' commands instead.",
+                err=True,
+            )
+        else:
+            typer.echo(
+                f"Error: '{command}' requires a prose format (novel/novella/short-story). This project uses '{fmt}'.",
+                err=True,
+            )
+        raise typer.Exit(code=1)
+
+
+def require_micro_prose_format(project: Project, command: str) -> None:
+    """Require project to be micro-prose format. Exit with error if not."""
+    fmt = get_project_format(project)
+    if fmt != "micro-prose":
+        if fmt in PROSE_FORMATS:
+            typer.echo(
+                f"Error: '{command}' requires micro-prose format. "
+                f"This project uses '{fmt}'. Use 'scene' commands instead.",
+                err=True,
+            )
+        elif fmt == "poem":
+            typer.echo(
+                f"Error: '{command}' requires micro-prose format. "
+                f"This project uses '{fmt}'. Use 'stanza' commands instead.",
+                err=True,
+            )
+        else:
+            typer.echo(
+                f"Error: '{command}' requires micro-prose format. This project uses '{fmt}'.",
+                err=True,
+            )
+        raise typer.Exit(code=1)
+
+
+def require_poem_format(project: Project, command: str) -> None:
+    """Require project to be poem format. Exit with error if not."""
+    fmt = get_project_format(project)
+    if fmt != "poem":
+        if fmt in PROSE_FORMATS:
+            typer.echo(
+                f"Error: '{command}' requires poem format. This project uses '{fmt}'. Use 'scene' commands instead.",
+                err=True,
+            )
+        elif fmt == "micro-prose":
+            typer.echo(
+                f"Error: '{command}' requires poem format. This project uses '{fmt}'. Use 'fragment' commands instead.",
+                err=True,
+            )
+        else:
+            typer.echo(
+                f"Error: '{command}' requires poem format. This project uses '{fmt}'.",
+                err=True,
+            )
+        raise typer.Exit(code=1)

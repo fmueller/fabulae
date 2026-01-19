@@ -9,7 +9,15 @@ from pydantic import ValidationError
 
 from fabulae.features.create.cli import register_create_command
 from fabulae.features.create.shapes_cli import register_shapes_commands
-from fabulae.features.entities import beat_app, chapter_app, character_app, scene_app, world_app
+from fabulae.features.entities import (
+    beat_app,
+    chapter_app,
+    character_app,
+    fragment_app,
+    scene_app,
+    stanza_app,
+    world_app,
+)
 from fabulae.features.history.cli import register_history_command
 from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
@@ -50,6 +58,8 @@ app.add_typer(beat_app, name="beat")
 app.add_typer(scene_app, name="scene")
 app.add_typer(chapter_app, name="chapter")
 app.add_typer(world_app, name="world")
+app.add_typer(fragment_app, name="fragment")
+app.add_typer(stanza_app, name="stanza")
 
 
 DEFAULT_PROJECT_PATH = Path(".")
