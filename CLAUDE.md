@@ -156,10 +156,13 @@ The `entities` feature (`src/fabulae/features/entities/`) provides CLI commands 
 **Shared Components**:
 - `utils.py` - Shared helpers: ID validation, format checking (`require_prose_format`, `require_micro_prose_format`, `require_poem_format`), entity ID collection, reference formatting
 
-**Generation Module** (`src/fabulae/features/entities/generation/`): Unified entity generation layer for LLM-based suggestions:
-- `prompts.py` - Shared prompt builders for all entity types
-- `schemas.py` - Pydantic models for LLM output validation
-- Entity modules (`character.py`, `world_fact.py`, `scene.py`, `beat.py`, `chapter.py`, `fragment.py`, `stanza.py`) - Suggest functions with both sync and async variants; support project-based (CRUD) and parameter-based (create pipeline) modes
+**Generation Module** (`src/fabulae/features/entities/generation/`): Unified entity generation layer for LLM-based suggestions, serving as single source of truth for both CRUD commands and create pipeline:
+- `prompts.py` - Shared prompt builders for all entity types with StyleOutput support, BeatSlotInfo for beat slots, and position context
+- `schemas.py` - Pydantic models for LLM output validation (e.g., `CharacterOutput`, `SceneOutput`, `ChapterOutput`); create/schemas.py re-exports these for backward compatibility
+- `title_structure.py` - Title diversity utilities (`TitleRequirement`, `get_title_requirement`) for varied chapter titles with structure rotation
+- Entity modules (`character.py`, `world_fact.py`, `scene.py`, `beat.py`, `chapter.py`, `fragment.py`, `stanza.py`) - Unified `suggest_*` functions with both sync and async variants:
+  - CRUD mode: Pass `project` parameter, extracts context from project
+  - Create mode: Pass individual parameters (`style`, `beat_slots`, `chapter_index`, etc.) for pipeline integration
 
 **Format Validation**: Commands enforce format compatibility at two levels:
 1. CLI layer: `require_*_format()` helpers provide helpful error messages suggesting correct commands
