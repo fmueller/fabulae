@@ -17,11 +17,8 @@ class ShapeNotFoundError(Exception):
 
 def _get_shapes_directory() -> Path:
     """Get the directory containing built-in story shapes."""
-    # Story shapes are in src/fabulae/data/story_shapes/
-    # This module is in src/fabulae/features/create/shapes/
-    # So we need to go up to src/fabulae/ and then to data/story_shapes/
-    module_path = Path(__file__).parent  # .../features/create/shapes/
-    fabulae_root = module_path.parent.parent.parent  # .../fabulae/
+    module_path = Path(__file__).parent
+    fabulae_root = module_path.parent.parent.parent
     shapes_dir = fabulae_root / "data" / "story_shapes"
     return shapes_dir
 
@@ -39,10 +36,8 @@ def get_shape_ids() -> list[str]:
 
     shape_ids = []
     for shape_file in sorted(shapes_dir.glob("*.yml")):
-        # Skip __init__.py or any non-YAML files
         if shape_file.name.startswith("__"):
             continue
-        # Extract the ID from the filename (e.g., "betrayal-arc.yml" -> "betrayal-arc")
         shape_id = shape_file.stem
         shape_ids.append(shape_id)
 

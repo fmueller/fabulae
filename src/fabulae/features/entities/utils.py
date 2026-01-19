@@ -201,7 +201,6 @@ def get_all_entity_ids(project: Project) -> set[str]:
     return ids
 
 
-# Format constants
 PROSE_FORMATS = {"novel", "novella", "short-story"}
 
 
@@ -283,11 +282,6 @@ def require_poem_format(project: Project, command: str) -> None:
                 err=True,
             )
         raise typer.Exit(code=1)
-
-
-# ============================================================================
-# List Formatting Utilities
-# ============================================================================
 
 
 def output_list_as_json(items: Sequence[object]) -> None:

@@ -54,7 +54,6 @@ from fabulae.models import (
 
 runner = CliRunner()
 
-# Module-level mapping of scene IDs to chapter IDs (populated by _plot_outline)
 _scene_to_chapter_map: dict[str, str] = {}
 
 
@@ -185,7 +184,6 @@ def _outline_content(
     chapters: list[ChapterContentOutput] = []
     scenes: list[SceneContentOutput] = []
 
-    # Convert chapters
     for chapter in outline.chapters:
         chapters.append(
             ChapterContentOutput(
@@ -195,7 +193,6 @@ def _outline_content(
             )
         )
 
-    # Convert scenes (use the scene_to_chapter mapping populated by _plot_outline)
     for scene in outline.scenes:
         scenes.append(
             SceneContentOutput(
@@ -216,32 +213,23 @@ def _prose_mocks_from_structure(
 ) -> tuple[
     OutlineContentOutput,
     list[SceneOutput],
-    list[OutlineSceneOutput],  # For scene context
+    list[OutlineSceneOutput],
 ]:
-    """Generate prose-related mocks that match what generate_outline_structure produces.
-
-    This uses the same RNG seed as the prose pipeline tests to ensure IDs match.
-
-    Returns:
-        Tuple of (outline_content, scene_outputs, scene_outlines)
-    """
+    """Generate prose-related mocks that match what generate_outline_structure produces."""
     import random
 
     from fabulae.features.create.ids import allocate_prose_ids
     from fabulae.features.create.pipelines.plot_first import generate_outline_structure
 
-    # Generate structure with the same seed the pipeline will use
     rng = random.Random(seed)
     structure = generate_outline_structure(cast(Literal["novel", "novella", "short-story"], format_name), None, rng)
 
-    # Allocate IDs the same way the pipeline does
     project_ids = allocate_prose_ids(
         num_chapters=structure.num_chapters,
         scenes_per_chapter=structure.scenes_per_chapter,
         beats_per_scene=structure.beats_per_scene,
     )
 
-    # Generate OutlineContentOutput
     chapters: list[ChapterContentOutput] = []
     scenes: list[SceneContentOutput] = []
 
@@ -269,7 +257,6 @@ def _prose_mocks_from_structure(
 
     outline_content = OutlineContentOutput(chapters=chapters, scenes=scenes)
 
-    # Generate scene outlines for scene generation context
     scene_outlines: list[OutlineSceneOutput] = []
     for sc in scenes:
         scene_outlines.append(
@@ -280,7 +267,6 @@ def _prose_mocks_from_structure(
             )
         )
 
-    # Generate SceneOutputs
     scene_outputs: list[SceneOutput] = []
     for i, scene_id in enumerate(project_ids.scenes):
         beat_count = structure.beats_per_scene[i]

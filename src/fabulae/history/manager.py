@@ -139,7 +139,6 @@ class HistoryManager:
         Args:
             entry: The history entry to save.
         """
-        # Include microseconds and entry ID for uniqueness when multiple entries are created quickly
         filename = f"{entry.timestamp.strftime('%Y-%m-%d_%H%M%S_%f')}_{entry.id}_{entry.action.value}.json"
         filepath = self.history_dir / filename
         filepath.write_text(entry.model_dump_json(indent=2))

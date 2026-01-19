@@ -15,10 +15,6 @@ from typer.testing import CliRunner
 
 from fabulae.llm import FAKE_LLM_ENV
 
-# ============================================================================
-# Shared Test Utilities
-# ============================================================================
-
 
 def strip_ansi(text: str) -> str:
     """Strip ANSI escape codes from text.
@@ -28,13 +24,7 @@ def strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
-# Shared CLI runner instance
 runner = CliRunner()
-
-
-# ============================================================================
-# Project Creation Fixtures
-# ============================================================================
 
 
 @pytest.fixture
