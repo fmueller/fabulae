@@ -1,10 +1,28 @@
 """Shared utilities for entity commands."""
 
+import re
 from pathlib import Path
 
 import typer
 
 from fabulae.models import Character, Project, Scene, WorldFact
+
+# Pattern for valid entity IDs: lowercase alphanumeric with hyphens
+ENTITY_ID_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def validate_entity_id(id: str) -> None:
+    """Validate entity ID format before model creation.
+
+    Raises typer.Exit with code 1 if the ID is invalid.
+    """
+    if not ENTITY_ID_PATTERN.match(id):
+        typer.echo(
+            f"Error: Invalid ID '{id}'. IDs must be lowercase alphanumeric with hyphens "
+            "(e.g., 'my-character-01', 'scene-intro').",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
 
 def resolve_idea_input(idea: str) -> str:
