@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_fragment_suggest_prompt
-from fabulae.features.entities.schemas import FragmentSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.fragment import suggest_fragment_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_fragment_by_id,
@@ -88,44 +86,41 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_fragment_suggest_prompt(project, guidance)
 
     typer.echo("Generating fragment suggestion...")
-    suggestion = suggest_entity_sync(FragmentSuggestion, prompt, config)
+    fragment = suggest_fragment_sync(
+        project=project,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested fragment:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    content_preview = suggestion.content[:100] + "..." if len(suggestion.content) > 100 else suggestion.content
+    console.print(f"  ID: {fragment.id}")
+    content_preview = fragment.content[:100] + "..." if len(fragment.content) > 100 else fragment.content
     console.print(f"  Content: {content_preview}")
-    if suggestion.target_words:
-        console.print(f"  Target words: {suggestion.target_words}")
-    if suggestion.notes:
-        console.print(f"  Notes: {suggestion.notes}")
+    if fragment.target_words:
+        console.print(f"  Target words: {fragment.target_words}")
+    if fragment.notes:
+        console.print(f"  Notes: {fragment.notes}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this fragment?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
+        if fragment.id in existing_ids:
             typer.echo(
-                f"Error: ID '{suggestion.id}' already exists. Use 'fragment add' manually.",
+                f"Error: ID '{fragment.id}' already exists. Use 'fragment add' manually.",
                 err=True,
             )
             raise typer.Exit(code=1)
 
-        fragment = Fragment(
-            id=suggestion.id,
-            content=suggestion.content,
-            target_words=suggestion.target_words,
-            notes=suggestion.notes,
-        )
         project.plot.fragments.append(fragment)
         save_project(project, project_dir)
-        typer.echo(f"Added fragment: {suggestion.id}")
+        typer.echo(f"Added fragment: {fragment.id}")
     else:
         typer.echo("Fragment not added.")
 

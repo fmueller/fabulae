@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_stanza_suggest_prompt
-from fabulae.features.entities.schemas import StanzaSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.stanza import suggest_stanza_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_stanza_by_id,
@@ -88,48 +86,45 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_stanza_suggest_prompt(project, guidance)
 
     typer.echo("Generating stanza suggestion...")
-    suggestion = suggest_entity_sync(StanzaSuggestion, prompt, config)
+    stanza = suggest_stanza_sync(
+        project=project,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested stanza:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    if suggestion.lines:
+    console.print(f"  ID: {stanza.id}")
+    if stanza.lines:
         console.print("  Lines:")
-        for ln in suggestion.lines[:4]:
+        for ln in stanza.lines[:4]:
             console.print(f'    "{ln}"')
-        if len(suggestion.lines) > 4:
-            console.print(f"    ... and {len(suggestion.lines) - 4} more lines")
-    if suggestion.meter:
-        console.print(f"  Meter: {suggestion.meter}")
-    if suggestion.rhyme_scheme:
-        console.print(f"  Rhyme scheme: {suggestion.rhyme_scheme}")
+        if len(stanza.lines) > 4:
+            console.print(f"    ... and {len(stanza.lines) - 4} more lines")
+    if stanza.meter:
+        console.print(f"  Meter: {stanza.meter}")
+    if stanza.rhyme_scheme:
+        console.print(f"  Rhyme scheme: {stanza.rhyme_scheme}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this stanza?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
+        if stanza.id in existing_ids:
             typer.echo(
-                f"Error: ID '{suggestion.id}' already exists. Use 'stanza add' manually.",
+                f"Error: ID '{stanza.id}' already exists. Use 'stanza add' manually.",
                 err=True,
             )
             raise typer.Exit(code=1)
 
-        stanza = Stanza(
-            id=suggestion.id,
-            lines=suggestion.lines,
-            meter=suggestion.meter,
-            rhyme_scheme=suggestion.rhyme_scheme,
-        )
         project.plot.stanzas.append(stanza)
         save_project(project, project_dir)
-        typer.echo(f"Added stanza: {suggestion.id}")
+        typer.echo(f"Added stanza: {stanza.id}")
     else:
         typer.echo("Stanza not added.")
 

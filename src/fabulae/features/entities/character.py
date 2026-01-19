@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_character_suggest_prompt
-from fabulae.features.entities.schemas import CharacterSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.character import suggest_character_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_character_by_id,
@@ -94,55 +92,48 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_character_suggest_prompt(project, guidance)
 
     typer.echo("Generating character suggestion...")
-    suggestion = suggest_entity_sync(CharacterSuggestion, prompt, config)
+    character = suggest_character_sync(
+        project=project,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested character:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    console.print(f"  Name: {suggestion.name}")
-    if suggestion.role:
-        console.print(f"  Role: {suggestion.role}")
-    if suggestion.desire:
-        console.print(f"  Desire: {suggestion.desire}")
-    if suggestion.need:
-        console.print(f"  Need: {suggestion.need}")
-    if suggestion.flaw:
-        console.print(f"  Flaw: {suggestion.flaw}")
-    if suggestion.secret:
-        console.print(f"  Secret: {suggestion.secret}")
-    if suggestion.traits:
-        console.print(f"  Traits: {', '.join(suggestion.traits)}")
+    console.print(f"  ID: {character.id}")
+    console.print(f"  Name: {character.name}")
+    if character.role:
+        console.print(f"  Role: {character.role}")
+    if character.desire:
+        console.print(f"  Desire: {character.desire}")
+    if character.need:
+        console.print(f"  Need: {character.need}")
+    if character.flaw:
+        console.print(f"  Flaw: {character.flaw}")
+    if character.secret:
+        console.print(f"  Secret: {character.secret}")
+    if character.traits:
+        console.print(f"  Traits: {', '.join(character.traits)}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this character?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
+        if character.id in existing_ids:
             typer.echo(
-                f"Error: ID '{suggestion.id}' already exists. Use 'character add' manually.",
+                f"Error: ID '{character.id}' already exists. Use 'character add' manually.",
                 err=True,
             )
             raise typer.Exit(code=1)
 
-        character = Character(
-            id=suggestion.id,
-            name=suggestion.name,
-            role=suggestion.role,
-            desire=suggestion.desire,
-            need=suggestion.need,
-            flaw=suggestion.flaw,
-            secret=suggestion.secret,
-            traits=suggestion.traits,
-        )
         project.characters.append(character)
         save_project(project, project_dir)
-        typer.echo(f"Added character: {suggestion.name} ({suggestion.id})")
+        typer.echo(f"Added character: {character.name} ({character.id})")
     else:
         typer.echo("Character not added.")
 

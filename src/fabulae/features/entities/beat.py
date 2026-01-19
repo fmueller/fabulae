@@ -12,9 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_beat_suggest_prompt
-from fabulae.features.entities.schemas import BeatSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.beat import suggest_beat_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_beat_in_project,
@@ -113,46 +111,42 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_beat_suggest_prompt(scene_obj, project, guidance)
 
     typer.echo("Generating beat suggestion...")
-    suggestion = suggest_entity_sync(BeatSuggestion, prompt, config)
+    beat = suggest_beat_sync(
+        scene=scene_obj,
+        project=project,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested beat:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    console.print(f"  Kind: {suggestion.kind}")
-    if suggestion.summary:
-        console.print(f"  Summary: {suggestion.summary}")
-    if suggestion.goal:
-        console.print(f"  Goal: {suggestion.goal}")
-    if suggestion.conflict:
-        console.print(f"  Conflict: {suggestion.conflict}")
-    if suggestion.outcome:
-        console.print(f"  Outcome: {suggestion.outcome}")
+    console.print(f"  ID: {beat.id}")
+    console.print(f"  Kind: {beat.kind}")
+    if beat.summary:
+        console.print(f"  Summary: {beat.summary}")
+    if beat.goal:
+        console.print(f"  Goal: {beat.goal}")
+    if beat.conflict:
+        console.print(f"  Conflict: {beat.conflict}")
+    if beat.outcome:
+        console.print(f"  Outcome: {beat.outcome}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this beat?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
-            typer.echo(f"Error: ID '{suggestion.id}' already exists. Try again or use 'beat add' manually.", err=True)
+        if beat.id in existing_ids:
+            typer.echo(f"Error: ID '{beat.id}' already exists. Try again or use 'beat add' manually.", err=True)
             raise typer.Exit(code=1)
 
-        beat = Beat(
-            id=suggestion.id,
-            kind=suggestion.kind,
-            summary=suggestion.summary,
-            goal=suggestion.goal,
-            conflict=suggestion.conflict,
-            outcome=suggestion.outcome,
-        )
         scene_obj.beats.append(beat)
         save_project(project, project_dir)
-        typer.echo(f"Added beat: {suggestion.id} to scene {scene}")
+        typer.echo(f"Added beat: {beat.id} to scene {scene}")
     else:
         typer.echo("Beat not added.")
 
