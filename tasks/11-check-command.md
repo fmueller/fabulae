@@ -1,13 +1,13 @@
 # Task: Check Command (Semantic & Quality Checks)
 
 **Priority:** Medium - enhances project quality assurance.
-**Depends on:** None (LLM infrastructure already in place)
+**Depends on:** `10-tui-simple.md` (v0.1.0 release)
 
 ## Overview
 
 Add a `check` command that performs semantic and quality checks on a Fabulae project using LLM analysis. Unlike `validate` which checks structural correctness (valid IDs, references, required fields), `check` analyzes the narrative content for coherence, consistency, and quality issues.
 
-All LLM interactions must use structured output (Pydantic models) instead of free-form text.
+All LLM interactions must use structured output (Pydantic models) via `create_agent()` from `src/fabulae/llm/`.
 Check output must follow the project language via the shared language guard.
 Language mismatches in project content should be reported as warnings (not errors).
 
@@ -71,7 +71,7 @@ fabulae check <project-dir> [--model MODEL] [--temperature TEMP] [--checks all|c
 ## Implementation Steps
 
 ### Step 1: Design Check Result Models
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create structured output types in `src/fabulae/features/check/models.py`:
 
@@ -105,10 +105,10 @@ class CheckResult(BaseModel):
 ```
 
 ### Step 2: Design Check Prompts
-**Model: Opus** (OpenAI alternative: `gpt-5.2-codex`)
+**Model: Opus**
 
-Create specialized prompts for each check category in `src/fabulae/features/check/prompts.py`
-(using shared helpers from `src/fabulae/prompts/`):
+Create specialized prompts for each check category in `src/fabulae/features/check/prompts.py`.
+Follow the patterns established in `src/fabulae/features/entities/prompts.py` and `src/fabulae/features/create/prompts.py`.
 
 1. **Consistency check prompt**:
    - Input: Full project context
@@ -137,11 +137,14 @@ Create specialized prompts for each check category in `src/fabulae/features/chec
 Each prompt must instruct the model to emit only the `CheckIssue` list (or `CheckResult`) as structured output.
 
 ### Step 3: Implement Check Runner
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/check/service.py`:
 
 ```python
+from fabulae.llm import LLMConfig, create_agent
+from fabulae.features.check.models import CheckCategory, CheckIssue, CheckResult
+
 async def run_checks(
     project: Project,
     categories: list[CheckCategory],
@@ -162,7 +165,7 @@ async def run_checks(
 ```
 
 ### Step 4: Implement Category Checkers
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create individual checker modules under the feature slice:
 
@@ -174,23 +177,25 @@ Create individual checker modules under the feature slice:
 
 Each checker:
 1. Formats relevant project data for prompt
-2. Calls LLM with category-specific prompt
+2. Calls LLM with category-specific prompt using `create_agent()`
 3. Parses structured output into CheckIssue list
 4. Validates issue text language with the shared language guard and retries on mismatch
 5. Adds warning issues for content language mismatches in the project
 6. Returns issues
 
-Structured output usage example:
+Structured output usage example (follow pattern from entity suggest):
 ```python
+from fabulae.llm import create_agent
+
 agent = create_agent(CheckResult, system_prompt, config)
 result = await agent.run()
 issues = result.data.issues
 ```
 
 ### Step 5: Implement CLI Command
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
-Create `src/fabulae/features/check/cli.py` and keep CLI command code in the feature slice:
+Create `src/fabulae/features/check/cli.py` following the pattern in `src/fabulae/features/entities/`:
 
 ```python
 from fabulae.features.check.service import run_checks
@@ -236,11 +241,13 @@ register_check_command(app)
 ```
 
 ### Step 6: Implement Result Formatting
-**Model: Haiku** (OpenAI alternative: `gpt-5.1-codex-mini`)
+**Model: Haiku**
 
-Create formatted output for terminal:
+Create formatted output for terminal using Rich (already a dependency):
 
 ```python
+from rich.console import Console
+
 def print_check_results(result: CheckResult) -> None:
     """Print check results in a readable format."""
     console = Console()
@@ -266,9 +273,9 @@ def print_check_results(result: CheckResult) -> None:
 ```
 
 ### Step 7: Add Progress Feedback
-**Model: Haiku** (OpenAI alternative: `gpt-5.1-codex-mini`)
+**Model: Haiku**
 
-Since checks take time:
+Since checks take time, provide feedback using Rich progress:
 
 ```python
 with console.status("[bold green]Running consistency checks...") as status:
@@ -279,22 +286,30 @@ with console.status("[bold green]Running consistency checks...") as status:
 ```
 
 ### Step 8: Handle Check Failures Gracefully
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 1. If one check category fails, continue with others
 2. Report partial results with indication of failed checks
 3. Handle LLM parsing errors (retry or report)
 
 ### Step 9: Write Tests
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `tests/unit/features/check_test.py`:
 
 1. Test check result models
-2. Mock LLM responses for each checker
+2. Mock LLM responses for each checker (use `FABULAE_FAKE_LLM=1` or mock `create_agent`)
 3. Test CLI with various --checks options
 4. Test output formats (text, json)
 5. Test handling of check failures
+
+### Step 10: TUI Integration (Optional)
+**Model: Sonnet**
+
+Add check functionality to the TUI if implementing the advanced TUI (task 13):
+- Add `[c]heck` keyboard shortcut
+- Show check results in a dedicated panel
+- Allow filtering by category/severity
 
 ### Final Step: Opus Verification
 **Model: Opus**
@@ -324,21 +339,20 @@ After all implementation steps are complete, switch to Opus model and verify:
 5. **Documentation Review:**
    - Review and update `README.md` if the feature adds/changes CLI commands or user-facing behavior
    - Review and update `CLAUDE.md` if architectural patterns, conventions, or key implementation details changed
-   - Review and update `AGENTS.md` if project structure, testing guidelines, or commit conventions changed
    - Keep all documentation concise but detailed enough for coding agents and human users
 
 ## Files to Create/Modify
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/fabulae/features/check/models.py` | Create | Check result models |
 | `src/fabulae/features/check/__init__.py` | Create | Package init |
+| `src/fabulae/features/check/models.py` | Create | Check result models |
 | `src/fabulae/features/check/service.py` | Create | Check orchestration |
+| `src/fabulae/features/check/prompts.py` | Create | Check prompts |
 | `src/fabulae/features/check/consistency.py` | Create | Consistency checker |
 | `src/fabulae/features/check/pacing.py` | Create | Pacing checker |
 | `src/fabulae/features/check/characters.py` | Create | Character checker |
 | `src/fabulae/features/check/world.py` | Create | World checker |
-| `src/fabulae/features/check/prompts.py` | Create | Check prompts |
 | `src/fabulae/features/check/cli.py` | Create | CLI command implementation |
 | `src/fabulae/main.py` | Modify | Add check command |
 | `tests/unit/features/check_test.py` | Create | Unit tests |

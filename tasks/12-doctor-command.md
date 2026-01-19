@@ -1,13 +1,13 @@
 # Task: Doctor Command (Environment Diagnostics)
 
 **Priority:** Medium - valuable for onboarding and troubleshooting.
-**Depends on:** None (LLM infrastructure already in place)
+**Depends on:** `10-tui-simple.md` (v0.1.0 release)
 
 ## Overview
 
 Add a `doctor` command that performs comprehensive diagnostics on the Fabulae environment. This command helps users verify their setup is working correctly, diagnose issues, and understand their current configuration.
 
-All LLM interactions must use structured output (Pydantic models) instead of free-form text.
+All LLM interactions must use structured output (Pydantic models) via `create_agent()` from `src/fabulae/llm/`.
 
 ## Execution Methodology
 
@@ -80,7 +80,6 @@ Project
     └─ Chapters: 3
     └─ Scenes: 12
     └─ Beats: 45
-    └─ Plot patterns: 2
   ⚠ Warnings:
     └─ 2 world facts are never referenced in scenes
 
@@ -139,7 +138,7 @@ Summary: 10 checks passed, 0 failed, 1 warning
 ## Implementation Steps
 
 ### Step 1: Design Check Result Models
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/models.py`:
 
@@ -183,7 +182,7 @@ class LLMTestPromptResult(BaseModel):
 ```
 
 ### Step 2: Implement Environment Checks
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/environment.py`:
 
@@ -224,14 +223,14 @@ async def check_environment() -> CategoryResult:
 ```
 
 ### Step 3: Implement LLM Connection Checks
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/llm_connection.py`:
 
 ```python
 import httpx
 import time
-from fabulae.llm import LLMConfig, check_model_available, run_test_prompt
+from fabulae.llm import LLMConfig, create_agent
 
 async def check_llm_connection(config: LLMConfig) -> CategoryResult:
     checks = []
@@ -266,49 +265,37 @@ async def check_llm_connection(config: LLMConfig) -> CategoryResult:
         ))
         return CategoryResult(name="LLM Connection", checks=checks)
 
-    # Model availability
-    model_available = await check_model_available(config)
-    checks.append(CheckResult(
-        name="Model",
-        status=CheckStatus.PASSED if model_available else CheckStatus.FAILED,
-        message=config.model,
-        details=["Status: available"] if model_available else [],
-        suggestion=None if model_available else f"Model not found. Try: ollama pull {config.model}",
-    ))
-
-    # Test generation (structured output)
-    if model_available:
-        try:
-            start = time.monotonic()
-            result = await run_test_prompt(config)
-            duration = time.monotonic() - start
-            checks.append(CheckResult(
-                name="Test generation",
-                status=CheckStatus.PASSED,
-                message=f"successful ({duration:.1f}s)",
-                details=[f'"{result.echo[:50]}..."' if len(result.echo) > 50 else f'"{result.echo}"'],
-            ))
-        except Exception as e:
-            checks.append(CheckResult(
-                name="Test generation",
-                status=CheckStatus.FAILED,
-                message="failed",
-                details=[str(e)],
-            ))
+    # Test generation (using structured output)
+    try:
+        start = time.monotonic()
+        agent = create_agent(LLMTestPromptResult, "Echo 'test successful'", config)
+        result = await agent.run()
+        duration = time.monotonic() - start
+        checks.append(CheckResult(
+            name="Test generation",
+            status=CheckStatus.PASSED,
+            message=f"successful ({duration:.1f}s)",
+            details=[f'"{result.data.echo[:50]}..."' if len(result.data.echo) > 50 else f'"{result.data.echo}"'],
+        ))
+    except Exception as e:
+        checks.append(CheckResult(
+            name="Test generation",
+            status=CheckStatus.FAILED,
+            message="failed",
+            details=[str(e)],
+        ))
 
     return CategoryResult(name="LLM Connection", checks=checks)
 ```
-> Note: `check_model_available` and `run_test_prompt` must be implemented in
-`fabulae.llm` (task 01) or imported from there so the doctor command can use
-the shared LLM helpers.
 
 ### Step 4: Implement Configuration Checks
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/configuration.py`:
 
 ```python
 import os
+from fabulae.llm import LLMConfig
 
 async def check_configuration(config: LLMConfig) -> CategoryResult:
     checks = []
@@ -385,7 +372,7 @@ async def check_configuration(config: LLMConfig) -> CategoryResult:
 ```
 
 ### Step 5: Implement Project Checks
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/project.py`:
 
@@ -459,8 +446,6 @@ def gather_entity_counts(project: Project) -> dict[str, int]:
         counts["Fragments"] = len(project.plot.fragments)
     if project.plot.stanzas:
         counts["Stanzas"] = len(project.plot.stanzas)
-    if project.plot_patterns:
-        counts["Plot patterns"] = len(project.plot_patterns)
 
     return counts
 
@@ -494,12 +479,13 @@ def find_unused_entities(project: Project) -> list[str]:
 ```
 
 ### Step 6: Implement Available Models Check (Ollama)
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/available_models.py`:
 
 ```python
 import httpx
+from fabulae.llm import LLMConfig
 
 async def check_available_models(config: LLMConfig) -> CategoryResult | None:
     # Only works for Ollama endpoints
@@ -546,14 +532,14 @@ async def check_available_models(config: LLMConfig) -> CategoryResult | None:
 ```
 
 ### Step 7: Implement Doctor Orchestrator
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/service.py`:
 
 ```python
 from pathlib import Path
 from fabulae.llm import LLMConfig, resolve_config
-from fabulae.features.doctor.models import DoctorReport, CategoryResult
+from fabulae.features.doctor.models import DoctorReport, CategoryResult, CheckStatus
 from fabulae.features.doctor.environment import check_environment
 from fabulae.features.doctor.llm_connection import check_llm_connection
 from fabulae.features.doctor.configuration import check_configuration
@@ -605,11 +591,15 @@ async def run_doctor(
 ```
 
 ### Step 8: Implement CLI Command
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
-Create `src/fabulae/features/doctor/cli.py` and keep CLI command code in the feature slice:
+Create `src/fabulae/features/doctor/cli.py`:
 
 ```python
+from pathlib import Path
+from typing import Annotated
+import typer
+
 from fabulae.cli_options import base_url_option, model_option, temperature_option
 from fabulae.llm import resolve_config
 
@@ -675,15 +665,13 @@ register_doctor_command(app)
 ```
 
 ### Step 9: Implement Rich Formatter
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `src/fabulae/features/doctor/formatter.py`:
 
 ```python
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 from fabulae.features.doctor.models import DoctorReport, CheckResult, CheckStatus
 
 console = Console()
@@ -740,7 +728,7 @@ def format_report(report: DoctorReport) -> None:
 ```
 
 ### Step 10: Write Tests
-**Model: Sonnet** (OpenAI alternative: `gpt-5.1-codex-max`)
+**Model: Sonnet**
 
 Create `tests/unit/features/doctor_test.py`:
 
@@ -779,7 +767,6 @@ After all implementation steps are complete, switch to Opus model and verify:
 5. **Documentation Review:**
    - Review and update `README.md` if the feature adds/changes CLI commands or user-facing behavior
    - Review and update `CLAUDE.md` if architectural patterns, conventions, or key implementation details changed
-   - Review and update `AGENTS.md` if project structure, testing guidelines, or commit conventions changed
    - Keep all documentation concise but detailed enough for coding agents and human users
 
 ## Files to Create/Modify
