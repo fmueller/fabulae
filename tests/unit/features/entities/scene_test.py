@@ -50,6 +50,8 @@ def create_test_project(tmp_path: Path) -> Path:
             {
                 "facts": [
                     {"id": "loc-01", "type": "location", "name": "Tavern"},
+                    {"id": "artifact-01", "type": "object", "name": "Magic Sword"},
+                    {"id": "rule-01", "type": "rule", "name": "No magic after midnight"},
                 ]
             }
         )
@@ -299,6 +301,153 @@ class TestSceneSuggest:
         assert "--idea" in output
         assert "--model" in output
         assert "--yes" in output
+
+
+class TestSceneWorldFacts:
+    """Tests for scene world_fact_ids management."""
+
+    def test_add_scene_with_world_fact(self, tmp_path: Path) -> None:
+        """Add a scene with world facts."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-02",
+                "--chapter",
+                "chapter-02",
+                "--world-fact",
+                "artifact-01",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-02")
+        assert "artifact-01" in scene.world_fact_ids
+
+    def test_add_scene_with_multiple_world_facts(self, tmp_path: Path) -> None:
+        """Add a scene with multiple world facts."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-02",
+                "--chapter",
+                "chapter-02",
+                "--world-fact",
+                "artifact-01",
+                "--world-fact",
+                "rule-01",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-02")
+        assert "artifact-01" in scene.world_fact_ids
+        assert "rule-01" in scene.world_fact_ids
+
+    def test_add_scene_with_invalid_world_fact_fails(self, tmp_path: Path) -> None:
+        """Adding scene with invalid world fact fails."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-02",
+                "--chapter",
+                "chapter-02",
+                "--world-fact",
+                "nonexistent-fact",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower()
+
+    def test_edit_scene_add_world_fact(self, tmp_path: Path) -> None:
+        """Add a world fact to an existing scene."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["scene", "edit", str(tmp_path), "scene-01", "--add-world-fact", "artifact-01"],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "artifact-01" in scene.world_fact_ids
+
+    def test_edit_scene_add_multiple_world_facts(self, tmp_path: Path) -> None:
+        """Add multiple world facts to an existing scene."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "edit",
+                str(tmp_path),
+                "scene-01",
+                "--add-world-fact",
+                "artifact-01",
+                "--add-world-fact",
+                "rule-01",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "artifact-01" in scene.world_fact_ids
+        assert "rule-01" in scene.world_fact_ids
+
+    def test_edit_scene_remove_world_fact(self, tmp_path: Path) -> None:
+        """Remove a world fact from a scene."""
+        # Create project with scene that has world_fact_ids
+        create_test_project(tmp_path)
+        # First add a world fact
+        runner.invoke(
+            app,
+            ["scene", "edit", str(tmp_path), "scene-01", "--add-world-fact", "artifact-01"],
+        )
+
+        # Now remove it
+        result = runner.invoke(
+            app,
+            ["scene", "edit", str(tmp_path), "scene-01", "--remove-world-fact", "artifact-01"],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "artifact-01" not in scene.world_fact_ids
+
+    def test_edit_scene_add_invalid_world_fact_warns(self, tmp_path: Path) -> None:
+        """Adding invalid world fact shows warning."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["scene", "edit", str(tmp_path), "scene-01", "--add-world-fact", "nonexistent"],
+        )
+        # Should still succeed but with warning
+        assert result.exit_code == 0
+        assert "not found" in result.output.lower() or "warning" in result.output.lower()
 
 
 class TestSceneAddValidation:

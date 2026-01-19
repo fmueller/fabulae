@@ -65,6 +65,7 @@ def add(
     conflict: Annotated[str | None, typer.Option("--conflict", help="Scene conflict.")] = None,
     outcome: Annotated[str | None, typer.Option("--outcome", help="Scene outcome.")] = None,
     characters: Annotated[list[str] | None, typer.Option("--character", help="Character IDs (repeatable).")] = None,
+    world_facts: Annotated[list[str] | None, typer.Option("--world-fact", help="World fact IDs (repeatable).")] = None,
 ) -> None:
     """Add a new scene to the project.
 
@@ -100,6 +101,14 @@ def add(
             typer.echo(f"Error: Unknown character IDs: {', '.join(sorted(invalid))}", err=True)
             raise typer.Exit(code=1)
 
+    # Validate world facts if provided
+    if world_facts:
+        valid_fact_ids = {f.id for f in project.world.facts} if project.world else set()
+        invalid = set(world_facts) - valid_fact_ids
+        if invalid:
+            typer.echo(f"Error: World fact(s) not found: {', '.join(sorted(invalid))}", err=True)
+            raise typer.Exit(code=1)
+
     scene = Scene(
         id=id,
         location=location,
@@ -109,6 +118,7 @@ def add(
         conflict=conflict,
         outcome=outcome,
         characters=characters or [],
+        world_fact_ids=world_facts or [],
     )
     project.plot.scenes.append(scene)
 
@@ -387,6 +397,10 @@ def edit(
     remove_character: Annotated[
         list[str] | None, typer.Option("--remove-character", help="Remove character ID.")
     ] = None,
+    add_world_fact: Annotated[list[str] | None, typer.Option("--add-world-fact", help="Add world fact ID.")] = None,
+    remove_world_fact: Annotated[
+        list[str] | None, typer.Option("--remove-world-fact", help="Remove world fact ID.")
+    ] = None,
 ) -> None:
     """Edit an existing scene.
 
@@ -434,6 +448,17 @@ def edit(
                 scene.characters.append(char_id)
     if remove_character:
         scene.characters = [c for c in scene.characters if c not in remove_character]
+
+    # Handle world fact modifications
+    if add_world_fact:
+        valid_fact_ids = {f.id for f in project.world.facts} if project.world else set()
+        for fact_id in add_world_fact:
+            if fact_id not in valid_fact_ids:
+                typer.echo(f"Warning: World fact '{fact_id}' not found, skipping.", err=True)
+            elif fact_id not in scene.world_fact_ids:
+                scene.world_fact_ids.append(fact_id)
+    if remove_world_fact:
+        scene.world_fact_ids = [f for f in scene.world_fact_ids if f not in remove_world_fact]
 
     save_project(project, project_dir)
     typer.echo(f"Updated scene: {scene_id}")
