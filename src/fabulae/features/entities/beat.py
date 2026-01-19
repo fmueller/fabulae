@@ -51,9 +51,7 @@ def add(
     Example:
         fabulae beat add ./my-novel --scene scene-01 --id beat-discovery --kind revelation
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
     require_prose_format(project, "beat add")
 
@@ -62,9 +60,7 @@ def add(
         typer.echo(f"Error: Scene '{scene}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
@@ -108,21 +104,12 @@ def suggest(
         typer.echo(f"Error: Scene '{scene}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating beat suggestion...")
-    beat = suggest_beat_sync(
-        scene=scene_obj,
-        project=project,
-        guidance=guidance,
-        config=config,
-    )
+    beat = suggest_beat_sync(scene=scene_obj, project=project, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested beat:[/bold]")
     console.print(f"  ID: {beat.id}")
     console.print(f"  Kind: {beat.kind}")
@@ -136,11 +123,8 @@ def suggest(
         console.print(f"  Outcome: {beat.outcome}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this beat?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if beat.id in existing_ids:
+        if beat.id in get_all_entity_ids(project):
             typer.echo(f"Error: ID '{beat.id}' already exists. Try again or use 'beat add' manually.", err=True)
             raise typer.Exit(code=1)
 
@@ -165,7 +149,6 @@ def list_beats(
     project = load_project(project_dir)
     require_prose_format(project, "beat list")
 
-    # Collect beats with scene info
     beats_data: list[dict[str, object]] = []
     for s in project.plot.scenes:
         if scene and s.id != scene:
@@ -226,7 +209,6 @@ def move(
     project = load_project(project_dir)
     require_prose_format(project, "beat move")
 
-    # Find the beat
     result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
@@ -239,16 +221,12 @@ def move(
         typer.echo("Error: Invalid scene object.", err=True)
         raise typer.Exit(code=1)
 
-    # Find target scene
     target_scene = find_scene_by_id(project, to_scene)
     if not target_scene:
         typer.echo(f"Error: Target scene '{to_scene}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Remove from source
     source_scene.beats = [b for b in source_scene.beats if b.id != beat_id]
-
-    # Add to target
     if position is not None:
         target_scene.beats.insert(position, beat)
     else:
@@ -272,7 +250,6 @@ def remove(
     project = load_project(project_dir)
     require_prose_format(project, "beat remove")
 
-    # Find the beat
     result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
@@ -318,15 +295,12 @@ def edit(
     project = load_project(project_dir)
     require_prose_format(project, "beat edit")
 
-    # Find the beat
     result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
     _, beat = result
-
-    # Update only provided fields
     if kind is not None:
         beat.kind = kind
     if summary is not None:
@@ -342,7 +316,6 @@ def edit(
     if target_words is not None:
         beat.target_words = target_words
 
-    # Handle constraint modifications
     if add_constraint:
         for constraint in add_constraint:
             if constraint not in beat.constraints:

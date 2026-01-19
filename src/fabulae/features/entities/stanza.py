@@ -42,15 +42,11 @@ def add(
     Example:
         fabulae stanza add ./my-poem --id stanza-03 --line "A verse of gold." --line "In autumn's hold."
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
     require_poem_format(project, "stanza add")
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
@@ -82,21 +78,12 @@ def suggest(
     """
     project = load_project(project_dir)
     require_poem_format(project, "stanza suggest")
-
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating stanza suggestion...")
-    stanza = suggest_stanza_sync(
-        project=project,
-        guidance=guidance,
-        config=config,
-    )
+    stanza = suggest_stanza_sync(project=project, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested stanza:[/bold]")
     console.print(f"  ID: {stanza.id}")
     if stanza.lines:
@@ -111,11 +98,8 @@ def suggest(
         console.print(f"  Rhyme scheme: {stanza.rhyme_scheme}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this stanza?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if stanza.id in existing_ids:
+        if stanza.id in get_all_entity_ids(project):
             typer.echo(
                 f"Error: ID '{stanza.id}' already exists. Use 'stanza add' manually.",
                 err=True,
@@ -221,7 +205,6 @@ def edit(
         typer.echo(f"Error: Stanza '{stanza_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Handle line removals first (by index, in reverse order to preserve indices)
     if remove_line:
         indices_to_remove = sorted(remove_line, reverse=True)
         for idx in indices_to_remove:
@@ -230,12 +213,10 @@ def edit(
             else:
                 typer.echo(f"Warning: Line index {idx} out of range, skipping.", err=True)
 
-    # Handle line additions
     if add_line:
         for ln in add_line:
             stanza.lines.append(ln)
 
-    # Update optional fields
     if meter is not None:
         stanza.meter = meter if meter else None
     if rhyme_scheme is not None:
