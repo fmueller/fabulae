@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -17,41 +15,22 @@ from fabulae.features.entities.schemas import SceneSuggestion
 from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
+    find_chapter_by_id,
+    find_chapter_containing_scene,
     find_scene_by_id,
     get_all_entity_ids,
+    output_list_as_json,
+    output_list_as_yaml,
     require_prose_format,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
-from fabulae.models import Chapter, Scene, load_project, save_project
+from fabulae.models import Scene, load_project, save_project
 
 scene_app = typer.Typer(help="Manage scenes in a Fabulae project.")
 console = Console()
-
-
-def _find_chapter_by_id(project: object, chapter_id: str) -> Chapter | None:
-    """Find a chapter by ID in the project."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for chapter in project.plot.chapters:
-        if chapter.id == chapter_id:
-            return chapter
-    return None
-
-
-def _find_chapter_containing_scene(project: object, scene_id: str) -> Chapter | None:
-    """Find the chapter that contains a scene."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for chapter in project.plot.chapters:
-        if chapter.scene_ids and scene_id in chapter.scene_ids:
-            return chapter
-    return None
 
 
 @scene_app.command("add")
@@ -126,7 +105,7 @@ def add(
 
     # Add to chapter if specified
     if chapter:
-        chapter_obj = _find_chapter_by_id(project, chapter)
+        chapter_obj = find_chapter_by_id(project, chapter)
         if not chapter_obj:
             typer.echo(f"Error: Chapter '{chapter}' not found.", err=True)
             raise typer.Exit(code=1)
@@ -162,7 +141,7 @@ def suggest(
 
     # Validate chapter if provided
     if chapter:
-        chapter_obj = _find_chapter_by_id(project, chapter)
+        chapter_obj = find_chapter_by_id(project, chapter)
         if not chapter_obj:
             typer.echo(f"Error: Chapter '{chapter}' not found.", err=True)
             raise typer.Exit(code=1)
@@ -231,7 +210,7 @@ def suggest(
 
         # Add to chapter if specified
         if chapter:
-            chapter_obj = _find_chapter_by_id(project, chapter)
+            chapter_obj = find_chapter_by_id(project, chapter)
             if chapter_obj:
                 if chapter_obj.scene_ids is None:
                     chapter_obj.scene_ids = []
@@ -262,7 +241,7 @@ def list_scenes(
 
     scenes = project.plot.scenes
     if chapter:
-        chapter_obj = _find_chapter_by_id(project, chapter)
+        chapter_obj = find_chapter_by_id(project, chapter)
         if not chapter_obj:
             typer.echo(f"Error: Chapter '{chapter}' not found.", err=True)
             raise typer.Exit(code=1)
@@ -274,6 +253,8 @@ def list_scenes(
         else:
             typer.echo("No scenes in project.")
         return
+
+    validate_output_format(format)
 
     if format == "table":
         table = Table(title="Scenes")
@@ -290,18 +271,10 @@ def list_scenes(
             table.add_row(s.id, s.location or "", chars_str, summary)
 
         console.print(table)
-
     elif format == "json":
-        data = [s.model_dump(exclude_none=True) for s in scenes]
-        typer.echo(json.dumps(data, indent=2))
-
+        output_list_as_json(scenes)
     elif format == "yaml":
-        data = [s.model_dump(exclude_none=True) for s in scenes]
-        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
+        output_list_as_yaml(scenes)
 
 
 @scene_app.command("move")
@@ -326,13 +299,13 @@ def move(
         raise typer.Exit(code=1)
 
     # Find target chapter
-    target_chapter = _find_chapter_by_id(project, to_chapter)
+    target_chapter = find_chapter_by_id(project, to_chapter)
     if not target_chapter:
         typer.echo(f"Error: Target chapter '{to_chapter}' not found.", err=True)
         raise typer.Exit(code=1)
 
     # Find source chapter and remove
-    source_chapter = _find_chapter_containing_scene(project, scene_id)
+    source_chapter = find_chapter_containing_scene(project, scene_id)
     if source_chapter and source_chapter.scene_ids:
         source_chapter.scene_ids = [sid for sid in source_chapter.scene_ids if sid != scene_id]
 
@@ -378,7 +351,7 @@ def remove(
         return
 
     # Remove from chapter
-    chapter = _find_chapter_containing_scene(project, scene_id)
+    chapter = find_chapter_containing_scene(project, scene_id)
     if chapter and chapter.scene_ids:
         chapter.scene_ids = [sid for sid in chapter.scene_ids if sid != scene_id]
 

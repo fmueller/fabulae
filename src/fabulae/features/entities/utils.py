@@ -1,11 +1,18 @@
 """Shared utilities for entity commands."""
 
+from __future__ import annotations
+
 import re
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from fabulae.models import Character, Project, Scene, WorldFact
+
+if TYPE_CHECKING:
+    from fabulae.models import Beat, Chapter, Fragment, Stanza
 
 # Pattern for valid entity IDs: lowercase alphanumeric with hyphens
 ENTITY_ID_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -94,6 +101,52 @@ def find_world_fact_by_id(project: Project, fact_id: str) -> WorldFact | None:
     for fact in project.world.facts:
         if fact.id == fact_id:
             return fact
+    return None
+
+
+def find_chapter_by_id(project: Project, chapter_id: str) -> Chapter | None:
+    """Find a chapter by ID in the project."""
+
+    for chapter in project.plot.chapters:
+        if chapter.id == chapter_id:
+            return chapter
+    return None
+
+
+def find_chapter_containing_scene(project: Project, scene_id: str) -> Chapter | None:
+    """Find the chapter that contains a scene."""
+
+    for chapter in project.plot.chapters:
+        if chapter.scene_ids and scene_id in chapter.scene_ids:
+            return chapter
+    return None
+
+
+def find_fragment_by_id(project: Project, fragment_id: str) -> Fragment | None:
+    """Find a fragment by ID in the project."""
+
+    for fragment in project.plot.fragments:
+        if fragment.id == fragment_id:
+            return fragment
+    return None
+
+
+def find_stanza_by_id(project: Project, stanza_id: str) -> Stanza | None:
+    """Find a stanza by ID in the project."""
+
+    for stanza in project.plot.stanzas:
+        if stanza.id == stanza_id:
+            return stanza
+    return None
+
+
+def find_beat_in_project(project: Project, beat_id: str) -> tuple[Scene, Beat] | None:
+    """Find a beat by ID across all scenes. Returns (scene, beat) or None."""
+
+    for scene in project.plot.scenes:
+        for beat in scene.beats:
+            if beat.id == beat_id:
+                return (scene, beat)
     return None
 
 
@@ -229,4 +282,47 @@ def require_poem_format(project: Project, command: str) -> None:
                 f"Error: '{command}' requires poem format. This project uses '{fmt}'.",
                 err=True,
             )
+        raise typer.Exit(code=1)
+
+
+# ============================================================================
+# List Formatting Utilities
+# ============================================================================
+
+
+def output_list_as_json(items: Sequence[object]) -> None:
+    """Output a list of Pydantic models as JSON.
+
+    Args:
+        items: List of Pydantic model instances with model_dump() method
+    """
+    import json
+
+    from pydantic import BaseModel
+
+    data = [item.model_dump(exclude_none=True) if isinstance(item, BaseModel) else item for item in items]
+    typer.echo(json.dumps(data, indent=2))
+
+
+def output_list_as_yaml(items: Sequence[object]) -> None:
+    """Output a list of Pydantic models as YAML.
+
+    Args:
+        items: List of Pydantic model instances with model_dump() method
+    """
+    import yaml
+    from pydantic import BaseModel
+
+    data = [item.model_dump(exclude_none=True) if isinstance(item, BaseModel) else item for item in items]
+    typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
+
+
+def validate_output_format(format: str) -> None:
+    """Validate the output format string. Exit with error if invalid.
+
+    Args:
+        format: The format string to validate (table, json, yaml)
+    """
+    if format not in ("table", "json", "yaml"):
+        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
         raise typer.Exit(code=1)

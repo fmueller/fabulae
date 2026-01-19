@@ -4,13 +4,135 @@ from __future__ import annotations
 
 import builtins
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Any, cast
 
 import pytest
+import yaml
+from typer.testing import CliRunner
 
 from fabulae.llm import FAKE_LLM_ENV
+
+# ============================================================================
+# Shared Test Utilities
+# ============================================================================
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text.
+
+    Use this when checking CLI output that may contain Rich formatting.
+    """
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
+# Shared CLI runner instance
+runner = CliRunner()
+
+
+# ============================================================================
+# Project Creation Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def prose_project(tmp_path: Path) -> Path:
+    """Create a minimal prose (novel) test project."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "chapters": [
+                    {"id": "chapter-01", "title": "Beginning", "scene_ids": ["scene-01"]},
+                    {"id": "chapter-02", "title": "Middle", "scene_ids": []},
+                ],
+                "scenes": [
+                    {"id": "scene-01", "summary": "First scene", "characters": ["char-01"]},
+                ],
+            }
+        )
+    )
+    (tmp_path / "characters.yml").write_text(
+        yaml.dump(
+            {
+                "characters": [
+                    {"id": "char-01", "name": "Alice", "role": "protagonist"},
+                    {"id": "char-02", "name": "Bob"},
+                ]
+            }
+        )
+    )
+    (tmp_path / "world.yml").write_text(
+        yaml.dump(
+            {
+                "facts": [
+                    {"id": "loc-01", "type": "location", "name": "Tavern"},
+                    {"id": "artifact-01", "type": "object", "name": "Magic Sword"},
+                    {"id": "rule-01", "type": "rule", "name": "No magic after midnight"},
+                ]
+            }
+        )
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def micro_prose_project(tmp_path: Path) -> Path:
+    """Create a minimal micro-prose test project."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A flash fiction test.",
+                "format": "micro-prose",
+                "fragments": [
+                    {"id": "fragment-01", "content": "First fragment content."},
+                    {"id": "fragment-02", "content": "Second fragment content."},
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def poem_project(tmp_path: Path) -> Path:
+    """Create a minimal poem test project."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A poem about nature.",
+                "format": "poem",
+                "stanzas": [
+                    {"id": "stanza-01", "lines": ["First line of verse", "Second line of verse"]},
+                    {"id": "stanza-02", "lines": ["Another verse begins", "And here it ends"]},
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def empty_prose_project(tmp_path: Path) -> Path:
+    """Create a prose project with no characters or world facts."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "scenes": [{"id": "scene-01"}],
+            }
+        )
+    )
+    (tmp_path / "characters.yml").write_text(yaml.dump({"characters": []}))
+    return tmp_path
 
 
 @pytest.fixture(autouse=True)

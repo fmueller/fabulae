@@ -1,20 +1,12 @@
 """Tests for stanza CRUD commands."""
 
-import re
 from pathlib import Path
 
 import yaml
-from typer.testing import CliRunner
 
 from fabulae.main import app
 from fabulae.models import load_project
-
-runner = CliRunner()
-
-
-def strip_ansi(text: str) -> str:
-    """Strip ANSI escape codes from text."""
-    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+from tests.conftest import runner, strip_ansi
 
 
 def create_poem_project(tmp_path: Path) -> Path:

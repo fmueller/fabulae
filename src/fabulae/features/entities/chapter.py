@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -17,28 +15,20 @@ from fabulae.features.entities.schemas import ChapterSuggestion
 from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
+    find_chapter_by_id,
     get_all_entity_ids,
+    output_list_as_json,
+    output_list_as_yaml,
     require_prose_format,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Chapter, load_project, save_project
 
 chapter_app = typer.Typer(help="Manage chapters in a Fabulae project.")
 console = Console()
-
-
-def _find_chapter_by_id(project: object, chapter_id: str) -> Chapter | None:
-    """Find a chapter by ID in the project."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for chapter in project.plot.chapters:
-        if chapter.id == chapter_id:
-            return chapter
-    return None
 
 
 @chapter_app.command("add")
@@ -154,6 +144,8 @@ def list_chapters(
         typer.echo("No chapters in project.")
         return
 
+    validate_output_format(format)
+
     if format == "table":
         table = Table(title="Chapters")
         table.add_column("ID", style="cyan")
@@ -170,18 +162,10 @@ def list_chapters(
             table.add_row(chapter.id, chapter.title or "", str(scene_count), summary)
 
         console.print(table)
-
     elif format == "json":
-        data = [c.model_dump(exclude_none=True) for c in project.plot.chapters]
-        typer.echo(json.dumps(data, indent=2))
-
+        output_list_as_json(project.plot.chapters)
     elif format == "yaml":
-        data = [c.model_dump(exclude_none=True) for c in project.plot.chapters]
-        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
+        output_list_as_yaml(project.plot.chapters)
 
 
 @chapter_app.command("remove")
@@ -207,7 +191,7 @@ def remove(
     project = load_project(project_dir)
     require_prose_format(project, "chapter remove")
 
-    chapter = _find_chapter_by_id(project, chapter_id)
+    chapter = find_chapter_by_id(project, chapter_id)
     if not chapter:
         typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
         raise typer.Exit(code=1)
@@ -226,7 +210,7 @@ def remove(
 
         # Handle --move-scenes-to
         if move_scenes_to:
-            target_chapter = _find_chapter_by_id(project, move_scenes_to)
+            target_chapter = find_chapter_by_id(project, move_scenes_to)
             if not target_chapter:
                 typer.echo(f"Error: Target chapter '{move_scenes_to}' not found.", err=True)
                 raise typer.Exit(code=1)
@@ -281,7 +265,7 @@ def edit(
     project = load_project(project_dir)
     require_prose_format(project, "chapter edit")
 
-    chapter = _find_chapter_by_id(project, chapter_id)
+    chapter = find_chapter_by_id(project, chapter_id)
     if not chapter:
         typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
         raise typer.Exit(code=1)
