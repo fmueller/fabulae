@@ -10,7 +10,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_beat_prompt
-from fabulae.features.entities.generation.schemas import BeatSuggestionOutput
+from fabulae.features.entities.generation.schemas import BeatOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Beat
 
@@ -126,7 +126,7 @@ async def suggest_beat(
     if guidance:
         user_prompt = f"Create a beat: {guidance[:100]}"
 
-    agent = create_agent(BeatSuggestionOutput, prompt, config)
+    agent = create_agent(BeatOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 

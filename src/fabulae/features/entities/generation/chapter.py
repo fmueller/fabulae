@@ -10,11 +10,12 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_chapter_prompt
-from fabulae.features.entities.generation.schemas import ChapterSuggestionOutput
+from fabulae.features.entities.generation.schemas import ChapterOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Chapter
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Project, Scene
 
 
@@ -27,6 +28,7 @@ async def suggest_chapter(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Chapter:
     """Suggest a chapter based on context.
 
@@ -53,6 +55,7 @@ async def suggest_chapter(
            premise=premise,
            assigned_id="chapter-01",
            language="en",
+           style=style_output,
            config=llm_config,
        )
        ```
@@ -72,6 +75,7 @@ async def suggest_chapter(
         assigned_id: Pre-assigned ID to use (for create pipeline).
             If not provided, LLM generates the ID.
         config: LLM configuration. Required.
+        style: StyleOutput for narrative style context (from create pipeline).
 
     Returns:
         Generated Chapter model instance.
@@ -99,13 +103,14 @@ async def suggest_chapter(
         guidance=guidance,
         language=language,
         assigned_id=assigned_id,
+        style=style,
     )
 
     user_prompt = "Generate a chapter based on the context provided."
     if guidance:
         user_prompt = f"Create a chapter: {guidance[:100]}"
 
-    agent = create_agent(ChapterSuggestionOutput, prompt, config)
+    agent = create_agent(ChapterOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 
@@ -126,6 +131,7 @@ def suggest_chapter_sync(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Chapter:
     """Synchronous wrapper for suggest_chapter.
 
@@ -141,6 +147,7 @@ def suggest_chapter_sync(
             language=language,
             assigned_id=assigned_id,
             config=config,
+            style=style,
         )
     )
 

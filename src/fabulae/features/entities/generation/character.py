@@ -10,11 +10,12 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_character_prompt
-from fabulae.features.entities.generation.schemas import CharacterSuggestionOutput
+from fabulae.features.entities.generation.schemas import CharacterOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Character
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Project
 
 
@@ -29,6 +30,7 @@ async def suggest_character(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Character:
     """Suggest a character based on context.
 
@@ -56,6 +58,7 @@ async def suggest_character(
            needs_hint="The hero who drives the plot",
            assigned_id="character-01",
            language="en",
+           style=style_output,
            config=llm_config,
        )
        ```
@@ -76,6 +79,7 @@ async def suggest_character(
         assigned_id: Pre-assigned ID to use (for create pipeline).
             If not provided, LLM generates the ID.
         config: LLM configuration. Required.
+        style: StyleOutput for narrative style context (from create pipeline).
 
     Returns:
         Generated Character model instance.
@@ -105,6 +109,7 @@ async def suggest_character(
         guidance=guidance,
         language=language,
         assigned_id=assigned_id,
+        style=style,
     )
 
     # Generate using LLM
@@ -114,7 +119,7 @@ async def suggest_character(
     elif guidance:
         user_prompt = f"Create a character: {guidance[:100]}"
 
-    agent = create_agent(CharacterSuggestionOutput, prompt, config)
+    agent = create_agent(CharacterOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 
@@ -142,6 +147,7 @@ def suggest_character_sync(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Character:
     """Synchronous wrapper for suggest_character.
 
@@ -159,6 +165,7 @@ def suggest_character_sync(
             language=language,
             assigned_id=assigned_id,
             config=config,
+            style=style,
         )
     )
 

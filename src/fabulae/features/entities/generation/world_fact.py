@@ -10,11 +10,12 @@ import asyncio
 from typing import TYPE_CHECKING, Literal
 
 from fabulae.features.entities.generation.prompts import build_world_fact_prompt
-from fabulae.features.entities.generation.schemas import WorldFactSuggestionOutput
+from fabulae.features.entities.generation.schemas import WorldFactOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import WorldFact
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Project
 
 
@@ -31,6 +32,7 @@ async def suggest_world_fact(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> WorldFact:
     """Suggest a world fact based on context.
 
@@ -78,6 +80,7 @@ async def suggest_world_fact(
         assigned_id: Pre-assigned ID to use (for create pipeline).
             If not provided, LLM generates the ID.
         config: LLM configuration. Required.
+        style: StyleOutput for narrative style context (from create pipeline).
 
     Returns:
         Generated WorldFact model instance.
@@ -106,6 +109,7 @@ async def suggest_world_fact(
         guidance=guidance,
         language=language,
         assigned_id=assigned_id,
+        style=style,
     )
 
     # Generate using LLM
@@ -115,7 +119,7 @@ async def suggest_world_fact(
     elif guidance:
         user_prompt = f"Create a world element: {guidance[:100]}"
 
-    agent = create_agent(WorldFactSuggestionOutput, prompt, config)
+    agent = create_agent(WorldFactOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 
@@ -138,6 +142,7 @@ def suggest_world_fact_sync(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> WorldFact:
     """Synchronous wrapper for suggest_world_fact.
 
@@ -154,6 +159,7 @@ def suggest_world_fact_sync(
             language=language,
             assigned_id=assigned_id,
             config=config,
+            style=style,
         )
     )
 

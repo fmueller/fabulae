@@ -10,11 +10,12 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_fragment_prompt
-from fabulae.features.entities.generation.schemas import FragmentSuggestionOutput
+from fabulae.features.entities.generation.schemas import FragmentOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Fragment
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Project
 
 
@@ -29,6 +30,7 @@ async def suggest_fragment(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Fragment:
     """Suggest a fragment based on context.
 
@@ -57,6 +59,7 @@ async def suggest_fragment(
            previous_content=["Fragment 1 content...", "Fragment 2 content..."],
            assigned_id="fragment-03",
            language="en",
+           style=style_output,
            config=llm_config,
        )
        ```
@@ -78,6 +81,7 @@ async def suggest_fragment(
         assigned_id: Pre-assigned ID to use (for create pipeline).
             If not provided, LLM generates the ID.
         config: LLM configuration. Required.
+        style: StyleOutput for narrative style context (from create pipeline).
 
     Returns:
         Generated Fragment model instance.
@@ -107,6 +111,7 @@ async def suggest_fragment(
         guidance=guidance,
         language=language,
         assigned_id=assigned_id,
+        style=style,
     )
 
     # Generate using LLM
@@ -116,7 +121,7 @@ async def suggest_fragment(
     elif guidance:
         user_prompt = f"Create a fragment: {guidance[:100]}"
 
-    agent = create_agent(FragmentSuggestionOutput, prompt, config)
+    agent = create_agent(FragmentOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 
@@ -140,6 +145,7 @@ def suggest_fragment_sync(
     language: str | None = None,
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Fragment:
     """Synchronous wrapper for suggest_fragment.
 
@@ -157,6 +163,7 @@ def suggest_fragment_sync(
             language=language,
             assigned_id=assigned_id,
             config=config,
+            style=style,
         )
     )
 
