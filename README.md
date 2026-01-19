@@ -148,6 +148,62 @@ fabulae shape heros-journey
 fabulae shape betrayal-arc
 ```
 
+### Managing Project Entities
+
+Fabulae provides CRUD commands for managing all project entities. Each entity type has `add`, `list`, `edit`, `remove`, and `suggest` subcommands.
+
+**Characters** (all formats):
+```bash
+fabulae character add ./my-project --id hero-jane --name "Jane Doe" --role protagonist
+fabulae character list ./my-project
+fabulae character edit ./my-project hero-jane --add-trait "brave"
+fabulae character remove ./my-project hero-jane --force
+fabulae character suggest ./my-project --idea "a mysterious stranger"
+```
+
+**World Facts** (all formats):
+```bash
+fabulae world add ./my-project --id location-tavern --type location --name "The Golden Tankard"
+fabulae world list ./my-project --type location
+fabulae world suggest ./my-project --type culture --idea "ancient traditions"
+```
+
+**Scenes, Beats, Chapters** (prose formats: novel, novella, short-story):
+```bash
+# Scenes
+fabulae scene add ./my-project --id scene-chase --summary "A thrilling chase"
+fabulae scene edit ./my-project scene-chase --add-character hero-jane --location location-tavern
+fabulae scene suggest ./my-project --chapter chapter-01
+
+# Beats (within scenes)
+fabulae beat add ./my-project --scene scene-chase --id beat-escape --kind action --summary "Jane escapes"
+fabulae beat suggest ./my-project --scene scene-chase
+
+# Chapters
+fabulae chapter add ./my-project --id chapter-01 --title "The Beginning"
+fabulae chapter edit ./my-project chapter-01 --add-scene scene-chase
+```
+
+**Fragments** (micro-prose format only):
+```bash
+fabulae fragment add ./my-project --id fragment-03 --content "The rain fell softly..."
+fabulae fragment list ./my-project
+fabulae fragment suggest ./my-project --idea "a moment of realization"
+```
+
+**Stanzas** (poem format only):
+```bash
+fabulae stanza add ./my-project --id stanza-03 --line "The wind blows cold" --line "Through ancient pines"
+fabulae stanza edit ./my-project stanza-03 --meter "iambic pentameter" --rhyme-scheme "ABAB"
+fabulae stanza suggest ./my-project --idea "nature imagery"
+```
+
+**Common options for suggest commands:**
+- `--idea, -i` – Guidance text or path to file
+- `--model` – LLM model to use
+- `--temperature` – LLM temperature
+- `--yes, -y` – Add without confirmation
+
 ### Managing Project History
 
 Fabulae tracks command history in the `.fabulae/history/` folder. Use the `history` command to view or manage it.

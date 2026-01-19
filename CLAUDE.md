@@ -36,7 +36,7 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 
 **CLI Layer** (`src/fabulae/main.py`): Typer-based command wiring only. Command functions live in `src/fabulae/features/<slice>/cli.py` and should call feature services while avoiding embedded business logic. Entry point is `fabulae = "fabulae.main:main"`.
 
-**Feature Slices** (`src/fabulae/features/`): Each feature owns its prompts, schemas, and service logic (e.g., `create/`, `build/`, `check/`, `doctor/`, `entities/`, `tui/`). The CLI and TUI should call into these services to share behavior.
+**Feature Slices** (`src/fabulae/features/`): Each feature owns its prompts, schemas, and service logic (e.g., `create/`, `build/`, `check/`, `doctor/`, `entities/`, `tui/`, `history/`). The CLI and TUI should call into these services to share behavior.
 
 **Shared LLM + Prompts**:
 - `src/fabulae/llm/` for `LLMConfig`, agent factory, config resolution, and connectivity tests.
@@ -139,6 +139,36 @@ The history system tracks all commands executed on a project in the `.fabulae/` 
 - Global `--no-history` flag disables tracking for any command
 - `fabulae history` command views/manages history (`src/fabulae/features/history/cli.py`)
 - History entries include: timestamp, command, arguments, duration, success status
+
+### Entity CRUD Feature Architecture
+
+The `entities` feature (`src/fabulae/features/entities/`) provides CLI commands for managing all project entities:
+
+**Entity Modules**: Each entity type has its own module with a Typer app:
+- `character.py` - Character CRUD (all formats)
+- `world.py` - WorldFact CRUD (all formats)
+- `scene.py` - Scene CRUD (prose formats only)
+- `beat.py` - Beat CRUD (prose formats only)
+- `chapter.py` - Chapter CRUD (prose formats only)
+- `fragment.py` - Fragment CRUD (micro-prose format only)
+- `stanza.py` - Stanza CRUD (poem format only)
+
+**Shared Components**:
+- `utils.py` - Shared helpers: ID validation, format checking (`require_prose_format`, `require_micro_prose_format`, `require_poem_format`), entity ID collection, reference formatting
+- `prompts.py` - LLM prompt builders for each entity's `suggest` command
+- `schemas.py` - Pydantic models for LLM suggestion responses
+- `service.py` - Shared service for LLM-based entity suggestion
+
+**Format Validation**: Commands enforce format compatibility at two levels:
+1. CLI layer: `require_*_format()` helpers provide helpful error messages suggesting correct commands
+2. `save_project()`: Safety net validation prevents saving format-incompatible entities
+
+**Command Pattern**: Each entity module follows the same pattern:
+- `add` - Create new entity with CLI options for all model fields
+- `list` - Display entities in table/JSON/YAML format
+- `edit` - Modify existing entity (supports `--add-*`/`--remove-*` for list fields)
+- `remove` - Delete entity with optional `--force` flag
+- `suggest` - LLM-generated entity suggestion with `--idea` guidance
 
 ## Key Validation Rules
 
