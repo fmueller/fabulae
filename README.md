@@ -80,6 +80,7 @@ Templates:
 - `fabulae shapes` lists all available story shapes.
 - `fabulae shape <id>` shows details of a specific story shape.
 - `fabulae history [OPTIONS] <dir>` views or manages project history.
+- `fabulae build [OPTIONS] <dir>` generates complete narrative output from a project.
 
 **Global options:**
 - `--no-history` disables project history tracking for the command.
@@ -222,6 +223,47 @@ fabulae history --clear my-project
 
 # Disable history for a command
 fabulae --no-history create --idea "A story" my-project
+```
+
+### Building Narrative Output
+
+The `build` command generates complete narrative prose from your project's structural elements using an LLM.
+
+```bash
+# Basic build
+fabulae build ./my-novel
+
+# Build with seed for reproducibility (same seed = same output)
+fabulae build ./my-novel --seed 42
+
+# Specify output directory
+fabulae build ./my-novel --output ./drafts
+
+# Output as HTML or plain text
+fabulae build ./my-novel --format html
+fabulae build ./my-novel --format txt
+
+# Use specific model settings
+fabulae build ./my-novel --model llama3:8b --temperature 0.8
+```
+
+**Build command options:**
+- `--output, -o` – Output directory (default: `<project>/output/`)
+- `--seed` – Seed for reproducible builds
+- `--format, -f` – Output format: `md` (default), `txt`, or `html`
+- `--model` – LLM model to use
+- `--temperature` – LLM temperature setting
+
+**Output structure:**
+```text
+output/
+└── 2024-01-15_143052_seed42/
+    ├── build.json          # Build metadata (model, seed, timestamp)
+    ├── story.md            # Complete narrative
+    ├── chapters/           # Individual chapter files (if chaptered)
+    │   ├── 01-chapter-one.md
+    │   └── ...
+    └── fragments/          # Individual fragments (for micro-prose)
 ```
 
 ## Development

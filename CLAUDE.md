@@ -175,6 +175,43 @@ The `entities` feature (`src/fabulae/features/entities/`) provides CLI commands 
 - `remove` - Delete entity with optional `--force` flag
 - `suggest` - LLM-generated entity suggestion with `--idea` guidance
 
+### Build Feature Architecture
+
+The `build` feature (`src/fabulae/features/build/`) generates complete narrative prose from project structures:
+
+**Core Components**:
+- `schemas.py` - Pydantic models for build output: `BuildMetadata`, `SceneOutput`, `ChapterOutput`, `FragmentOutput`, `StanzaOutput`, `BuildOutput`
+- `prompts.py` - Prompt builders for scene, fragment, stanza, and poem generation
+- `scene_builder.py` - LLM-based generation for individual scenes, fragments, and stanzas
+- `service.py` - Build orchestrator dispatching to format-specific builders
+- `writer.py` - Output file writing in md, txt, or html formats
+- `cli.py` - CLI command registration
+
+**Build Pipeline**:
+1. Load and validate project
+2. Dispatch to format-specific builder based on `plot.format`:
+   - `novel`/`novella`: Chaptered build with scene-by-scene generation
+   - `short-story`: Scene-by-scene without chapters
+   - `micro-prose`: Fragment-by-fragment generation
+   - `poem`: Stanza-by-stanza or complete poem generation
+3. Generate continuity summaries for context threading (prose formats)
+4. Write output files to timestamped directory
+
+**Key Features**:
+- **Seed-based reproducibility**: Same seed + same project = consistent output
+- **Sliding window context**: Last 5 scenes/fragments/stanzas for continuity
+- **Language enforcement**: Uses shared language guard from prompts module
+- **Multiple output formats**: Markdown (default), plain text, or HTML
+
+**Output Structure**:
+```
+output/2024-01-15_143052_seed42/
+├── build.json          # Metadata (model, seed, timestamp, word count)
+├── story.md            # Complete narrative
+├── chapters/           # Per-chapter files (chaptered formats)
+└── fragments/          # Per-fragment files (micro-prose)
+```
+
 ## Key Validation Rules
 
 - All entity IDs must be globally unique across the entire project
