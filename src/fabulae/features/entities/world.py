@@ -21,6 +21,7 @@ from fabulae.features.entities.utils import (
     get_all_entity_ids,
     get_world_fact_references,
     resolve_idea_input,
+    validate_entity_id,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import World, WorldFact, load_project, save_project
@@ -44,6 +45,9 @@ def add(
     Example:
         fabulae world add ./my-novel --id tavern-golden --type location --name "The Tankard"
     """
+    # Validate ID format before loading project
+    validate_entity_id(id)
+
     project = load_project(project_dir)
 
     # Validate type
@@ -211,6 +215,9 @@ def remove(
 ) -> None:
     """Remove a world fact from the project.
 
+    If the world fact is referenced in scenes (as location or in world_fact_ids),
+    those references will be cleaned up when using --force.
+
     Example:
         fabulae world remove ./my-novel tavern-golden
     """
@@ -230,6 +237,17 @@ def remove(
         typer.echo("World fact not removed.")
         return
 
+    # Clean up references when force removing
+    if references:
+        typer.echo("Cleaning up references...")
+        for scene in project.plot.scenes:
+            if scene.location == fact_id:
+                scene.location = None
+                typer.echo(f"  - Set scene '{scene.id}' location to null")
+            if fact_id in scene.world_fact_ids:
+                scene.world_fact_ids = [f for f in scene.world_fact_ids if f != fact_id]
+                typer.echo(f"  - Removed from scene '{scene.id}' world_fact_ids list")
+
     if project.world:
         project.world.facts = [f for f in project.world.facts if f.id != fact_id]
     save_project(project, project_dir)
@@ -242,9 +260,7 @@ def edit(
     fact_id: Annotated[str, typer.Argument(help="World fact ID to edit.")],
     name: Annotated[str | None, typer.Option("--name", "-n", help="New name.")] = None,
     type: Annotated[str | None, typer.Option("--type", "-t", help="New type.")] = None,
-    add_fact: Annotated[
-        list[str] | None, typer.Option("--add-fact", help="Add a fact.")
-    ] = None,
+    add_fact: Annotated[list[str] | None, typer.Option("--add-fact", help="Add a fact.")] = None,
     remove_fact: Annotated[
         list[str] | None, typer.Option("--remove-fact", help="Remove a fact (by exact text).")
     ] = None,

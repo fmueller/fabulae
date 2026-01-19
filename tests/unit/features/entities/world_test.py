@@ -21,25 +21,29 @@ def create_test_project(tmp_path: Path) -> Path:
     """Create a minimal test project with world facts."""
     (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
     (tmp_path / "plot.yml").write_text(
-        yaml.dump({
-            "premise": "A test story.",
-            "format": "novel",
-            "scenes": [
-                {"id": "scene-01", "location": "loc-01"},
-            ],
-        })
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "scenes": [
+                    {"id": "scene-01", "location": "loc-01"},
+                ],
+            }
+        )
     )
     (tmp_path / "world.yml").write_text(
-        yaml.dump({
-            "facts": [
-                {
-                    "id": "loc-01",
-                    "type": "location",
-                    "name": "The Tavern",
-                    "facts": ["Old wooden building", "Popular gathering spot"],
-                },
-            ]
-        })
+        yaml.dump(
+            {
+                "facts": [
+                    {
+                        "id": "loc-01",
+                        "type": "location",
+                        "name": "The Tavern",
+                        "facts": ["Old wooden building", "Popular gathering spot"],
+                    },
+                ]
+            }
+        )
     )
     return tmp_path
 
@@ -54,10 +58,15 @@ class TestWorldAdd:
         result = runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "loc-02",
-                "--type", "location",
-                "--name", "The Castle",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "loc-02",
+                "--type",
+                "location",
+                "--name",
+                "The Castle",
             ],
         )
         assert result.exit_code == 0
@@ -75,12 +84,19 @@ class TestWorldAdd:
         result = runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "culture-01",
-                "--type", "culture",
-                "--name", "The Elves",
-                "--fact", "Ancient race",
-                "--fact", "Masters of magic",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "culture-01",
+                "--type",
+                "culture",
+                "--name",
+                "The Elves",
+                "--fact",
+                "Ancient race",
+                "--fact",
+                "Masters of magic",
             ],
         )
         assert result.exit_code == 0
@@ -99,10 +115,15 @@ class TestWorldAdd:
         result = runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "loc-01",
-                "--type", "location",
-                "--name", "Duplicate",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "loc-01",
+                "--type",
+                "location",
+                "--name",
+                "Duplicate",
             ],
         )
         assert result.exit_code == 1
@@ -115,10 +136,15 @@ class TestWorldAdd:
         result = runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "invalid-01",
-                "--type", "invalid",
-                "--name", "Test",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "invalid-01",
+                "--type",
+                "invalid",
+                "--name",
+                "Test",
             ],
         )
         assert result.exit_code == 1
@@ -181,10 +207,15 @@ class TestWorldRemove:
         runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "loc-unused",
-                "--type", "location",
-                "--name", "Unused",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "loc-unused",
+                "--type",
+                "location",
+                "--name",
+                "Unused",
             ],
         )
 
@@ -195,17 +226,74 @@ class TestWorldRemove:
         assert result.exit_code == 0
         assert "Removed world fact" in result.output
 
-    def test_remove_referenced_world_fact_shows_warning(self, tmp_path: Path) -> None:
-        """Removing a referenced world fact shows warning."""
+    def test_remove_referenced_location_cleans_up_references(self, tmp_path: Path) -> None:
+        """Force removing a referenced location cleans up scene.location references."""
         create_test_project(tmp_path)
 
+        # Verify loc-01 is referenced as location in scene-01
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert scene.location == "loc-01"
+
+        # Remove the location with --force
         result = runner.invoke(
             app,
             ["world", "remove", str(tmp_path), "loc-01", "--force"],
         )
         assert result.exit_code == 0
-        # Should have been warned about the reference
-        assert "referenced" in result.output or "Removed" in result.output
+        assert "Cleaning up references" in result.output
+
+        # Verify project is still valid and reference is cleaned up
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert scene.location is None
+
+    def test_remove_referenced_world_fact_in_world_fact_ids_cleans_up(self, tmp_path: Path) -> None:
+        """Force removing a world fact cleans up scene.world_fact_ids references."""
+        # Create project with world_fact_ids reference
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A test story.",
+                    "format": "novel",
+                    "scenes": [
+                        {"id": "scene-01", "world_fact_ids": ["history-01"]},
+                    ],
+                }
+            )
+        )
+        (tmp_path / "world.yml").write_text(
+            yaml.dump(
+                {
+                    "facts": [
+                        {
+                            "id": "history-01",
+                            "type": "history",
+                            "name": "The Great War",
+                            "facts": ["Lasted 100 years"],
+                        },
+                    ]
+                }
+            )
+        )
+
+        # Verify reference exists
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "history-01" in scene.world_fact_ids
+
+        # Remove the world fact with --force
+        result = runner.invoke(
+            app,
+            ["world", "remove", str(tmp_path), "history-01", "--force"],
+        )
+        assert result.exit_code == 0
+
+        # Verify reference is cleaned up
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "history-01" not in scene.world_fact_ids
 
     def test_remove_nonexistent_world_fact_fails(self, tmp_path: Path) -> None:
         """Removing nonexistent world fact fails."""
@@ -217,6 +305,35 @@ class TestWorldRemove:
         )
         assert result.exit_code == 1
         assert "not found" in result.output
+
+
+class TestWorldAddValidation:
+    """Tests for world add input validation."""
+
+    def test_add_world_fact_invalid_id_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding world fact with invalid ID shows clean error, not traceback."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "UPPERCASE",
+                "--type",
+                "location",
+                "--name",
+                "Test",
+            ],
+        )
+        assert result.exit_code == 1
+        # Should show clean error message
+        assert "Invalid ID" in result.output or "invalid" in result.output.lower()
+        # Should NOT show traceback
+        assert "Traceback" not in result.output
+        assert "ValidationError" not in result.output
 
 
 class TestWorldEdit:
@@ -275,10 +392,15 @@ class TestWorldEdit:
         runner.invoke(
             app,
             [
-                "world", "add", str(tmp_path),
-                "--id", "item-01",
-                "--type", "object",
-                "--name", "Magic Sword",
+                "world",
+                "add",
+                str(tmp_path),
+                "--id",
+                "item-01",
+                "--type",
+                "object",
+                "--name",
+                "Magic Sword",
             ],
         )
 

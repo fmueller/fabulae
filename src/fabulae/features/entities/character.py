@@ -21,6 +21,7 @@ from fabulae.features.entities.utils import (
     get_all_entity_ids,
     get_character_references,
     resolve_idea_input,
+    validate_entity_id,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Character, load_project, save_project
@@ -46,6 +47,9 @@ def add(
     Example:
         fabulae character add ./my-novel --id "detective-jane" --name "Jane Doe" --role protagonist
     """
+    # Validate ID format before loading project
+    validate_entity_id(id)
+
     project = load_project(project_dir)
 
     # Check for duplicate ID
@@ -194,6 +198,9 @@ def remove(
 ) -> None:
     """Remove a character from the project.
 
+    If the character is referenced in scenes, those references will be cleaned up
+    when using --force.
+
     Example:
         fabulae character remove ./my-novel detective-jane
     """
@@ -212,6 +219,14 @@ def remove(
     if not force and not confirm(f"Remove character '{character.name}' ({character_id})?"):
         typer.echo("Character not removed.")
         return
+
+    # Clean up references when force removing
+    if references:
+        typer.echo("Cleaning up references...")
+        for scene in project.plot.scenes:
+            if character_id in scene.characters:
+                scene.characters = [c for c in scene.characters if c != character_id]
+                typer.echo(f"  - Removed from scene '{scene.id}' characters list")
 
     project.characters = [c for c in project.characters if c.id != character_id]
     save_project(project, project_dir)

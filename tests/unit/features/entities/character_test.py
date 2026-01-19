@@ -21,20 +21,24 @@ def create_test_project(tmp_path: Path) -> Path:
     """Create a minimal test project."""
     (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
     (tmp_path / "plot.yml").write_text(
-        yaml.dump({
-            "premise": "A test story.",
-            "format": "novel",
-            "scenes": [
-                {"id": "scene-01", "characters": ["char-01"]},
-            ],
-        })
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "scenes": [
+                    {"id": "scene-01", "characters": ["char-01"]},
+                ],
+            }
+        )
     )
     (tmp_path / "characters.yml").write_text(
-        yaml.dump({
-            "characters": [
-                {"id": "char-01", "name": "Alice", "role": "protagonist"},
-            ]
-        })
+        yaml.dump(
+            {
+                "characters": [
+                    {"id": "char-01", "name": "Alice", "role": "protagonist"},
+                ]
+            }
+        )
     )
     return tmp_path
 
@@ -64,16 +68,27 @@ class TestCharacterAdd:
         result = runner.invoke(
             app,
             [
-                "character", "add", str(tmp_path),
-                "--id", "char-03",
-                "--name", "Charlie",
-                "--role", "antagonist",
-                "--desire", "Wants power",
-                "--need", "Needs love",
-                "--flaw", "Pride",
-                "--secret", "Hidden past",
-                "--trait", "cunning",
-                "--trait", "charismatic",
+                "character",
+                "add",
+                str(tmp_path),
+                "--id",
+                "char-03",
+                "--name",
+                "Charlie",
+                "--role",
+                "antagonist",
+                "--desire",
+                "Wants power",
+                "--need",
+                "Needs love",
+                "--flaw",
+                "Pride",
+                "--secret",
+                "Hidden past",
+                "--trait",
+                "cunning",
+                "--trait",
+                "charismatic",
             ],
         )
         assert result.exit_code == 0
@@ -131,9 +146,7 @@ class TestCharacterList:
     def test_list_empty_characters(self, tmp_path: Path) -> None:
         """List with no characters shows appropriate message."""
         (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
-        (tmp_path / "plot.yml").write_text(
-            yaml.dump({"premise": "A test story.", "scenes": [{"id": "scene-01"}]})
-        )
+        (tmp_path / "plot.yml").write_text(yaml.dump({"premise": "A test story.", "scenes": [{"id": "scene-01"}]}))
         (tmp_path / "characters.yml").write_text(yaml.dump({"characters": []}))
 
         result = runner.invoke(app, ["character", "list", str(tmp_path)])
@@ -166,6 +179,74 @@ class TestCharacterRemove:
         assert result.exit_code == 1
         assert "not found" in result.output
 
+    def test_remove_referenced_character_cleans_up_references(self, tmp_path: Path) -> None:
+        """Force removing a referenced character cleans up scene references."""
+        create_test_project(tmp_path)
+
+        # Verify char-01 is referenced in scene-01
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "char-01" in scene.characters
+
+        # Remove the character with --force
+        result = runner.invoke(
+            app,
+            ["character", "remove", str(tmp_path), "char-01", "--force"],
+        )
+        assert result.exit_code == 0
+        assert "Cleaning up references" in result.output
+
+        # Verify project is still valid and reference is cleaned up
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        assert "char-01" not in scene.characters
+
+    def test_remove_unreferenced_character_no_cleanup_message(self, tmp_path: Path) -> None:
+        """Removing an unreferenced character doesn't show cleanup message."""
+        create_test_project(tmp_path)
+        # Add a character that's not referenced anywhere
+        runner.invoke(
+            app,
+            ["character", "add", str(tmp_path), "--id", "char-orphan", "--name", "Orphan"],
+        )
+
+        result = runner.invoke(
+            app,
+            ["character", "remove", str(tmp_path), "char-orphan", "--force"],
+        )
+        assert result.exit_code == 0
+        assert "Cleaning up references" not in result.output
+
+
+class TestCharacterAddValidation:
+    """Tests for character add input validation."""
+
+    def test_add_character_invalid_id_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding character with invalid ID shows clean error, not traceback."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["character", "add", str(tmp_path), "--id", "UPPERCASE", "--name", "Test"],
+        )
+        assert result.exit_code == 1
+        # Should show clean error message
+        assert "Invalid ID" in result.output or "invalid" in result.output.lower()
+        # Should NOT show traceback
+        assert "Traceback" not in result.output
+        assert "ValidationError" not in result.output
+
+    def test_add_character_id_with_spaces_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding character with spaces in ID shows clean error."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["character", "add", str(tmp_path), "--id", "has spaces", "--name", "Test"],
+        )
+        assert result.exit_code == 1
+        assert "Traceback" not in result.output
+
 
 class TestCharacterEdit:
     """Tests for character edit command."""
@@ -192,10 +273,16 @@ class TestCharacterEdit:
         result = runner.invoke(
             app,
             [
-                "character", "edit", str(tmp_path), "char-01",
-                "--role", "antagonist",
-                "--desire", "World domination",
-                "--add-trait", "cunning",
+                "character",
+                "edit",
+                str(tmp_path),
+                "char-01",
+                "--role",
+                "antagonist",
+                "--desire",
+                "World domination",
+                "--add-trait",
+                "cunning",
             ],
         )
         assert result.exit_code == 0

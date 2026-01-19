@@ -180,12 +180,21 @@ def list_chapters(
 def remove(
     project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
     chapter_id: Annotated[str, typer.Argument(help="Chapter ID to remove.")],
-    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation and orphan scenes.")] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation.")] = False,
+    move_scenes_to: Annotated[
+        str | None, typer.Option("--move-scenes-to", help="Move scenes to this chapter before removal.")
+    ] = None,
+    cascade: Annotated[bool, typer.Option("--cascade", help="Delete the chapter AND all its scenes.")] = False,
 ) -> None:
     """Remove a chapter from the project.
 
+    If the chapter contains scenes, you must specify how to handle them:
+      --move-scenes-to <chapter-id>  Move scenes to another chapter first
+      --cascade                      Delete the chapter AND its scenes
+
     Example:
-        fabulae chapter remove ./my-novel chapter-03
+        fabulae chapter remove ./my-novel chapter-03 --move-scenes-to chapter-02
+        fabulae chapter remove ./my-novel chapter-03 --cascade
     """
     project = load_project(project_dir)
 
@@ -194,18 +203,55 @@ def remove(
         typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Warn about scenes
+    # Handle chapters with scenes
     if chapter.scene_ids:
         scene_count = len(chapter.scene_ids)
-        typer.echo(f"Warning: Chapter contains {scene_count} scene(s) that will be orphaned.")
-        if not force:
-            typer.echo("Use --force to remove anyway.")
+
+        # If neither option specified, error with guidance
+        if not move_scenes_to and not cascade:
+            typer.echo(f"Error: Chapter '{chapter_id}' contains {scene_count} scene(s).", err=True)
+            typer.echo("Use one of the following options:", err=True)
+            typer.echo("  --move-scenes-to <chapter-id>  Move scenes to another chapter first", err=True)
+            typer.echo("  --cascade                      Delete the chapter AND its scenes", err=True)
             raise typer.Exit(code=1)
 
-    if not force and not confirm(f"Remove chapter '{chapter.title or chapter_id}' ({chapter_id})?"):
+        # Handle --move-scenes-to
+        if move_scenes_to:
+            target_chapter = _find_chapter_by_id(project, move_scenes_to)
+            if not target_chapter:
+                typer.echo(f"Error: Target chapter '{move_scenes_to}' not found.", err=True)
+                raise typer.Exit(code=1)
+
+            # Move scenes to target chapter
+            if target_chapter.scene_ids is None:
+                target_chapter.scene_ids = []
+            target_chapter.scene_ids.extend(chapter.scene_ids)
+            typer.echo(f"Moved {scene_count} scene(s) to '{move_scenes_to}'")
+
+        # Handle --cascade
+        elif cascade:
+            # Count beats that will be deleted
+            beat_count = sum(len(scene.beats) for scene in project.plot.scenes if scene.id in chapter.scene_ids)
+
+            if beat_count > 0:
+                typer.echo(f"Warning: This will delete {scene_count} scene(s) and {beat_count} beat(s).")
+            else:
+                typer.echo(f"Warning: This will delete {scene_count} scene(s).")
+
+            if not force and not confirm("Continue?"):
+                typer.echo("Chapter not removed.")
+                return
+
+            # Delete the scenes
+            scene_ids_to_delete = set(chapter.scene_ids)
+            project.plot.scenes = [s for s in project.plot.scenes if s.id not in scene_ids_to_delete]
+
+    # Confirm removal if not forced (for empty chapters or after moving scenes)
+    elif not force and not confirm(f"Remove chapter '{chapter.title or chapter_id}' ({chapter_id})?"):
         typer.echo("Chapter not removed.")
         return
 
+    # Remove the chapter
     project.plot.chapters = [c for c in project.plot.chapters if c.id != chapter_id]
     save_project(project, project_dir)
     typer.echo(f"Removed chapter: {chapter_id}")
