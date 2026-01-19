@@ -21,32 +21,38 @@ def create_test_project(tmp_path: Path) -> Path:
     """Create a minimal test project with scenes and chapters."""
     (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
     (tmp_path / "plot.yml").write_text(
-        yaml.dump({
-            "premise": "A test story.",
-            "format": "novel",
-            "chapters": [
-                {"id": "chapter-01", "title": "Beginning", "scene_ids": ["scene-01"]},
-                {"id": "chapter-02", "title": "Middle", "scene_ids": []},
-            ],
-            "scenes": [
-                {"id": "scene-01", "summary": "First scene", "characters": ["char-01"]},
-            ],
-        })
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "chapters": [
+                    {"id": "chapter-01", "title": "Beginning", "scene_ids": ["scene-01"]},
+                    {"id": "chapter-02", "title": "Middle", "scene_ids": []},
+                ],
+                "scenes": [
+                    {"id": "scene-01", "summary": "First scene", "characters": ["char-01"]},
+                ],
+            }
+        )
     )
     (tmp_path / "characters.yml").write_text(
-        yaml.dump({
-            "characters": [
-                {"id": "char-01", "name": "Alice"},
-                {"id": "char-02", "name": "Bob"},
-            ]
-        })
+        yaml.dump(
+            {
+                "characters": [
+                    {"id": "char-01", "name": "Alice"},
+                    {"id": "char-02", "name": "Bob"},
+                ]
+            }
+        )
     )
     (tmp_path / "world.yml").write_text(
-        yaml.dump({
-            "facts": [
-                {"id": "loc-01", "type": "location", "name": "Tavern"},
-            ]
-        })
+        yaml.dump(
+            {
+                "facts": [
+                    {"id": "loc-01", "type": "location", "name": "Tavern"},
+                ]
+            }
+        )
     )
     return tmp_path
 
@@ -75,9 +81,13 @@ class TestSceneAdd:
         result = runner.invoke(
             app,
             [
-                "scene", "add", str(tmp_path),
-                "--id", "scene-03",
-                "--chapter", "chapter-02",
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-03",
+                "--chapter",
+                "chapter-02",
             ],
         )
         assert result.exit_code == 0
@@ -94,14 +104,23 @@ class TestSceneAdd:
         result = runner.invoke(
             app,
             [
-                "scene", "add", str(tmp_path),
-                "--id", "scene-04",
-                "--chapter", "chapter-02",
-                "--location", "loc-01",
-                "--time", "evening",
-                "--summary", "A test scene",
-                "--character", "char-01",
-                "--character", "char-02",
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-04",
+                "--chapter",
+                "chapter-02",
+                "--location",
+                "loc-01",
+                "--time",
+                "evening",
+                "--summary",
+                "A test scene",
+                "--character",
+                "char-01",
+                "--character",
+                "char-02",
             ],
         )
         assert result.exit_code == 0
@@ -120,9 +139,13 @@ class TestSceneAdd:
         result = runner.invoke(
             app,
             [
-                "scene", "add", str(tmp_path),
-                "--id", "scene-05",
-                "--location", "invalid-loc",
+                "scene",
+                "add",
+                str(tmp_path),
+                "--id",
+                "scene-05",
+                "--location",
+                "invalid-loc",
             ],
         )
         assert result.exit_code == 1
@@ -231,9 +254,14 @@ class TestSceneEdit:
         result = runner.invoke(
             app,
             [
-                "scene", "edit", str(tmp_path), "scene-01",
-                "--location", "loc-01",
-                "--summary", "Updated summary",
+                "scene",
+                "edit",
+                str(tmp_path),
+                "scene-01",
+                "--location",
+                "loc-01",
+                "--summary",
+                "Updated summary",
             ],
         )
         assert result.exit_code == 0
@@ -271,3 +299,33 @@ class TestSceneSuggest:
         assert "--idea" in output
         assert "--model" in output
         assert "--yes" in output
+
+
+class TestSceneAddValidation:
+    """Tests for scene add input validation."""
+
+    def test_add_scene_invalid_id_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding scene with invalid ID shows clean error, not traceback."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["scene", "add", str(tmp_path), "--id", "UPPERCASE", "--chapter", "chapter-01"],
+        )
+        assert result.exit_code == 1
+        # Should show clean error message
+        assert "Invalid ID" in result.output or "invalid" in result.output.lower()
+        # Should NOT show traceback
+        assert "Traceback" not in result.output
+        assert "ValidationError" not in result.output
+
+    def test_add_scene_id_with_spaces_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding scene with spaces in ID shows clean error."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["scene", "add", str(tmp_path), "--id", "has spaces", "--chapter", "chapter-01"],
+        )
+        assert result.exit_code == 1
+        assert "Traceback" not in result.output

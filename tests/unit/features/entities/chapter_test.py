@@ -307,3 +307,33 @@ class TestChapterSuggest:
         assert "--idea" in output
         assert "--model" in output
         assert "--yes" in output
+
+
+class TestChapterAddValidation:
+    """Tests for chapter add input validation."""
+
+    def test_add_chapter_invalid_id_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding chapter with invalid ID shows clean error, not traceback."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "add", str(tmp_path), "--id", "UPPERCASE"],
+        )
+        assert result.exit_code == 1
+        # Should show clean error message
+        assert "Invalid ID" in result.output or "invalid" in result.output.lower()
+        # Should NOT show traceback
+        assert "Traceback" not in result.output
+        assert "ValidationError" not in result.output
+
+    def test_add_chapter_id_with_spaces_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding chapter with spaces in ID shows clean error."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["chapter", "add", str(tmp_path), "--id", "has spaces"],
+        )
+        assert result.exit_code == 1
+        assert "Traceback" not in result.output

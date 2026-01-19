@@ -19,6 +19,7 @@ from fabulae.features.entities.utils import (
     confirm,
     get_all_entity_ids,
     resolve_idea_input,
+    validate_entity_id,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Chapter, load_project, save_project
@@ -51,6 +52,9 @@ def add(
     Example:
         fabulae chapter add ./my-novel --id chapter-03 --title "The Revelation"
     """
+    # Validate ID format before loading project
+    validate_entity_id(id)
+
     project = load_project(project_dir)
 
     # Check for duplicate ID

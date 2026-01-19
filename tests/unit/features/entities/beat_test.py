@@ -21,24 +21,26 @@ def create_test_project(tmp_path: Path) -> Path:
     """Create a minimal test project with scenes."""
     (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
     (tmp_path / "plot.yml").write_text(
-        yaml.dump({
-            "premise": "A test story.",
-            "format": "novel",
-            "scenes": [
-                {
-                    "id": "scene-01",
-                    "summary": "First scene",
-                    "beats": [
-                        {"id": "beat-01", "kind": "setup", "summary": "Opening beat"},
-                    ],
-                },
-                {
-                    "id": "scene-02",
-                    "summary": "Second scene",
-                    "beats": [],
-                },
-            ],
-        })
+        yaml.dump(
+            {
+                "premise": "A test story.",
+                "format": "novel",
+                "scenes": [
+                    {
+                        "id": "scene-01",
+                        "summary": "First scene",
+                        "beats": [
+                            {"id": "beat-01", "kind": "setup", "summary": "Opening beat"},
+                        ],
+                    },
+                    {
+                        "id": "scene-02",
+                        "summary": "Second scene",
+                        "beats": [],
+                    },
+                ],
+            }
+        )
     )
     return tmp_path
 
@@ -53,10 +55,15 @@ class TestBeatAdd:
         result = runner.invoke(
             app,
             [
-                "beat", "add", str(tmp_path),
-                "--scene", "scene-01",
-                "--id", "beat-02",
-                "--kind", "action",
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-01",
+                "--id",
+                "beat-02",
+                "--kind",
+                "action",
             ],
         )
         assert result.exit_code == 0
@@ -73,15 +80,25 @@ class TestBeatAdd:
         result = runner.invoke(
             app,
             [
-                "beat", "add", str(tmp_path),
-                "--scene", "scene-02",
-                "--id", "beat-03",
-                "--kind", "dialogue",
-                "--summary", "Characters argue",
-                "--goal", "Convince the other",
-                "--conflict", "Disagreement",
-                "--outcome", "Stalemate",
-                "--pace", "fast",
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-02",
+                "--id",
+                "beat-03",
+                "--kind",
+                "dialogue",
+                "--summary",
+                "Characters argue",
+                "--goal",
+                "Convince the other",
+                "--conflict",
+                "Disagreement",
+                "--outcome",
+                "Stalemate",
+                "--pace",
+                "fast",
             ],
         )
         assert result.exit_code == 0
@@ -101,10 +118,15 @@ class TestBeatAdd:
         result = runner.invoke(
             app,
             [
-                "beat", "add", str(tmp_path),
-                "--scene", "scene-99",
-                "--id", "beat-04",
-                "--kind", "action",
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-99",
+                "--id",
+                "beat-04",
+                "--kind",
+                "action",
             ],
         )
         assert result.exit_code == 1
@@ -117,10 +139,15 @@ class TestBeatAdd:
         result = runner.invoke(
             app,
             [
-                "beat", "add", str(tmp_path),
-                "--scene", "scene-01",
-                "--id", "beat-01",  # Already exists
-                "--kind", "action",
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-01",
+                "--id",
+                "beat-01",  # Already exists
+                "--kind",
+                "action",
             ],
         )
         assert result.exit_code == 1
@@ -200,10 +227,15 @@ class TestBeatMove:
         runner.invoke(
             app,
             [
-                "beat", "add", str(tmp_path),
-                "--scene", "scene-02",
-                "--id", "beat-existing",
-                "--kind", "setup",
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-02",
+                "--id",
+                "beat-existing",
+                "--kind",
+                "setup",
             ],
         )
 
@@ -270,9 +302,14 @@ class TestBeatEdit:
         result = runner.invoke(
             app,
             [
-                "beat", "edit", str(tmp_path), "beat-01",
-                "--kind", "climax",
-                "--summary", "Updated summary",
+                "beat",
+                "edit",
+                str(tmp_path),
+                "beat-01",
+                "--kind",
+                "climax",
+                "--summary",
+                "Updated summary",
             ],
         )
         assert result.exit_code == 0
@@ -308,3 +345,33 @@ class TestBeatSuggest:
         assert "--idea" in output
         assert "--model" in output
         assert "--yes" in output
+
+
+class TestBeatAddValidation:
+    """Tests for beat add input validation."""
+
+    def test_add_beat_invalid_id_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding beat with invalid ID shows clean error, not traceback."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "add", str(tmp_path), "--scene", "scene-01", "--id", "UPPERCASE", "--kind", "action"],
+        )
+        assert result.exit_code == 1
+        # Should show clean error message
+        assert "Invalid ID" in result.output or "invalid" in result.output.lower()
+        # Should NOT show traceback
+        assert "Traceback" not in result.output
+        assert "ValidationError" not in result.output
+
+    def test_add_beat_id_with_spaces_shows_clean_error(self, tmp_path: Path) -> None:
+        """Adding beat with spaces in ID shows clean error."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "add", str(tmp_path), "--scene", "scene-01", "--id", "has spaces", "--kind", "action"],
+        )
+        assert result.exit_code == 1
+        assert "Traceback" not in result.output
