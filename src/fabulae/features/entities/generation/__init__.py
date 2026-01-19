@@ -12,6 +12,7 @@ The shared approach ensures:
 """
 
 from fabulae.features.entities.generation.beat import suggest_beat
+from fabulae.features.entities.generation.chapter import suggest_chapter
 from fabulae.features.entities.generation.character import suggest_character
 from fabulae.features.entities.generation.fragment import suggest_fragment
 from fabulae.features.entities.generation.scene import suggest_scene
@@ -23,6 +24,7 @@ __all__ = [
     "suggest_world_fact",
     "suggest_scene",
     "suggest_beat",
+    "suggest_chapter",
     "suggest_fragment",
     "suggest_stanza",
 ]

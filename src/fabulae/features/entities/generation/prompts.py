@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from fabulae.prompts import build_system_prompt, format_sections
 
 if TYPE_CHECKING:
-    from fabulae.models import Beat, Character, Fragment, Scene, Stanza, WorldFact
+    from fabulae.models import Beat, Chapter, Character, Fragment, Scene, Stanza, WorldFact
 
 
 def _format_guidelines() -> list[str]:
@@ -94,6 +94,17 @@ def _format_existing_stanzas(stanzas: list[Stanza]) -> str:
         first_line = s.lines[0] if s.lines else "No lines"
         line_preview = first_line[:40] + "..." if len(first_line) > 40 else first_line
         lines.append(f'- {s.id}: "{line_preview}"')
+    return "\n".join(lines)
+
+
+def _format_existing_chapters(chapters: list[Chapter]) -> str:
+    """Format existing chapters for prompt context."""
+    if not chapters:
+        return "No chapters yet."
+    lines = []
+    for c in chapters:
+        summary_preview = c.summary[:50] + "..." if c.summary and len(c.summary) > 50 else (c.summary or "No summary")
+        lines.append(f"- {c.id}: {c.title or 'Untitled'} - {summary_preview}")
     return "\n".join(lines)
 
 
@@ -656,6 +667,81 @@ def build_stanza_prompt(
     return build_system_prompt(purpose, guidelines) + "\n\n" + format_sections(sections)
 
 
+# =============================================================================
+# Chapter Prompt
+# =============================================================================
+
+
+def build_chapter_prompt(
+    premise: str | None = None,
+    existing_chapters: list[Chapter] | None = None,
+    existing_scenes: list[Scene] | None = None,
+    guidance: str | None = None,
+    language: str | None = None,
+    assigned_id: str | None = None,
+) -> str:
+    """Build prompt for chapter generation.
+
+    Args:
+        premise: Story premise for context
+        existing_chapters: Chapters already in project (to avoid duplicates)
+        existing_scenes: Scenes in project (for context)
+        guidance: User-provided guidance text
+        language: Language code for content generation
+        assigned_id: Pre-assigned ID to use (for create pipeline)
+
+    Returns:
+        System prompt for chapter generation
+    """
+    purpose = "Create a chapter for a story."
+
+    # Build schema
+    id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
+
+    schema = (
+        "{\n"
+        f"{id_line}\n"
+        '  "title": "Short evocative chapter title",\n'
+        '  "summary": "2-3 sentences describing the chapter\'s arc"\n'
+        "}"
+    )
+
+    sections: dict[str, str] = {}
+
+    if assigned_id:
+        sections["Assigned ID"] = f'"{assigned_id}" - Use this exact ID in your output.'
+
+    if language:
+        sections["Language"] = f"Generate all text content in {language}."
+
+    if premise:
+        sections["Story Premise"] = premise
+
+    existing = existing_chapters or []
+    if existing:
+        sections["Existing Chapters (avoid duplicating)"] = _format_existing_chapters(existing)
+
+    scenes = existing_scenes or []
+    if scenes:
+        sections["Available Scenes"] = _format_existing_scenes(scenes)
+
+    if guidance:
+        sections["User Guidance"] = guidance
+
+    sections["Output Schema (JSON)"] = schema
+    sections["Notes"] = (
+        "Create a chapter that advances the overall plot arc. "
+        "The chapter should fit naturally after existing chapters. "
+        "Do NOT include scene_ids - scenes are assigned separately."
+    )
+
+    guidelines = _format_guidelines()
+    if assigned_id:
+        guidelines.insert(1, "CRITICAL: Use the Assigned ID exactly - do not modify it.")
+
+    return build_system_prompt(purpose, guidelines) + "\n\n" + format_sections(sections)
+
+
 __all__ = [
     "build_character_prompt",
     "build_world_fact_prompt",
@@ -663,4 +749,5 @@ __all__ = [
     "build_beat_prompt",
     "build_fragment_prompt",
     "build_stanza_prompt",
+    "build_chapter_prompt",
 ]

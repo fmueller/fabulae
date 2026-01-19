@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_chapter_suggest_prompt
-from fabulae.features.entities.schemas import ChapterSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.chapter import suggest_chapter_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_chapter_by_id,
@@ -87,42 +85,39 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Get suggestion using generation module
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_chapter_suggest_prompt(project, guidance)
 
     typer.echo("Generating chapter suggestion...")
-    suggestion = suggest_entity_sync(ChapterSuggestion, prompt, config)
+    chapter = suggest_chapter_sync(
+        project=project,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested chapter:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    if suggestion.title:
-        console.print(f"  Title: {suggestion.title}")
-    if suggestion.summary:
-        console.print(f"  Summary: {suggestion.summary}")
+    console.print(f"  ID: {chapter.id}")
+    if chapter.title:
+        console.print(f"  Title: {chapter.title}")
+    if chapter.summary:
+        console.print(f"  Summary: {chapter.summary}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this chapter?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
+        if chapter.id in existing_ids:
             typer.echo(
-                f"Error: ID '{suggestion.id}' already exists. Try again or use 'chapter add' manually.",
+                f"Error: ID '{chapter.id}' already exists. Try again or use 'chapter add' manually.",
                 err=True,
             )
             raise typer.Exit(code=1)
 
-        chapter = Chapter(
-            id=suggestion.id,
-            title=suggestion.title,
-            summary=suggestion.summary,
-            scene_ids=[],
-        )
         project.plot.chapters.append(chapter)
         save_project(project, project_dir)
-        typer.echo(f"Added chapter: {suggestion.title or suggestion.id} ({suggestion.id})")
+        typer.echo(f"Added chapter: {chapter.title or chapter.id} ({chapter.id})")
     else:
         typer.echo("Chapter not added.")
 
