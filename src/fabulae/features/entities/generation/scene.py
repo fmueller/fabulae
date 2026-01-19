@@ -10,11 +10,12 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_scene_prompt
-from fabulae.features.entities.generation.schemas import SceneSuggestionOutput
+from fabulae.features.entities.generation.schemas import SceneOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Beat, Scene
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Character, Project, WorldFact
 
 
@@ -31,6 +32,7 @@ async def suggest_scene(
     include_beats: bool = False,
     beat_count: int = 0,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Scene:
     """Suggest a scene based on context.
 
@@ -86,6 +88,7 @@ async def suggest_scene(
         include_beats: Whether to generate beats within the scene.
         beat_count: Number of beats to generate (if include_beats).
         config: LLM configuration. Required.
+        style: StyleOutput for narrative style context (from create pipeline).
 
     Returns:
         Generated Scene model instance.
@@ -121,6 +124,7 @@ async def suggest_scene(
         assigned_id=assigned_id,
         include_beats=include_beats,
         beat_count=beat_count,
+        style=style,
     )
 
     # Generate using LLM
@@ -128,7 +132,7 @@ async def suggest_scene(
     if guidance:
         user_prompt = f"Create a scene: {guidance[:100]}"
 
-    agent = create_agent(SceneSuggestionOutput, prompt, config)
+    agent = create_agent(SceneOutput, prompt, config)
     result = await agent.run(user_prompt)
     suggestion = result.output
 
@@ -174,6 +178,7 @@ def suggest_scene_sync(
     include_beats: bool = False,
     beat_count: int = 0,
     config: LLMConfig | None = None,
+    style: StyleOutput | None = None,
 ) -> Scene:
     """Synchronous wrapper for suggest_scene.
 
@@ -193,6 +198,7 @@ def suggest_scene_sync(
             include_beats=include_beats,
             beat_count=beat_count,
             config=config,
+            style=style,
         )
     )
 

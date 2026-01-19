@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from fabulae.prompts import build_system_prompt, format_sections
 
 if TYPE_CHECKING:
+    from fabulae.features.create.schemas import StyleOutput
     from fabulae.models import Beat, Chapter, Character, Fragment, Scene, Stanza, WorldFact
 
 
@@ -34,6 +35,27 @@ def _format_language_instruction(language: str | None) -> str:
             f"Generate names and descriptions in this language.\n"
         )
     return ""
+
+
+def _format_style_hint(style: StyleOutput | None) -> str:
+    """Format StyleOutput as a compact hint for prompts.
+
+    This provides the LLM with narrative style context from the create pipeline.
+    """
+    if not style:
+        return ""
+
+    parts: list[str] = []
+    if style.pov:
+        parts.append(f"POV: {style.pov}")
+    if style.tense:
+        parts.append(f"Tense: {style.tense}")
+    if style.voice:
+        parts.append(f"Voice: {style.voice}")
+    if style.register_:
+        parts.append(f"Register: {style.register_}")
+
+    return ", ".join(parts) if parts else ""
 
 
 def _format_existing_characters(characters: list[Character]) -> str:
@@ -122,6 +144,7 @@ def build_character_prompt(
     guidance: str | None = None,
     language: str | None = None,
     assigned_id: str | None = None,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for character generation.
 
@@ -136,6 +159,7 @@ def build_character_prompt(
         guidance: User-provided guidance text
         language: Language code for content generation
         assigned_id: Pre-assigned ID to use (for create pipeline)
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for character generation
@@ -170,6 +194,11 @@ def build_character_prompt(
 
     if premise:
         sections["Story Premise"] = premise
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     if role_hint:
         sections["Role"] = role_hint
@@ -216,6 +245,7 @@ def build_world_fact_prompt(
     guidance: str | None = None,
     language: str | None = None,
     assigned_id: str | None = None,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for world fact generation.
 
@@ -227,6 +257,7 @@ def build_world_fact_prompt(
         guidance: User-provided guidance text
         language: Language code for content generation
         assigned_id: Pre-assigned ID to use (for create pipeline)
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for world fact generation
@@ -262,6 +293,11 @@ def build_world_fact_prompt(
 
     if premise:
         sections["Story Premise"] = premise
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     if fact_type:
         sections["Required Type"] = fact_type
@@ -308,6 +344,7 @@ def build_scene_prompt(
     assigned_id: str | None = None,
     include_beats: bool = False,
     beat_count: int = 0,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for scene generation.
 
@@ -322,6 +359,7 @@ def build_scene_prompt(
         assigned_id: Pre-assigned ID to use
         include_beats: Whether to include beats in output
         beat_count: Number of beats to generate (if include_beats)
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for scene generation
@@ -373,6 +411,11 @@ def build_scene_prompt(
 
     if chapter_context:
         sections["Chapter Context"] = chapter_context
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     if chars:
         sections["Available Characters"] = _format_existing_characters(chars)
@@ -503,6 +546,7 @@ def build_fragment_prompt(
     guidance: str | None = None,
     language: str | None = None,
     assigned_id: str | None = None,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for fragment generation (micro-prose format).
 
@@ -515,6 +559,7 @@ def build_fragment_prompt(
         guidance: User-provided guidance text
         language: Language code for content generation
         assigned_id: Pre-assigned ID to use
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for fragment generation
@@ -545,6 +590,11 @@ def build_fragment_prompt(
 
     if premise:
         sections["Premise"] = premise
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     if position is not None and total_fragments:
         sections["Position"] = f"Fragment {position + 1} of {total_fragments}"
@@ -589,6 +639,7 @@ def build_stanza_prompt(
     guidance: str | None = None,
     language: str | None = None,
     assigned_id: str | None = None,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for stanza generation (poem format).
 
@@ -603,6 +654,7 @@ def build_stanza_prompt(
         guidance: User-provided guidance text
         language: Language code for content generation
         assigned_id: Pre-assigned ID to use
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for stanza generation
@@ -634,6 +686,11 @@ def build_stanza_prompt(
 
     if premise:
         sections["Premise"] = premise
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     if position is not None and total_stanzas:
         sections["Position"] = f"Stanza {position + 1} of {total_stanzas}"
@@ -679,6 +736,7 @@ def build_chapter_prompt(
     guidance: str | None = None,
     language: str | None = None,
     assigned_id: str | None = None,
+    style: StyleOutput | None = None,
 ) -> str:
     """Build prompt for chapter generation.
 
@@ -689,6 +747,7 @@ def build_chapter_prompt(
         guidance: User-provided guidance text
         language: Language code for content generation
         assigned_id: Pre-assigned ID to use (for create pipeline)
+        style: StyleOutput for narrative style context (from create pipeline)
 
     Returns:
         System prompt for chapter generation
@@ -716,6 +775,11 @@ def build_chapter_prompt(
 
     if premise:
         sections["Story Premise"] = premise
+
+    # Add style hint if provided (from create pipeline)
+    style_hint = _format_style_hint(style)
+    if style_hint:
+        sections["Style"] = style_hint
 
     existing = existing_chapters or []
     if existing:
