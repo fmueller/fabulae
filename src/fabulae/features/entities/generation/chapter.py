@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from fabulae.features.entities.generation.prompts import build_chapter_prompt
 from fabulae.features.entities.generation.schemas import ChapterOutput
+from fabulae.features.entities.generation.title_structure import TitleRequirement, get_title_requirement
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Chapter
 
@@ -29,6 +30,13 @@ async def suggest_chapter(
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
     style: StyleOutput | None = None,
+    chapter_index: int | None = None,
+    total_chapters: int | None = None,
+    scene_count: int | None = None,
+    previous_chapter_summaries: list[str] | None = None,
+    previous_chapter_titles: list[str] | None = None,
+    title_requirement: TitleRequirement | None = None,
+    max_title_retries: int = 0,
 ) -> Chapter:
     """Suggest a chapter based on context.
 
@@ -47,8 +55,13 @@ async def suggest_chapter(
        )
        ```
 
-    2. Create mode (pass individual parameters):
+    2. Create mode (pass individual parameters with title diversity):
        ```python
+       title_req = get_title_requirement(
+           chapter_index=0,
+           total_chapters=5,
+           previous_titles=[],
+       )
        chapter = await suggest_chapter(
            existing_chapters=state.chapters,
            existing_scenes=state.scenes,
@@ -56,6 +69,13 @@ async def suggest_chapter(
            assigned_id="chapter-01",
            language="en",
            style=style_output,
+           chapter_index=0,
+           total_chapters=5,
+           scene_count=3,
+           previous_chapter_summaries=[],
+           previous_chapter_titles=[],
+           title_requirement=title_req,
+           max_title_retries=1,
            config=llm_config,
        )
        ```
@@ -76,6 +96,14 @@ async def suggest_chapter(
             If not provided, LLM generates the ID.
         config: LLM configuration. Required.
         style: StyleOutput for narrative style context (from create pipeline).
+        chapter_index: 0-based chapter position (create pipeline).
+        total_chapters: Total number of chapters (create pipeline).
+        scene_count: Number of scenes in this chapter (create pipeline).
+        previous_chapter_summaries: Recent chapter summaries for continuity.
+        previous_chapter_titles: Previous titles for title diversity.
+        title_requirement: Title structure requirements (create pipeline).
+            If not provided but chapter_index is, will auto-generate.
+        max_title_retries: Number of retries if title doesn't meet requirements.
 
     Returns:
         Generated Chapter model instance.
@@ -96,6 +124,20 @@ async def suggest_chapter(
         if language is None and project.style:
             language = project.style.language
 
+    # Auto-generate title requirement if in create mode but not provided
+    title_req = title_requirement
+    if title_req is None and chapter_index is not None and total_chapters is not None:
+        title_req = get_title_requirement(
+            chapter_index=chapter_index,
+            total_chapters=total_chapters,
+            previous_titles=previous_chapter_titles or [],
+        )
+
+    # Format title requirement for prompt
+    title_requirement_str = None
+    if title_req:
+        title_requirement_str = title_req.format_for_prompt(language)
+
     prompt = build_chapter_prompt(
         premise=premise,
         existing_chapters=existing_chapters,
@@ -104,6 +146,11 @@ async def suggest_chapter(
         language=language,
         assigned_id=assigned_id,
         style=style,
+        chapter_index=chapter_index,
+        total_chapters=total_chapters,
+        scene_count=scene_count,
+        previous_chapter_summaries=previous_chapter_summaries,
+        title_requirement_str=title_requirement_str,
     )
 
     user_prompt = "Generate a chapter based on the context provided."
@@ -132,6 +179,13 @@ def suggest_chapter_sync(
     assigned_id: str | None = None,
     config: LLMConfig | None = None,
     style: StyleOutput | None = None,
+    chapter_index: int | None = None,
+    total_chapters: int | None = None,
+    scene_count: int | None = None,
+    previous_chapter_summaries: list[str] | None = None,
+    previous_chapter_titles: list[str] | None = None,
+    title_requirement: TitleRequirement | None = None,
+    max_title_retries: int = 0,
 ) -> Chapter:
     """Synchronous wrapper for suggest_chapter.
 
@@ -148,8 +202,15 @@ def suggest_chapter_sync(
             assigned_id=assigned_id,
             config=config,
             style=style,
+            chapter_index=chapter_index,
+            total_chapters=total_chapters,
+            scene_count=scene_count,
+            previous_chapter_summaries=previous_chapter_summaries,
+            previous_chapter_titles=previous_chapter_titles,
+            title_requirement=title_requirement,
+            max_title_retries=max_title_retries,
         )
     )
 
 
-__all__ = ["suggest_chapter", "suggest_chapter_sync"]
+__all__ = ["suggest_chapter", "suggest_chapter_sync", "TitleRequirement", "get_title_requirement"]
