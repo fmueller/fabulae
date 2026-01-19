@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_world_suggest_prompt
-from fabulae.features.entities.schemas import WorldFactSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.world_fact import suggest_world_fact_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_world_fact_by_id,
@@ -106,21 +104,25 @@ def suggest(
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_world_suggest_prompt(project, type, guidance)
 
     typer.echo("Generating world fact suggestion...")
-    suggestion = suggest_entity_sync(WorldFactSuggestion, prompt, config)
+    world_fact = suggest_world_fact_sync(
+        project=project,
+        fact_type=type,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested world fact:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    console.print(f"  Type: {suggestion.type}")
-    console.print(f"  Name: {suggestion.name}")
-    if suggestion.facts:
+    console.print(f"  ID: {world_fact.id}")
+    console.print(f"  Type: {world_fact.type}")
+    console.print(f"  Name: {world_fact.name}")
+    if world_fact.facts:
         console.print("  Facts:")
-        for fact in suggestion.facts:
+        for fact in world_fact.facts:
             console.print(f"    - {fact}")
     console.print()
 
@@ -128,23 +130,16 @@ def suggest(
     if yes or confirm("Add this world fact?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
-            typer.echo(f"Error: ID '{suggestion.id}' already exists. Try again or use 'world add' manually.", err=True)
+        if world_fact.id in existing_ids:
+            typer.echo(f"Error: ID '{world_fact.id}' already exists. Try again or use 'world add' manually.", err=True)
             raise typer.Exit(code=1)
-
-        world_fact = WorldFact(
-            id=suggestion.id,
-            type=suggestion.type,
-            name=suggestion.name,
-            facts=suggestion.facts,
-        )
 
         # Ensure world exists
         if not project.world:
             project.world = World()
         project.world.facts.append(world_fact)
         save_project(project, project_dir)
-        typer.echo(f"Added world fact: {suggestion.name} ({suggestion.id})")
+        typer.echo(f"Added world fact: {world_fact.name} ({world_fact.id})")
     else:
         typer.echo("World fact not added.")
 

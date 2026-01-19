@@ -10,9 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, temperature_option
-from fabulae.features.entities.prompts import build_scene_suggest_prompt
-from fabulae.features.entities.schemas import SceneSuggestion
-from fabulae.features.entities.service import suggest_entity_sync
+from fabulae.features.entities.generation.scene import suggest_scene_sync
 from fabulae.features.entities.utils import (
     confirm,
     find_chapter_by_id,
@@ -140,72 +138,69 @@ def suggest(
     require_prose_format(project, "scene suggest")
 
     # Validate chapter if provided
+    chapter_context = None
     if chapter:
         chapter_obj = find_chapter_by_id(project, chapter)
         if not chapter_obj:
             typer.echo(f"Error: Chapter '{chapter}' not found.", err=True)
             raise typer.Exit(code=1)
+        chapter_context = f"Chapter {chapter}: {chapter_obj.title or 'Untitled'}"
+        if chapter_obj.summary:
+            chapter_context += f" - {chapter_obj.summary}"
 
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
 
-    # Build prompt and get suggestion
+    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
-    prompt = build_scene_suggest_prompt(project, chapter, guidance)
 
     typer.echo("Generating scene suggestion...")
-    suggestion = suggest_entity_sync(SceneSuggestion, prompt, config)
+    scene = suggest_scene_sync(
+        project=project,
+        chapter_context=chapter_context,
+        guidance=guidance,
+        config=config,
+    )
 
     # Display suggestion
     console.print("\n[bold]Suggested scene:[/bold]")
-    console.print(f"  ID: {suggestion.id}")
-    if suggestion.summary:
-        console.print(f"  Summary: {suggestion.summary}")
-    if suggestion.goal:
-        console.print(f"  Goal: {suggestion.goal}")
-    if suggestion.conflict:
-        console.print(f"  Conflict: {suggestion.conflict}")
-    if suggestion.outcome:
-        console.print(f"  Outcome: {suggestion.outcome}")
-    if suggestion.characters:
-        console.print(f"  Characters: {', '.join(suggestion.characters)}")
-    if suggestion.location:
-        console.print(f"  Location: {suggestion.location}")
-    if suggestion.time:
-        console.print(f"  Time: {suggestion.time}")
+    console.print(f"  ID: {scene.id}")
+    if scene.summary:
+        console.print(f"  Summary: {scene.summary}")
+    if scene.goal:
+        console.print(f"  Goal: {scene.goal}")
+    if scene.conflict:
+        console.print(f"  Conflict: {scene.conflict}")
+    if scene.outcome:
+        console.print(f"  Outcome: {scene.outcome}")
+    if scene.characters:
+        console.print(f"  Characters: {', '.join(scene.characters)}")
+    if scene.location:
+        console.print(f"  Location: {scene.location}")
+    if scene.time:
+        console.print(f"  Time: {scene.time}")
     console.print()
 
     # Confirm and add
     if yes or confirm("Add this scene?"):
         # Check for duplicate ID
         existing_ids = get_all_entity_ids(project)
-        if suggestion.id in existing_ids:
-            typer.echo(f"Error: ID '{suggestion.id}' already exists. Try again or use 'scene add' manually.", err=True)
+        if scene.id in existing_ids:
+            typer.echo(f"Error: ID '{scene.id}' already exists. Try again or use 'scene add' manually.", err=True)
             raise typer.Exit(code=1)
 
-        # Validate references
+        # Validate references - filter to valid character/location IDs
         valid_char_ids = {c.id for c in project.characters}
-        valid_characters = [c for c in suggestion.characters if c in valid_char_ids]
+        scene.characters = [c for c in scene.characters if c in valid_char_ids]
 
-        valid_location = None
-        if suggestion.location and project.world:
+        if scene.location and project.world:
             loc_fact = next(
-                (f for f in project.world.facts if f.id == suggestion.location and f.type == "location"),
+                (f for f in project.world.facts if f.id == scene.location and f.type == "location"),
                 None,
             )
-            if loc_fact:
-                valid_location = suggestion.location
+            if not loc_fact:
+                scene.location = None
 
-        scene = Scene(
-            id=suggestion.id,
-            summary=suggestion.summary,
-            goal=suggestion.goal,
-            conflict=suggestion.conflict,
-            outcome=suggestion.outcome,
-            characters=valid_characters,
-            location=valid_location,
-            time=suggestion.time,
-        )
         project.plot.scenes.append(scene)
 
         # Add to chapter if specified
@@ -214,13 +209,13 @@ def suggest(
             if chapter_obj:
                 if chapter_obj.scene_ids is None:
                     chapter_obj.scene_ids = []
-                chapter_obj.scene_ids.append(suggestion.id)
+                chapter_obj.scene_ids.append(scene.id)
 
         save_project(project, project_dir)
         if chapter:
-            typer.echo(f"Added scene: {suggestion.id} to chapter {chapter}")
+            typer.echo(f"Added scene: {scene.id} to chapter {chapter}")
         else:
-            typer.echo(f"Added scene: {suggestion.id}")
+            typer.echo(f"Added scene: {scene.id}")
     else:
         typer.echo("Scene not added.")
 
