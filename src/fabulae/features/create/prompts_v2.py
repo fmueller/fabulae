@@ -15,6 +15,10 @@ from fabulae.features.create.context import (
     StanzaContext,
 )
 from fabulae.features.create.schemas import StyleOutput
+from fabulae.features.entities.generation.title_structure import (
+    TitleRequirement,
+    get_title_requirement,
+)
 from fabulae.prompts import build_system_prompt, format_sections
 
 
@@ -148,108 +152,6 @@ def build_location_prompt_v2(context: LocationContext) -> str:
     return build_system_prompt(purpose, _format_guidelines()) + "\n\n" + format_sections(sections)
 
 
-def _extract_title_patterns(titles: list[str]) -> dict[str, list[str]]:
-    """Extract overused patterns from previous titles (language-agnostic)."""
-    from collections import Counter
-
-    starters: list[str] = []
-    all_words: list[str] = []
-
-    for title in titles:
-        words = title.split()
-        if words:
-            starters.append(words[0])
-            all_words.extend(w for w in words if len(w) > 2)
-
-    starter_counts = Counter(starters)
-    overused_starters = [word for word, count in starter_counts.items() if count >= 2]
-
-    word_counts = Counter(w.lower() for w in all_words)
-    overused_keywords = [word for word, count in word_counts.items() if count >= 2]
-
-    phrase_counts: Counter[str] = Counter()
-    for title in titles:
-        words = title.lower().split()
-        for i in range(len(words) - 1):
-            phrase = f"{words[i]} {words[i + 1]}"
-            phrase_counts[phrase] += 1
-    phrases = [phrase for phrase, count in phrase_counts.items() if count >= 2]
-
-    return {"starters": overused_starters, "phrases": phrases, "keywords": overused_keywords}
-
-
-# Title structures with concrete examples for structure rotation
-TITLE_STRUCTURES = [
-    {
-        "name": "possessive",
-        "instruction": "Use possessive format: [Name]'s [Noun]",
-        "examples": ["Elena's Gambit", "The Captain's Doubt", "Marcus's Betrayal"],
-    },
-    {
-        "name": "question",
-        "instruction": "Start with What/When/Where/Why/How",
-        "examples": ["What the River Knows", "When Shadows Fall", "Where Trust Dies"],
-    },
-    {
-        "name": "verb_phrase",
-        "instruction": "Start with a verb (-ing or imperative)",
-        "examples": ["Burning Bridges", "Breaking Silence", "Chasing Ghosts"],
-    },
-    {
-        "name": "single_word",
-        "instruction": "Use exactly ONE evocative word",
-        "examples": ["Reckoning", "Descent", "Shattered", "Awakening"],
-    },
-    {
-        "name": "preposition",
-        "instruction": "Start with a preposition (Beyond, Into, Through, etc.)",
-        "examples": ["Beyond the Wall", "Into Darkness", "Through Fire"],
-    },
-    {
-        "name": "the_last_first",
-        "instruction": "Use 'The Last/First/Final [Noun]' format",
-        "examples": ["The Last Stand", "The First Lie", "The Final Hour"],
-    },
-    {
-        "name": "number",
-        "instruction": "Include a number in the title",
-        "examples": ["Seven Days", "The Third Door", "One Last Chance"],
-    },
-    {
-        "name": "contrast",
-        "instruction": "Use contrast/opposition with 'and' or 'of'",
-        "examples": ["Blood and Stone", "Ashes of Hope", "Truth in Lies"],
-    },
-]
-
-
-def get_title_structure(chapter_index: int, total_chapters: int) -> dict[str, str | list[str]]:
-    """Get the assigned title structure for a chapter position.
-
-    Rotates through structures to ensure variety. The rotation is deterministic
-    based on chapter index.
-
-    Args:
-        chapter_index: 0-based index of the chapter
-        total_chapters: Total number of chapters (for potential future use)
-
-    Returns:
-        Structure dict with name, instruction, and examples
-    """
-    _ = total_chapters  # Reserved for future use
-    structure_index = chapter_index % len(TITLE_STRUCTURES)
-    structure = TITLE_STRUCTURES[structure_index]
-    # Cast to satisfy mypy - the structure dict has known string keys
-    name: str = str(structure["name"])
-    instruction: str = str(structure["instruction"])
-    examples: list[str] = list(structure["examples"])
-    return {
-        "name": name,
-        "instruction": instruction,
-        "examples": examples,
-    }
-
-
 def _build_title_requirement(
     chapter_index: int,
     total_chapters: int,
@@ -261,6 +163,8 @@ def _build_title_requirement(
     Forces structural variety by assigning a specific structure to each chapter.
     Also includes bans on overused words/patterns from previous titles.
 
+    Uses the unified title_structure module from the generation package.
+
     Args:
         chapter_index: 0-based index of the current chapter
         total_chapters: Total number of chapters
@@ -270,38 +174,12 @@ def _build_title_requirement(
     Returns:
         Formatted title requirement string for the prompt
     """
-    structure = get_title_structure(chapter_index, total_chapters)
-
-    lines = ["TITLE REQUIREMENT (MANDATORY):"]
-
-    # Language hint
-    if language:
-        lines.append(f"  Language: Generate title in {language.upper()}")
-
-    # Required structure
-    lines.append(f"  Required Structure: {structure['instruction']}")
-    examples = ", ".join(f'"{ex}"' for ex in structure["examples"][:2])
-    lines.append(f"  Examples: {examples}")
-
-    # Add bans based on previous titles
-    if previous_titles:
-        patterns = _extract_title_patterns(previous_titles)
-
-        # Ban overused starters
-        if patterns["starters"]:
-            banned = ", ".join(f'"{s}"' for s in patterns["starters"][:3])
-            lines.append(f"  DO NOT start with: {banned}")
-
-        # Ban overused keywords
-        if patterns["keywords"]:
-            banned = ", ".join(f'"{k}"' for k in patterns["keywords"][:4])
-            lines.append(f"  DO NOT use words: {banned}")
-
-        # Show recent titles to avoid similarity
-        recent = previous_titles[-3:]
-        lines.append(f"  Recent titles (avoid similarity): {', '.join(recent)}")
-
-    return "\n".join(lines)
+    title_req: TitleRequirement = get_title_requirement(
+        chapter_index=chapter_index,
+        total_chapters=total_chapters,
+        previous_titles=previous_titles,
+    )
+    return title_req.format_for_prompt(language)
 
 
 def build_chapter_prompt_v2(context: ChapterContext) -> str:
