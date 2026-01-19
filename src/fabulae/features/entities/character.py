@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -20,8 +18,11 @@ from fabulae.features.entities.utils import (
     find_character_by_id,
     get_all_entity_ids,
     get_character_references,
+    output_list_as_json,
+    output_list_as_yaml,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Character, load_project, save_project
@@ -162,6 +163,8 @@ def list_characters(
         typer.echo("No characters in project.")
         return
 
+    validate_output_format(format)
+
     if format == "table":
         table = Table(title="Characters")
         table.add_column("ID", style="cyan")
@@ -176,18 +179,10 @@ def list_characters(
             table.add_row(char.id, char.name, char.role or "", traits_str)
 
         console.print(table)
-
     elif format == "json":
-        data = [char.model_dump(exclude_none=True) for char in project.characters]
-        typer.echo(json.dumps(data, indent=2))
-
+        output_list_as_json(project.characters)
     elif format == "yaml":
-        data = [char.model_dump(exclude_none=True) for char in project.characters]
-        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
+        output_list_as_yaml(project.characters)
 
 
 @character_app.command("remove")

@@ -17,30 +17,19 @@ from fabulae.features.entities.schemas import BeatSuggestion
 from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
+    find_beat_in_project,
     find_scene_by_id,
     get_all_entity_ids,
     require_prose_format,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Beat, load_project, save_project
 
 beat_app = typer.Typer(help="Manage beats in a Fabulae project.")
 console = Console()
-
-
-def _find_beat_in_project(project: object, beat_id: str) -> tuple[object, Beat] | None:
-    """Find a beat by ID across all scenes. Returns (scene, beat) or None."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for scene in project.plot.scenes:
-        for beat in scene.beats:
-            if beat.id == beat_id:
-                return (scene, beat)
-    return None
 
 
 @beat_app.command("add")
@@ -204,6 +193,8 @@ def list_beats(
             typer.echo("No beats in project.")
         return
 
+    validate_output_format(format)
+
     if format == "table":
         table = Table(title="Beats")
         table.add_column("Scene", style="cyan")
@@ -218,16 +209,10 @@ def list_beats(
             table.add_row(str(b["scene_id"]), str(b["id"]), str(b["kind"]), summary)
 
         console.print(table)
-
     elif format == "json":
         typer.echo(json.dumps(beats_data, indent=2))
-
     elif format == "yaml":
         typer.echo(yaml.dump(beats_data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
 
 
 @beat_app.command("move")
@@ -248,7 +233,7 @@ def move(
     require_prose_format(project, "beat move")
 
     # Find the beat
-    result = _find_beat_in_project(project, beat_id)
+    result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
         raise typer.Exit(code=1)
@@ -294,7 +279,7 @@ def remove(
     require_prose_format(project, "beat remove")
 
     # Find the beat
-    result = _find_beat_in_project(project, beat_id)
+    result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
         raise typer.Exit(code=1)
@@ -340,7 +325,7 @@ def edit(
     require_prose_format(project, "beat edit")
 
     # Find the beat
-    result = _find_beat_in_project(project, beat_id)
+    result = find_beat_in_project(project, beat_id)
     if not result:
         typer.echo(f"Error: Beat '{beat_id}' not found.", err=True)
         raise typer.Exit(code=1)

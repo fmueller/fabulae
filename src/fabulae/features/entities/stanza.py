@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -17,28 +15,20 @@ from fabulae.features.entities.schemas import StanzaSuggestion
 from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
+    find_stanza_by_id,
     get_all_entity_ids,
+    output_list_as_json,
+    output_list_as_yaml,
     require_poem_format,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Stanza, load_project, save_project
 
 stanza_app = typer.Typer(help="Manage stanzas in a Fabulae project.")
 console = Console()
-
-
-def _find_stanza_by_id(project: object, stanza_id: str) -> Stanza | None:
-    """Find a stanza by ID in the project."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for stanza in project.plot.stanzas:
-        if stanza.id == stanza_id:
-            return stanza
-    return None
 
 
 @stanza_app.command("add")
@@ -161,6 +151,8 @@ def list_stanzas(
         typer.echo("No stanzas in project.")
         return
 
+    validate_output_format(format)
+
     if format == "table":
         table = Table(title="Stanzas")
         table.add_column("ID", style="cyan")
@@ -176,18 +168,10 @@ def list_stanzas(
             table.add_row(s.id, line_preview, s.meter or "", s.rhyme_scheme or "")
 
         console.print(table)
-
     elif format == "json":
-        data = [s.model_dump(exclude_none=True) for s in project.plot.stanzas]
-        typer.echo(json.dumps(data, indent=2))
-
+        output_list_as_json(project.plot.stanzas)
     elif format == "yaml":
-        data = [s.model_dump(exclude_none=True) for s in project.plot.stanzas]
-        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
+        output_list_as_yaml(project.plot.stanzas)
 
 
 @stanza_app.command("remove")
@@ -204,7 +188,7 @@ def remove(
     project = load_project(project_dir)
     require_poem_format(project, "stanza remove")
 
-    stanza = _find_stanza_by_id(project, stanza_id)
+    stanza = find_stanza_by_id(project, stanza_id)
     if not stanza:
         typer.echo(f"Error: Stanza '{stanza_id}' not found.", err=True)
         raise typer.Exit(code=1)
@@ -237,7 +221,7 @@ def edit(
     project = load_project(project_dir)
     require_poem_format(project, "stanza edit")
 
-    stanza = _find_stanza_by_id(project, stanza_id)
+    stanza = find_stanza_by_id(project, stanza_id)
     if not stanza:
         typer.echo(f"Error: Stanza '{stanza_id}' not found.", err=True)
         raise typer.Exit(code=1)

@@ -1,24 +1,16 @@
 """Tests for character CRUD commands."""
 
-import re
 from pathlib import Path
 
 import yaml
-from typer.testing import CliRunner
 
 from fabulae.main import app
 from fabulae.models import load_project
-
-runner = CliRunner()
-
-
-def strip_ansi(text: str) -> str:
-    """Strip ANSI escape codes from text."""
-    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+from tests.conftest import runner, strip_ansi
 
 
 def create_test_project(tmp_path: Path) -> Path:
-    """Create a minimal test project."""
+    """Create a minimal test project with characters."""
     (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
     (tmp_path / "plot.yml").write_text(
         yaml.dump(

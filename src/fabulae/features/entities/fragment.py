@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -17,28 +15,20 @@ from fabulae.features.entities.schemas import FragmentSuggestion
 from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
+    find_fragment_by_id,
     get_all_entity_ids,
+    output_list_as_json,
+    output_list_as_yaml,
     require_micro_prose_format,
     resolve_idea_input,
     validate_entity_id,
+    validate_output_format,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Fragment, load_project, save_project
 
 fragment_app = typer.Typer(help="Manage fragments in a Fabulae project.")
 console = Console()
-
-
-def _find_fragment_by_id(project: object, fragment_id: str) -> Fragment | None:
-    """Find a fragment by ID in the project."""
-    from fabulae.models import Project
-
-    if not isinstance(project, Project):
-        return None
-    for fragment in project.plot.fragments:
-        if fragment.id == fragment_id:
-            return fragment
-    return None
 
 
 @fragment_app.command("add")
@@ -157,6 +147,8 @@ def list_fragments(
         typer.echo("No fragments in project.")
         return
 
+    validate_output_format(format)
+
     if format == "table":
         table = Table(title="Fragments")
         table.add_column("ID", style="cyan")
@@ -172,18 +164,10 @@ def list_fragments(
             )
 
         console.print(table)
-
     elif format == "json":
-        data = [f.model_dump(exclude_none=True) for f in project.plot.fragments]
-        typer.echo(json.dumps(data, indent=2))
-
+        output_list_as_json(project.plot.fragments)
     elif format == "yaml":
-        data = [f.model_dump(exclude_none=True) for f in project.plot.fragments]
-        typer.echo(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-
-    else:
-        typer.echo(f"Unknown format: {format}. Use table, json, or yaml.", err=True)
-        raise typer.Exit(code=1)
+        output_list_as_yaml(project.plot.fragments)
 
 
 @fragment_app.command("remove")
@@ -200,7 +184,7 @@ def remove(
     project = load_project(project_dir)
     require_micro_prose_format(project, "fragment remove")
 
-    fragment = _find_fragment_by_id(project, fragment_id)
+    fragment = find_fragment_by_id(project, fragment_id)
     if not fragment:
         typer.echo(f"Error: Fragment '{fragment_id}' not found.", err=True)
         raise typer.Exit(code=1)
@@ -230,7 +214,7 @@ def edit(
     project = load_project(project_dir)
     require_micro_prose_format(project, "fragment edit")
 
-    fragment = _find_fragment_by_id(project, fragment_id)
+    fragment = find_fragment_by_id(project, fragment_id)
     if not fragment:
         typer.echo(f"Error: Fragment '{fragment_id}' not found.", err=True)
         raise typer.Exit(code=1)
