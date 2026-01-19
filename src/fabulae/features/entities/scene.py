@@ -20,6 +20,7 @@ from fabulae.features.entities.utils import (
     find_scene_by_id,
     get_all_entity_ids,
     resolve_idea_input,
+    validate_entity_id,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Chapter, Scene, load_project, save_project
@@ -70,6 +71,9 @@ def add(
     Example:
         fabulae scene add ./my-novel --id scene-discovery --chapter chapter-01 --summary "Vera finds a clue"
     """
+    # Validate ID format before loading project
+    validate_entity_id(id)
+
     project = load_project(project_dir)
 
     # Check for duplicate ID
@@ -379,9 +383,7 @@ def edit(
     goal: Annotated[str | None, typer.Option("--goal", help="New goal.")] = None,
     conflict: Annotated[str | None, typer.Option("--conflict", help="New conflict.")] = None,
     outcome: Annotated[str | None, typer.Option("--outcome", help="New outcome.")] = None,
-    add_character: Annotated[
-        list[str] | None, typer.Option("--add-character", help="Add character ID.")
-    ] = None,
+    add_character: Annotated[list[str] | None, typer.Option("--add-character", help="Add character ID.")] = None,
     remove_character: Annotated[
         list[str] | None, typer.Option("--remove-character", help="Remove character ID.")
     ] = None,

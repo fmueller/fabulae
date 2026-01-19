@@ -20,6 +20,7 @@ from fabulae.features.entities.utils import (
     find_scene_by_id,
     get_all_entity_ids,
     resolve_idea_input,
+    validate_entity_id,
 )
 from fabulae.llm import resolve_config
 from fabulae.models import Beat, load_project, save_project
@@ -59,6 +60,9 @@ def add(
     Example:
         fabulae beat add ./my-novel --scene scene-01 --id beat-discovery --kind revelation
     """
+    # Validate ID format before loading project
+    validate_entity_id(id)
+
     project = load_project(project_dir)
 
     scene_obj = find_scene_by_id(project, scene)
@@ -176,12 +180,14 @@ def list_beats(
         if scene and s.id != scene:
             continue
         for beat in s.beats:
-            beats_data.append({
-                "scene_id": s.id,
-                "id": beat.id,
-                "kind": beat.kind,
-                "summary": beat.summary,
-            })
+            beats_data.append(
+                {
+                    "scene_id": s.id,
+                    "id": beat.id,
+                    "kind": beat.kind,
+                    "summary": beat.summary,
+                }
+            )
 
     if not beats_data:
         if scene:
