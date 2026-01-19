@@ -18,6 +18,7 @@ from fabulae.features.entities.service import suggest_entity_sync
 from fabulae.features.entities.utils import (
     confirm,
     get_all_entity_ids,
+    require_prose_format,
     resolve_idea_input,
     validate_entity_id,
 )
@@ -56,6 +57,7 @@ def add(
     validate_entity_id(id)
 
     project = load_project(project_dir)
+    require_prose_format(project, "chapter add")
 
     # Check for duplicate ID
     existing_ids = get_all_entity_ids(project)
@@ -90,6 +92,7 @@ def suggest(
         fabulae chapter suggest ./my-novel --idea "a climactic confrontation"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "chapter suggest")
 
     # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
@@ -145,6 +148,7 @@ def list_chapters(
         fabulae chapter list ./my-novel
     """
     project = load_project(project_dir)
+    require_prose_format(project, "chapter list")
 
     if not project.plot.chapters:
         typer.echo("No chapters in project.")
@@ -201,6 +205,7 @@ def remove(
         fabulae chapter remove ./my-novel chapter-03 --cascade
     """
     project = load_project(project_dir)
+    require_prose_format(project, "chapter remove")
 
     chapter = _find_chapter_by_id(project, chapter_id)
     if not chapter:
@@ -274,6 +279,7 @@ def edit(
         fabulae chapter edit ./my-novel chapter-03 --title "The Big Reveal"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "chapter edit")
 
     chapter = _find_chapter_by_id(project, chapter_id)
     if not chapter:

@@ -87,3 +87,31 @@ class WorldFactSuggestion(BaseModel):
     @classmethod
     def strip_whitespace(cls, v: str | None) -> str | None:
         return v.strip() if v else v
+
+
+class FragmentSuggestion(BaseModel):
+    """Suggested fragment from LLM (for micro-prose format)."""
+
+    id: str = Field(description="Unique lowercase-with-hyphens (e.g., 'fragment-03').")
+    content: str = Field(description="The prose content of this fragment (1-3 paragraphs).")
+    target_words: int | None = Field(default=None, ge=1, description="Target word count.")
+    notes: str | None = Field(default=None, description="Optional notes about this fragment.")
+
+    @field_validator("content", "notes", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v
+
+
+class StanzaSuggestion(BaseModel):
+    """Suggested stanza from LLM (for poem format)."""
+
+    id: str = Field(description="Unique lowercase-with-hyphens (e.g., 'stanza-03').")
+    lines: list[str] = Field(default_factory=list, description="The lines of this stanza.")
+    meter: str | None = Field(default=None, description="Meter pattern (e.g., 'iambic pentameter').")
+    rhyme_scheme: str | None = Field(default=None, description="Rhyme scheme (e.g., 'ABAB').")
+
+    @field_validator("meter", "rhyme_scheme", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str | None) -> str | None:
+        return v.strip() if v else v

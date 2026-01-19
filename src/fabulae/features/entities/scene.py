@@ -19,6 +19,7 @@ from fabulae.features.entities.utils import (
     confirm,
     find_scene_by_id,
     get_all_entity_ids,
+    require_prose_format,
     resolve_idea_input,
     validate_entity_id,
 )
@@ -76,6 +77,7 @@ def add(
     validate_entity_id(id)
 
     project = load_project(project_dir)
+    require_prose_format(project, "scene add")
 
     # Check for duplicate ID
     existing_ids = get_all_entity_ids(project)
@@ -156,6 +158,7 @@ def suggest(
         fabulae scene suggest ./my-novel --chapter chapter-02 --idea "confrontation"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "scene suggest")
 
     # Validate chapter if provided
     if chapter:
@@ -255,6 +258,7 @@ def list_scenes(
         fabulae scene list ./my-novel --chapter chapter-01
     """
     project = load_project(project_dir)
+    require_prose_format(project, "scene list")
 
     scenes = project.plot.scenes
     if chapter:
@@ -313,6 +317,7 @@ def move(
         fabulae scene move ./my-novel scene-discovery --to-chapter chapter-02
     """
     project = load_project(project_dir)
+    require_prose_format(project, "scene move")
 
     # Find the scene
     scene = find_scene_by_id(project, scene_id)
@@ -357,6 +362,7 @@ def remove(
         fabulae scene remove ./my-novel scene-discovery
     """
     project = load_project(project_dir)
+    require_prose_format(project, "scene remove")
 
     scene = find_scene_by_id(project, scene_id)
     if not scene:
@@ -408,6 +414,7 @@ def edit(
         fabulae scene edit ./my-novel scene-discovery --location tavern --summary "Updated scene"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "scene edit")
 
     scene = find_scene_by_id(project, scene_id)
     if not scene:

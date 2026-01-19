@@ -66,9 +66,7 @@ def build_beat_suggest_prompt(
     guidance: str | None = None,
 ) -> str:
     """Build prompt for beat suggestion within a scene."""
-    existing_beats = (
-        "\n".join([f"- {b.id}: [{b.kind}] {b.summary}" for b in (scene.beats or [])]) or "No beats yet."
-    )
+    existing_beats = "\n".join([f"- {b.id}: [{b.kind}] {b.summary}" for b in (scene.beats or [])]) or "No beats yet."
 
     scene_characters = [c for c in project.characters if c.id in (scene.characters or [])]
     char_context = format_existing_characters(scene_characters)
@@ -181,10 +179,7 @@ def build_chapter_suggest_prompt(
     guidance: str | None = None,
 ) -> str:
     """Build prompt for chapter suggestion."""
-    chapter_lines = [
-        f"- {c.id}: {c.title or 'Untitled'} - {c.summary or 'No summary'}"
-        for c in project.plot.chapters
-    ]
+    chapter_lines = [f"- {c.id}: {c.title or 'Untitled'} - {c.summary or 'No summary'}" for c in project.plot.chapters]
     existing_chapters = "\n".join(chapter_lines) or "No chapters yet."
 
     existing_scenes = format_existing_scenes(project.plot.scenes)
@@ -258,5 +253,88 @@ Generate a world fact with these fields:
 - type: One of "location", "culture", "history", "rule", "object"
 - name: Name of the location or concept
 - facts: List of 2-4 specific details about this world element
+
+Output valid JSON matching this schema."""
+
+
+def build_fragment_suggest_prompt(
+    project: Project,
+    guidance: str | None = None,
+) -> str:
+    """Build prompt for fragment suggestion (micro-prose format)."""
+    # Format existing fragments
+    fragment_lines = []
+    for f in project.plot.fragments:
+        content_preview = f.content[:50] + "..." if len(f.content) > 50 else f.content
+        fragment_lines.append(f"- {f.id}: {content_preview}")
+    existing_fragments = "\n".join(fragment_lines) or "No fragments yet."
+
+    # Get project language for language guard
+    language = project.style.language if project.style else None
+    language_instruction = ""
+    if language:
+        language_instruction = f"\nIMPORTANT: All text content MUST be written in {language}.\n"
+
+    guidance_section = f"\nUSER GUIDANCE: {guidance}\n" if guidance else ""
+
+    return f"""You are helping add a fragment to a flash fiction story.
+{language_instruction}
+PREMISE: {project.plot.premise if project.plot else "Not specified"}
+
+EXISTING FRAGMENTS:
+{existing_fragments}
+{guidance_section}
+Create a NEW fragment that:
+1. Advances the narrative
+2. Flows naturally from existing fragments
+3. Maintains consistent tone and style
+
+Generate a fragment with these fields:
+- id: Unique lowercase-with-hyphens (e.g., "fragment-03")
+- content: The prose content (1-3 paragraphs of evocative micro-prose)
+- target_words: Optional target word count (number)
+- notes: Optional notes about this fragment's purpose
+
+Output valid JSON matching this schema."""
+
+
+def build_stanza_suggest_prompt(
+    project: Project,
+    guidance: str | None = None,
+) -> str:
+    """Build prompt for stanza suggestion (poem format)."""
+    # Format existing stanzas
+    stanza_lines = []
+    for s in project.plot.stanzas:
+        first_line = s.lines[0] if s.lines else "No lines"
+        line_preview = first_line[:40] + "..." if len(first_line) > 40 else first_line
+        stanza_lines.append(f'- {s.id}: "{line_preview}"')
+    existing_stanzas = "\n".join(stanza_lines) or "No stanzas yet."
+
+    # Get project language for language guard
+    language = project.style.language if project.style else None
+    language_instruction = ""
+    if language:
+        language_instruction = f"\nIMPORTANT: All text content MUST be written in {language}.\n"
+
+    guidance_section = f"\nUSER GUIDANCE: {guidance}\n" if guidance else ""
+
+    return f"""You are helping add a stanza to a poem.
+{language_instruction}
+PREMISE: {project.plot.premise if project.plot else "Not specified"}
+
+EXISTING STANZAS:
+{existing_stanzas}
+{guidance_section}
+Create a NEW stanza that:
+1. Continues the poem's themes
+2. Maintains consistent meter and rhyme scheme (if established)
+3. Advances the poetic narrative
+
+Generate a stanza with these fields:
+- id: Unique lowercase-with-hyphens (e.g., "stanza-03")
+- lines: List of lines in this stanza
+- meter: Optional meter pattern (e.g., "iambic pentameter")
+- rhyme_scheme: Optional rhyme scheme (e.g., "ABAB")
 
 Output valid JSON matching this schema."""

@@ -227,6 +227,12 @@ class TestSceneRemove:
         """Remove a scene with force flag."""
         create_test_project(tmp_path)
 
+        # First add another scene so we can remove one (novel requires at least one scene)
+        runner.invoke(
+            app,
+            ["scene", "add", str(tmp_path), "--id", "scene-02", "--chapter", "chapter-01"],
+        )
+
         result = runner.invoke(
             app,
             ["scene", "remove", str(tmp_path), "scene-01", "--force"],
@@ -448,6 +454,73 @@ class TestSceneWorldFacts:
         # Should still succeed but with warning
         assert result.exit_code == 0
         assert "not found" in result.output.lower() or "warning" in result.output.lower()
+
+
+class TestSceneFormatValidation:
+    """Tests for scene format validation."""
+
+    def test_scene_add_on_micro_prose_fails_with_helpful_error(self, tmp_path: Path) -> None:
+        """Adding scene to micro-prose project fails with format error."""
+        # Create micro-prose project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A micro story",
+                    "format": "micro-prose",
+                    "fragments": [{"id": "frag-01", "content": "Opening."}],
+                }
+            )
+        )
+
+        result = runner.invoke(
+            app,
+            ["scene", "add", str(tmp_path), "--id", "scene-01", "--summary", "Test"],
+        )
+        assert result.exit_code == 1
+        assert "micro-prose" in result.output
+        assert "fragment" in result.output.lower()
+
+    def test_scene_add_on_poem_fails_with_helpful_error(self, tmp_path: Path) -> None:
+        """Adding scene to poem project fails with format error."""
+        # Create poem project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A poem",
+                    "format": "poem",
+                    "stanzas": [{"id": "stanza-01", "lines": ["First line"]}],
+                }
+            )
+        )
+
+        result = runner.invoke(
+            app,
+            ["scene", "add", str(tmp_path), "--id", "scene-01", "--summary", "Test"],
+        )
+        assert result.exit_code == 1
+        assert "poem" in result.output
+        assert "stanza" in result.output.lower()
+
+    def test_scene_list_on_micro_prose_fails_with_helpful_error(self, tmp_path: Path) -> None:
+        """Listing scenes on micro-prose project fails with format error."""
+        # Create micro-prose project
+        (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+        (tmp_path / "plot.yml").write_text(
+            yaml.dump(
+                {
+                    "premise": "A micro story",
+                    "format": "micro-prose",
+                    "fragments": [{"id": "frag-01", "content": "Opening."}],
+                }
+            )
+        )
+
+        result = runner.invoke(app, ["scene", "list", str(tmp_path)])
+        assert result.exit_code == 1
+        assert "micro-prose" in result.output
+        assert "fragment" in result.output.lower()
 
 
 class TestSceneAddValidation:

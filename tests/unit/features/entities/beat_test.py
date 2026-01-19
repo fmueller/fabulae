@@ -508,3 +508,67 @@ class TestBeatAddValidation:
         )
         assert result.exit_code == 1
         assert "Traceback" not in result.output
+
+
+def create_micro_prose_project(tmp_path: Path) -> Path:
+    """Create a minimal micro-prose test project."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A flash fiction test.",
+                "format": "micro-prose",
+                "fragments": [
+                    {"id": "fragment-01", "content": "First fragment."},
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
+def create_poem_project(tmp_path: Path) -> Path:
+    """Create a minimal poem test project."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A poetry test.",
+                "format": "poem",
+                "stanzas": [
+                    {"id": "stanza-01", "lines": ["First line."]},
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
+class TestBeatFormatValidation:
+    """Tests for beat format validation."""
+
+    def test_beat_add_on_micro_prose_fails_with_helpful_error(self, tmp_path: Path) -> None:
+        """Adding beat to micro-prose project fails with format error."""
+        create_micro_prose_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "add", str(tmp_path), "--scene", "scene-01", "--id", "beat-01", "--kind", "action"],
+        )
+        assert result.exit_code == 1
+        output = strip_ansi(result.output)
+        assert "micro-prose" in output
+        assert "fragment" in output.lower()
+
+    def test_beat_add_on_poem_fails_with_helpful_error(self, tmp_path: Path) -> None:
+        """Adding beat to poem project fails with format error."""
+        create_poem_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "add", str(tmp_path), "--scene", "scene-01", "--id", "beat-01", "--kind", "action"],
+        )
+        assert result.exit_code == 1
+        output = strip_ansi(result.output)
+        assert "poem" in output
+        assert "stanza" in output.lower()

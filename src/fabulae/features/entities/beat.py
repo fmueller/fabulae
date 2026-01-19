@@ -19,6 +19,7 @@ from fabulae.features.entities.utils import (
     confirm,
     find_scene_by_id,
     get_all_entity_ids,
+    require_prose_format,
     resolve_idea_input,
     validate_entity_id,
 )
@@ -67,6 +68,7 @@ def add(
     validate_entity_id(id)
 
     project = load_project(project_dir)
+    require_prose_format(project, "beat add")
 
     scene_obj = find_scene_by_id(project, scene)
     if not scene_obj:
@@ -112,6 +114,7 @@ def suggest(
         fabulae beat suggest ./my-novel --scene scene-01 --idea "escalate tension"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "beat suggest")
 
     scene_obj = find_scene_by_id(project, scene)
     if not scene_obj:
@@ -177,6 +180,7 @@ def list_beats(
         fabulae beat list ./my-novel --scene scene-01
     """
     project = load_project(project_dir)
+    require_prose_format(project, "beat list")
 
     # Collect beats with scene info
     beats_data: list[dict[str, object]] = []
@@ -241,6 +245,7 @@ def move(
         fabulae beat move ./my-novel beat-discovery --to-scene scene-02 --position 0
     """
     project = load_project(project_dir)
+    require_prose_format(project, "beat move")
 
     # Find the beat
     result = _find_beat_in_project(project, beat_id)
@@ -286,6 +291,7 @@ def remove(
         fabulae beat remove ./my-novel beat-discovery
     """
     project = load_project(project_dir)
+    require_prose_format(project, "beat remove")
 
     # Find the beat
     result = _find_beat_in_project(project, beat_id)
@@ -331,6 +337,7 @@ def edit(
         fabulae beat edit ./my-novel beat-discovery --kind action --summary "Vera examines the evidence"
     """
     project = load_project(project_dir)
+    require_prose_format(project, "beat edit")
 
     # Find the beat
     result = _find_beat_in_project(project, beat_id)
