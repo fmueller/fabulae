@@ -50,19 +50,14 @@ def add(
     Example:
         fabulae scene add ./my-novel --id scene-discovery --chapter chapter-01 --summary "Vera finds a clue"
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
     require_prose_format(project, "scene add")
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
-    # Validate location if provided
     if location:
         if not project.world:
             typer.echo(f"Error: No world facts defined. Cannot use location '{location}'.", err=True)
@@ -72,7 +67,6 @@ def add(
             typer.echo(f"Error: Location '{location}' not found or not a location type.", err=True)
             raise typer.Exit(code=1)
 
-    # Validate characters if provided
     if characters:
         valid_char_ids = {c.id for c in project.characters}
         invalid = set(characters) - valid_char_ids
@@ -80,7 +74,6 @@ def add(
             typer.echo(f"Error: Unknown character IDs: {', '.join(sorted(invalid))}", err=True)
             raise typer.Exit(code=1)
 
-    # Validate world facts if provided
     if world_facts:
         valid_fact_ids = {f.id for f in project.world.facts} if project.world else set()
         invalid = set(world_facts) - valid_fact_ids
@@ -100,8 +93,6 @@ def add(
         world_fact_ids=world_facts or [],
     )
     project.plot.scenes.append(scene)
-
-    # Add to chapter if specified
     if chapter:
         chapter_obj = find_chapter_by_id(project, chapter)
         if not chapter_obj:
@@ -137,7 +128,6 @@ def suggest(
     project = load_project(project_dir)
     require_prose_format(project, "scene suggest")
 
-    # Validate chapter if provided
     chapter_context = None
     if chapter:
         chapter_obj = find_chapter_by_id(project, chapter)
@@ -148,21 +138,12 @@ def suggest(
         if chapter_obj.summary:
             chapter_context += f" - {chapter_obj.summary}"
 
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating scene suggestion...")
-    scene = suggest_scene_sync(
-        project=project,
-        chapter_context=chapter_context,
-        guidance=guidance,
-        config=config,
-    )
+    scene = suggest_scene_sync(project=project, chapter_context=chapter_context, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested scene:[/bold]")
     console.print(f"  ID: {scene.id}")
     if scene.summary:
@@ -181,15 +162,11 @@ def suggest(
         console.print(f"  Time: {scene.time}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this scene?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if scene.id in existing_ids:
+        if scene.id in get_all_entity_ids(project):
             typer.echo(f"Error: ID '{scene.id}' already exists. Try again or use 'scene add' manually.", err=True)
             raise typer.Exit(code=1)
 
-        # Validate references - filter to valid character/location IDs
         valid_char_ids = {c.id for c in project.characters}
         scene.characters = [c for c in scene.characters if c in valid_char_ids]
 
@@ -202,8 +179,6 @@ def suggest(
                 scene.location = None
 
         project.plot.scenes.append(scene)
-
-        # Add to chapter if specified
         if chapter:
             chapter_obj = find_chapter_by_id(project, chapter)
             if chapter_obj:
@@ -287,24 +262,20 @@ def move(
     project = load_project(project_dir)
     require_prose_format(project, "scene move")
 
-    # Find the scene
     scene = find_scene_by_id(project, scene_id)
     if not scene:
         typer.echo(f"Error: Scene '{scene_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Find target chapter
     target_chapter = find_chapter_by_id(project, to_chapter)
     if not target_chapter:
         typer.echo(f"Error: Target chapter '{to_chapter}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Find source chapter and remove
     source_chapter = find_chapter_containing_scene(project, scene_id)
     if source_chapter and source_chapter.scene_ids:
         source_chapter.scene_ids = [sid for sid in source_chapter.scene_ids if sid != scene_id]
 
-    # Add to target chapter
     if target_chapter.scene_ids is None:
         target_chapter.scene_ids = []
 
@@ -337,7 +308,6 @@ def remove(
         typer.echo(f"Error: Scene '{scene_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Warn about beats
     if scene.beats:
         typer.echo(f"Warning: Scene contains {len(scene.beats)} beat(s) that will be deleted.")
 
@@ -345,12 +315,10 @@ def remove(
         typer.echo("Scene not removed.")
         return
 
-    # Remove from chapter
     chapter = find_chapter_containing_scene(project, scene_id)
     if chapter and chapter.scene_ids:
         chapter.scene_ids = [sid for sid in chapter.scene_ids if sid != scene_id]
 
-    # Remove scene
     project.plot.scenes = [s for s in project.plot.scenes if s.id != scene_id]
 
     save_project(project, project_dir)
@@ -389,9 +357,8 @@ def edit(
         typer.echo(f"Error: Scene '{scene_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Validate location if provided
     if location is not None:
-        if location:  # Non-empty string
+        if location:
             if not project.world:
                 typer.echo(f"Error: No world facts defined. Cannot use location '{location}'.", err=True)
                 raise typer.Exit(code=1)
@@ -401,7 +368,6 @@ def edit(
                 raise typer.Exit(code=1)
         scene.location = location if location else None
 
-    # Update simple fields
     if time is not None:
         scene.time = time if time else None
     if summary is not None:
@@ -413,7 +379,6 @@ def edit(
     if outcome is not None:
         scene.outcome = outcome if outcome else None
 
-    # Handle character modifications
     if add_character:
         valid_char_ids = {c.id for c in project.characters}
         for char_id in add_character:
@@ -424,7 +389,6 @@ def edit(
     if remove_character:
         scene.characters = [c for c in scene.characters if c not in remove_character]
 
-    # Handle world fact modifications
     if add_world_fact:
         valid_fact_ids = {f.id for f in project.world.facts} if project.world else set()
         for fact_id in add_world_fact:

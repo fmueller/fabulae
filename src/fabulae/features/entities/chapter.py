@@ -41,15 +41,11 @@ def add(
     Example:
         fabulae chapter add ./my-novel --id chapter-03 --title "The Revelation"
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
     require_prose_format(project, "chapter add")
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
@@ -81,21 +77,12 @@ def suggest(
     """
     project = load_project(project_dir)
     require_prose_format(project, "chapter suggest")
-
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Get suggestion using generation module
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating chapter suggestion...")
-    chapter = suggest_chapter_sync(
-        project=project,
-        guidance=guidance,
-        config=config,
-    )
+    chapter = suggest_chapter_sync(project=project, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested chapter:[/bold]")
     console.print(f"  ID: {chapter.id}")
     if chapter.title:
@@ -104,11 +91,8 @@ def suggest(
         console.print(f"  Summary: {chapter.summary}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this chapter?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if chapter.id in existing_ids:
+        if chapter.id in get_all_entity_ids(project):
             typer.echo(
                 f"Error: ID '{chapter.id}' already exists. Try again or use 'chapter add' manually.",
                 err=True,
@@ -191,11 +175,9 @@ def remove(
         typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Handle chapters with scenes
     if chapter.scene_ids:
         scene_count = len(chapter.scene_ids)
 
-        # If neither option specified, error with guidance
         if not move_scenes_to and not cascade:
             typer.echo(f"Error: Chapter '{chapter_id}' contains {scene_count} scene(s).", err=True)
             typer.echo("Use one of the following options:", err=True)
@@ -203,43 +185,32 @@ def remove(
             typer.echo("  --cascade                      Delete the chapter AND its scenes", err=True)
             raise typer.Exit(code=1)
 
-        # Handle --move-scenes-to
         if move_scenes_to:
             target_chapter = find_chapter_by_id(project, move_scenes_to)
             if not target_chapter:
                 typer.echo(f"Error: Target chapter '{move_scenes_to}' not found.", err=True)
                 raise typer.Exit(code=1)
-
-            # Move scenes to target chapter
             if target_chapter.scene_ids is None:
                 target_chapter.scene_ids = []
             target_chapter.scene_ids.extend(chapter.scene_ids)
             typer.echo(f"Moved {scene_count} scene(s) to '{move_scenes_to}'")
 
-        # Handle --cascade
         elif cascade:
-            # Count beats that will be deleted
             beat_count = sum(len(scene.beats) for scene in project.plot.scenes if scene.id in chapter.scene_ids)
-
             if beat_count > 0:
                 typer.echo(f"Warning: This will delete {scene_count} scene(s) and {beat_count} beat(s).")
             else:
                 typer.echo(f"Warning: This will delete {scene_count} scene(s).")
-
             if not force and not confirm("Continue?"):
                 typer.echo("Chapter not removed.")
                 return
-
-            # Delete the scenes
             scene_ids_to_delete = set(chapter.scene_ids)
             project.plot.scenes = [s for s in project.plot.scenes if s.id not in scene_ids_to_delete]
 
-    # Confirm removal if not forced (for empty chapters or after moving scenes)
     elif not force and not confirm(f"Remove chapter '{chapter.title or chapter_id}' ({chapter_id})?"):
         typer.echo("Chapter not removed.")
         return
 
-    # Remove the chapter
     project.plot.chapters = [c for c in project.plot.chapters if c.id != chapter_id]
     save_project(project, project_dir)
     typer.echo(f"Removed chapter: {chapter_id}")
@@ -265,7 +236,6 @@ def edit(
         typer.echo(f"Error: Chapter '{chapter_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Update only provided fields
     if title is not None:
         chapter.title = title if title else None
     if summary is not None:

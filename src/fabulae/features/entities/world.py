@@ -44,31 +44,19 @@ def add(
     Example:
         fabulae world add ./my-novel --id tavern-golden --type location --name "The Tankard"
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
 
-    # Validate type
     valid_types = ["location", "culture", "history", "rule", "object"]
     if type not in valid_types:
         typer.echo(f"Error: Invalid type '{type}'. Must be one of: {', '.join(valid_types)}", err=True)
         raise typer.Exit(code=1)
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
-    world_fact = WorldFact(
-        id=id,
-        type=type,  # type: ignore[arg-type]
-        name=name,
-        facts=facts or [],
-    )
-
-    # Ensure world exists
+    world_fact = WorldFact(id=id, type=type, name=name, facts=facts or [])  # type: ignore[arg-type]
     if not project.world:
         project.world = World()
     project.world.facts.append(world_fact)
@@ -94,28 +82,18 @@ def suggest(
     """
     project = load_project(project_dir)
 
-    # Validate type if provided
     if type:
         valid_types = ["location", "culture", "history", "rule", "object"]
         if type not in valid_types:
             typer.echo(f"Error: Invalid type '{type}'. Must be one of: {', '.join(valid_types)}", err=True)
             raise typer.Exit(code=1)
 
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating world fact suggestion...")
-    world_fact = suggest_world_fact_sync(
-        project=project,
-        fact_type=type,
-        guidance=guidance,
-        config=config,
-    )
+    world_fact = suggest_world_fact_sync(project=project, fact_type=type, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested world fact:[/bold]")
     console.print(f"  ID: {world_fact.id}")
     console.print(f"  Type: {world_fact.type}")
@@ -126,15 +104,11 @@ def suggest(
             console.print(f"    - {fact}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this world fact?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if world_fact.id in existing_ids:
+        if world_fact.id in get_all_entity_ids(project):
             typer.echo(f"Error: ID '{world_fact.id}' already exists. Try again or use 'world add' manually.", err=True)
             raise typer.Exit(code=1)
 
-        # Ensure world exists
         if not project.world:
             project.world = World()
         project.world.facts.append(world_fact)
@@ -218,7 +192,6 @@ def remove(
         typer.echo(f"Error: World fact '{fact_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Check for references
     references = get_world_fact_references(project, fact_id)
     if references:
         typer.echo(f"Warning: World fact is referenced in scenes: {', '.join(references)}")
@@ -227,7 +200,6 @@ def remove(
         typer.echo("World fact not removed.")
         return
 
-    # Clean up references when force removing
     if references:
         typer.echo("Cleaning up references...")
         for scene in project.plot.scenes:
@@ -267,7 +239,6 @@ def edit(
         typer.echo(f"Error: World fact '{fact_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Validate type if provided
     if type is not None:
         valid_types = ["location", "culture", "history", "rule", "object"]
         if type not in valid_types:
@@ -275,11 +246,9 @@ def edit(
             raise typer.Exit(code=1)
         fact.type = type  # type: ignore[assignment]
 
-    # Update fields
     if name is not None:
         fact.name = name
 
-    # Handle fact modifications
     if add_fact:
         for f in add_fact:
             if f not in fact.facts:

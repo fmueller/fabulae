@@ -46,14 +46,10 @@ def add(
     Example:
         fabulae character add ./my-novel --id "detective-jane" --name "Jane Doe" --role protagonist
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
@@ -88,21 +84,12 @@ def suggest(
         fabulae character suggest ./my-novel --idea "a mysterious mentor figure"
     """
     project = load_project(project_dir)
-
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating character suggestion...")
-    character = suggest_character_sync(
-        project=project,
-        guidance=guidance,
-        config=config,
-    )
+    character = suggest_character_sync(project=project, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested character:[/bold]")
     console.print(f"  ID: {character.id}")
     console.print(f"  Name: {character.name}")
@@ -120,11 +107,8 @@ def suggest(
         console.print(f"  Traits: {', '.join(character.traits)}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this character?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if character.id in existing_ids:
+        if character.id in get_all_entity_ids(project):
             typer.echo(
                 f"Error: ID '{character.id}' already exists. Use 'character add' manually.",
                 err=True,
@@ -197,7 +181,6 @@ def remove(
         typer.echo(f"Error: Character '{character_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Check for references
     references = get_character_references(project, character_id)
     if references:
         typer.echo(f"Warning: Character is referenced in scenes: {', '.join(references)}")
@@ -206,7 +189,6 @@ def remove(
         typer.echo("Character not removed.")
         return
 
-    # Clean up references when force removing
     if references:
         typer.echo("Cleaning up references...")
         for scene in project.plot.scenes:
@@ -244,7 +226,6 @@ def edit(
         typer.echo(f"Error: Character '{character_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Update only provided fields
     if name is not None:
         character.name = name
     if role is not None:
@@ -258,7 +239,6 @@ def edit(
     if secret is not None:
         character.secret = secret
 
-    # Handle trait modifications
     if add_trait:
         for trait in add_trait:
             if trait not in character.traits:

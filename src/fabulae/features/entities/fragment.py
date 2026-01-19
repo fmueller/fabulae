@@ -42,15 +42,11 @@ def add(
     Example:
         fabulae fragment add ./my-flash-fiction --id fragment-03 --content "A moment of clarity."
     """
-    # Validate ID format before loading project
     validate_entity_id(id)
-
     project = load_project(project_dir)
     require_micro_prose_format(project, "fragment add")
 
-    # Check for duplicate ID
-    existing_ids = get_all_entity_ids(project)
-    if id in existing_ids:
+    if id in get_all_entity_ids(project):
         typer.echo(f"Error: ID '{id}' already exists in project.", err=True)
         raise typer.Exit(code=1)
 
@@ -82,21 +78,12 @@ def suggest(
     """
     project = load_project(project_dir)
     require_micro_prose_format(project, "fragment suggest")
-
-    # Resolve idea input
     guidance = resolve_idea_input(idea) if idea else None
-
-    # Use shared generation function
     config = resolve_config(model, base_url, api_key, temperature, None)
 
     typer.echo("Generating fragment suggestion...")
-    fragment = suggest_fragment_sync(
-        project=project,
-        guidance=guidance,
-        config=config,
-    )
+    fragment = suggest_fragment_sync(project=project, guidance=guidance, config=config)
 
-    # Display suggestion
     console.print("\n[bold]Suggested fragment:[/bold]")
     console.print(f"  ID: {fragment.id}")
     content_preview = fragment.content[:100] + "..." if len(fragment.content) > 100 else fragment.content
@@ -107,11 +94,8 @@ def suggest(
         console.print(f"  Notes: {fragment.notes}")
     console.print()
 
-    # Confirm and add
     if yes or confirm("Add this fragment?"):
-        # Check for duplicate ID
-        existing_ids = get_all_entity_ids(project)
-        if fragment.id in existing_ids:
+        if fragment.id in get_all_entity_ids(project):
             typer.echo(
                 f"Error: ID '{fragment.id}' already exists. Use 'fragment add' manually.",
                 err=True,
@@ -214,7 +198,6 @@ def edit(
         typer.echo(f"Error: Fragment '{fragment_id}' not found.", err=True)
         raise typer.Exit(code=1)
 
-    # Update only provided fields
     if content is not None:
         fragment.content = content
     if target_words is not None:

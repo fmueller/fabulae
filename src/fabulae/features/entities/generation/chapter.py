@@ -82,7 +82,6 @@ async def suggest_chapter(
     if config is None:
         raise ValueError("LLM config is required for chapter generation")
 
-    # Build context from project or individual parameters
     if project:
         if existing_chapters is None:
             existing_chapters = project.plot.chapters
@@ -93,7 +92,6 @@ async def suggest_chapter(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_chapter_prompt(
         premise=premise,
         existing_chapters=existing_chapters,
@@ -103,7 +101,6 @@ async def suggest_chapter(
         assigned_id=assigned_id,
     )
 
-    # Generate using LLM
     user_prompt = "Generate a chapter based on the context provided."
     if guidance:
         user_prompt = f"Create a chapter: {guidance[:100]}"
@@ -112,7 +109,6 @@ async def suggest_chapter(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to Chapter model
     return Chapter(
         id=suggestion.id,
         title=suggestion.title,
