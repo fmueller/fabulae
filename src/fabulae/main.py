@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
+from fabulae.features.build.cli import register_build_command
 from fabulae.features.create.cli import register_create_command
 from fabulae.features.create.shapes_cli import register_shapes_commands
 from fabulae.features.entities import (
@@ -49,6 +50,7 @@ def app_callback(
 
 app.command(name="version", help="Display the current version.")(version_command)
 register_create_command(app)
+register_build_command(app)
 register_shapes_commands(app)
 register_history_command(app)
 
