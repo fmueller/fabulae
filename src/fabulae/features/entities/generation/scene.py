@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from fabulae.features.entities.generation.prompts import build_scene_prompt
+from fabulae.features.entities.generation.prompts import BeatSlotInfo, build_scene_prompt
 from fabulae.features.entities.generation.schemas import SceneOutput
 from fabulae.llm import LLMConfig, create_agent
 from fabulae.models import Beat, Scene
@@ -33,6 +33,11 @@ async def suggest_scene(
     beat_count: int = 0,
     config: LLMConfig | None = None,
     style: StyleOutput | None = None,
+    beat_slots: list[BeatSlotInfo] | None = None,
+    previous_scene_summaries: list[str] | None = None,
+    position_in_story: int | None = None,
+    total_scenes: int | None = None,
+    position_label: str | None = None,
 ) -> Scene:
     """Suggest a scene based on context.
 
@@ -52,18 +57,21 @@ async def suggest_scene(
        )
        ```
 
-    2. Create mode (pass individual parameters):
+    2. Create mode (pass individual parameters with beat_slots):
        ```python
        scene = await suggest_scene(
            available_characters=[char1, char2],
            available_locations=[loc1],
-           existing_scenes=state.scenes,
            premise=premise,
            chapter_context="Chapter 1",
            assigned_id="scene-01",
-           include_beats=True,
-           beat_count=3,
+           beat_slots=[BeatSlotInfo("scene-01-beat-01", "setup"), ...],
+           previous_scene_summaries=["Previous scene summary..."],
+           position_in_story=0,
+           total_scenes=10,
+           position_label="early",
            language="en",
+           style=style_output,
            config=llm_config,
        )
        ```
@@ -85,10 +93,15 @@ async def suggest_scene(
             Overrides project.style.language if both are provided.
         assigned_id: Pre-assigned ID to use (for create pipeline).
             If not provided, LLM generates the ID.
-        include_beats: Whether to generate beats within the scene.
-        beat_count: Number of beats to generate (if include_beats).
+        include_beats: Whether to generate beats within the scene (CRUD mode).
+        beat_count: Number of beats to generate (CRUD mode, if include_beats).
         config: LLM configuration. Required.
         style: StyleOutput for narrative style context (from create pipeline).
+        beat_slots: Pre-assigned beat slots with IDs and kinds (create pipeline mode).
+        previous_scene_summaries: Recent scene summaries for continuity.
+        position_in_story: Scene position in narrative (0-indexed).
+        total_scenes: Total scenes in narrative.
+        position_label: Position descriptor ('early', 'middle', 'late', 'climax').
 
     Returns:
         Generated Scene model instance.
@@ -125,6 +138,11 @@ async def suggest_scene(
         include_beats=include_beats,
         beat_count=beat_count,
         style=style,
+        beat_slots=beat_slots,
+        previous_scene_summaries=previous_scene_summaries,
+        position_in_story=position_in_story,
+        total_scenes=total_scenes,
+        position_label=position_label,
     )
 
     # Generate using LLM
@@ -179,6 +197,11 @@ def suggest_scene_sync(
     beat_count: int = 0,
     config: LLMConfig | None = None,
     style: StyleOutput | None = None,
+    beat_slots: list[BeatSlotInfo] | None = None,
+    previous_scene_summaries: list[str] | None = None,
+    position_in_story: int | None = None,
+    total_scenes: int | None = None,
+    position_label: str | None = None,
 ) -> Scene:
     """Synchronous wrapper for suggest_scene.
 
@@ -199,8 +222,13 @@ def suggest_scene_sync(
             beat_count=beat_count,
             config=config,
             style=style,
+            beat_slots=beat_slots,
+            previous_scene_summaries=previous_scene_summaries,
+            position_in_story=position_in_story,
+            total_scenes=total_scenes,
+            position_label=position_label,
         )
     )
 
 
-__all__ = ["suggest_scene", "suggest_scene_sync"]
+__all__ = ["suggest_scene", "suggest_scene_sync", "BeatSlotInfo"]
