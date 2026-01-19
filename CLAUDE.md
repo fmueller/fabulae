@@ -155,9 +155,11 @@ The `entities` feature (`src/fabulae/features/entities/`) provides CLI commands 
 
 **Shared Components**:
 - `utils.py` - Shared helpers: ID validation, format checking (`require_prose_format`, `require_micro_prose_format`, `require_poem_format`), entity ID collection, reference formatting
-- `prompts.py` - LLM prompt builders for each entity's `suggest` command
-- `schemas.py` - Pydantic models for LLM suggestion responses
-- `service.py` - Shared service for LLM-based entity suggestion
+
+**Generation Module** (`src/fabulae/features/entities/generation/`): Unified entity generation layer for LLM-based suggestions:
+- `prompts.py` - Shared prompt builders for all entity types
+- `schemas.py` - Pydantic models for LLM output validation
+- Entity modules (`character.py`, `world_fact.py`, `scene.py`, `beat.py`, `chapter.py`, `fragment.py`, `stanza.py`) - Suggest functions with both sync and async variants; support project-based (CRUD) and parameter-based (create pipeline) modes
 
 **Format Validation**: Commands enforce format compatibility at two levels:
 1. CLI layer: `require_*_format()` helpers provide helpful error messages suggesting correct commands
