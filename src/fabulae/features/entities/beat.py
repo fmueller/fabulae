@@ -54,6 +54,9 @@ def add(
     outcome: Annotated[str | None, typer.Option("--outcome", help="How the beat resolves.")] = None,
     pace: Annotated[str | None, typer.Option("--pace", help="Pacing note (fast, slow, tense).")] = None,
     target_words: Annotated[int | None, typer.Option("--target-words", help="Target word count.")] = None,
+    constraints: Annotated[
+        list[str] | None, typer.Option("--constraint", help="Prose generation constraints (repeatable).")
+    ] = None,
 ) -> None:
     """Add a new beat to a scene.
 
@@ -85,6 +88,7 @@ def add(
         outcome=outcome,
         pace=pace,
         target_words=target_words,
+        constraints=constraints or [],
     )
     scene_obj.beats.append(beat)
     save_project(project, project_dir)
@@ -316,6 +320,10 @@ def edit(
     outcome: Annotated[str | None, typer.Option("--outcome", help="New outcome.")] = None,
     pace: Annotated[str | None, typer.Option("--pace", help="New pace.")] = None,
     target_words: Annotated[int | None, typer.Option("--target-words", help="New target word count.")] = None,
+    add_constraint: Annotated[list[str] | None, typer.Option("--add-constraint", help="Add a constraint.")] = None,
+    remove_constraint: Annotated[
+        list[str] | None, typer.Option("--remove-constraint", help="Remove a constraint (by exact text).")
+    ] = None,
 ) -> None:
     """Edit an existing beat.
 
@@ -347,6 +355,14 @@ def edit(
         beat.pace = pace
     if target_words is not None:
         beat.target_words = target_words
+
+    # Handle constraint modifications
+    if add_constraint:
+        for constraint in add_constraint:
+            if constraint not in beat.constraints:
+                beat.constraints.append(constraint)
+    if remove_constraint:
+        beat.constraints = [c for c in beat.constraints if c not in remove_constraint]
 
     save_project(project, project_dir)
     typer.echo(f"Updated beat: {beat_id}")

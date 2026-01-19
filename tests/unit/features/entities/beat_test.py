@@ -347,6 +347,139 @@ class TestBeatSuggest:
         assert "--yes" in output
 
 
+class TestBeatConstraints:
+    """Tests for beat constraints management."""
+
+    def test_add_beat_with_constraint(self, tmp_path: Path) -> None:
+        """Add a beat with a constraint."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-01",
+                "--id",
+                "beat-02",
+                "--kind",
+                "dialogue",
+                "--constraint",
+                "No dialogue tags",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        beat = next(b for b in scene.beats if b.id == "beat-02")
+        assert "No dialogue tags" in beat.constraints
+
+    def test_add_beat_with_multiple_constraints(self, tmp_path: Path) -> None:
+        """Add a beat with multiple constraints."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "beat",
+                "add",
+                str(tmp_path),
+                "--scene",
+                "scene-01",
+                "--id",
+                "beat-02",
+                "--kind",
+                "action",
+                "--constraint",
+                "Short sentences only",
+                "--constraint",
+                "No adjectives",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        beat = next(b for b in scene.beats if b.id == "beat-02")
+        assert "Short sentences only" in beat.constraints
+        assert "No adjectives" in beat.constraints
+
+    def test_edit_beat_add_constraint(self, tmp_path: Path) -> None:
+        """Add a constraint to an existing beat."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "edit", str(tmp_path), "beat-01", "--add-constraint", "Keep under 100 words"],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        beat = next(b for b in scene.beats if b.id == "beat-01")
+        assert "Keep under 100 words" in beat.constraints
+
+    def test_edit_beat_add_multiple_constraints(self, tmp_path: Path) -> None:
+        """Add multiple constraints to an existing beat."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "beat",
+                "edit",
+                str(tmp_path),
+                "beat-01",
+                "--add-constraint",
+                "No dialogue",
+                "--add-constraint",
+                "Focus on internal thoughts",
+            ],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        beat = next(b for b in scene.beats if b.id == "beat-01")
+        assert "No dialogue" in beat.constraints
+        assert "Focus on internal thoughts" in beat.constraints
+
+    def test_edit_beat_remove_constraint(self, tmp_path: Path) -> None:
+        """Remove a constraint from a beat."""
+        create_test_project(tmp_path)
+        # First add a constraint
+        runner.invoke(
+            app,
+            ["beat", "edit", str(tmp_path), "beat-01", "--add-constraint", "No dialogue"],
+        )
+
+        # Now remove it
+        result = runner.invoke(
+            app,
+            ["beat", "edit", str(tmp_path), "beat-01", "--remove-constraint", "No dialogue"],
+        )
+        assert result.exit_code == 0
+
+        project = load_project(tmp_path)
+        scene = next(s for s in project.plot.scenes if s.id == "scene-01")
+        beat = next(b for b in scene.beats if b.id == "beat-01")
+        assert "No dialogue" not in beat.constraints
+
+    def test_edit_beat_remove_nonexistent_constraint_is_noop(self, tmp_path: Path) -> None:
+        """Removing a nonexistent constraint is a no-op (no error)."""
+        create_test_project(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["beat", "edit", str(tmp_path), "beat-01", "--remove-constraint", "does not exist"],
+        )
+        # Should succeed without error
+        assert result.exit_code == 0
+
+
 class TestBeatAddValidation:
     """Tests for beat add input validation."""
 
