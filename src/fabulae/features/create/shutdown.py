@@ -44,7 +44,6 @@ class ShutdownHandler:
         self.state = state
         self.output_dir = output_dir
         self.progress = progress
-        # Store original handlers (signal.signal returns the previous handler)
         self._original_sigint: signal.Handlers | None = None
         self._original_sigterm: signal.Handlers | None = None
 
@@ -69,10 +68,8 @@ class ShutdownHandler:
 
     def install(self) -> None:
         """Install signal handlers for graceful shutdown."""
-        # Cast to Handlers since we know signal.signal returns a valid handler
         prev_sigint = signal.signal(signal.SIGINT, self._handle_signal)
         prev_sigterm = signal.signal(signal.SIGTERM, self._handle_signal)
-        # Store as Handlers (may be SIG_DFL, SIG_IGN, or a callable)
         self._original_sigint = prev_sigint  # type: ignore[assignment]
         self._original_sigterm = prev_sigterm  # type: ignore[assignment]
 

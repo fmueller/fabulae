@@ -14,7 +14,6 @@ from fabulae.main import app
 
 runner = CliRunner()
 
-# Regex to strip ANSI escape codes from output (Rich/Typer adds these even with NO_COLOR in some environments)
 ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -115,7 +114,6 @@ class TestNoHistoryFlag:
         """--no-history flag should appear in help output."""
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        # Strip ANSI escape codes which can split text like "--no-history" into "-", "-no", "-history"
         clean_output = ANSI_ESCAPE_PATTERN.sub("", result.output)
         assert "--no-history" in clean_output
 

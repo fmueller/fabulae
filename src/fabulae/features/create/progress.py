@@ -121,7 +121,6 @@ class CreateProgress:
             with progress.phase("Creating characters...") as phase:
                 for i, char in enumerate(characters):
                     phase.update(f"Creating character {i+1}/{len(characters)}...")
-                    # do work
 
         Args:
             description: Initial phase description for spinner display

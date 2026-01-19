@@ -144,11 +144,9 @@ def _calculate_chapter_count(format: LiteratureFormat, variation: float, rng: ra
     if min_ch == 0 and max_ch == 0:
         return 0
 
-    # Variation affects how much we deviate from the midpoint
     mid = (min_ch + max_ch) / 2
     range_size = max_ch - min_ch
 
-    # With low variation, stay close to mid; with high variation, use full range
     effective_min = max(min_ch, int(mid - (range_size / 2) * variation))
     effective_max = min(max_ch, int(mid + (range_size / 2) * variation))
 
@@ -197,11 +195,8 @@ def _distribute_scenes_to_chapters(total_scenes: int, chapter_count: int, rng: r
         for idx in indices:
             distribution[idx] += 1
 
-    # Shuffle distribution slightly for more natural variation
-    # Swap some adjacent elements
     for i in range(len(distribution) - 1):
         if rng.random() < 0.3 and distribution[i] > 1:
-            # Move one scene from this chapter to next
             distribution[i] -= 1
             distribution[i + 1] += 1
 
@@ -215,7 +210,6 @@ def _create_character_slots(
     slots: list[CharacterSlot] = []
 
     if shape and shape.character_slots:
-        # Use shape-defined character slots
         for i, shape_slot in enumerate(shape.character_slots):
             if shape_slot.optional and rng.random() < 0.5:
                 continue  # Skip optional slots with 50% probability
@@ -233,12 +227,10 @@ def _create_character_slots(
                 )
             )
     else:
-        # Use format defaults
         ranges = FORMAT_COUNT_RANGES.get(format, {})
         min_chars, max_chars = ranges.get("characters", (2, 5))
         char_count = rng.randint(min_chars, max_chars)
 
-        # Standard roles distribution
         roles = ["protagonist"]
         if char_count > 1:
             roles.append("antagonist")
@@ -282,7 +274,6 @@ def _create_location_slots(
     slots: list[LocationSlot] = []
 
     if shape and shape.setting_slots:
-        # Use shape-defined setting slots
         for i, shape_slot in enumerate(shape.setting_slots):
             if shape_slot.optional and rng.random() < 0.5:
                 continue
@@ -295,7 +286,6 @@ def _create_location_slots(
                 )
             )
     else:
-        # Use format defaults - roughly half of world facts are locations
         ranges = FORMAT_COUNT_RANGES.get(format, {})
         min_facts, max_facts = ranges.get("world_facts", (2, 6))
         total_facts = rng.randint(min_facts, max_facts)
@@ -317,7 +307,6 @@ def _create_world_fact_slots(format: LiteratureFormat, location_count: int, rng:
     min_facts, max_facts = ranges.get("world_facts", (2, 6))
     total_facts = rng.randint(min_facts, max_facts)
 
-    # Subtract locations already created
     extra_facts = max(0, total_facts - location_count)
 
     fact_types = ["culture", "history", "rule", "object"]
@@ -335,14 +324,7 @@ def _create_world_fact_slots(format: LiteratureFormat, location_count: int, rng:
 
 
 def _assign_characters_to_scenes(graph: PlotGraph, shape: StoryShape | None, rng: random.Random) -> None:
-    """Assign characters to scenes based on shape or balanced distribution.
-
-    Character counts vary by scene position and RNG to create natural pacing:
-    - Early scenes (act 1): 1-2 characters, focus on establishing protagonist
-    - Middle scenes (act 2): 2-4 characters, building relationships and conflicts
-    - Late scenes (act 3): 2-3 characters, intensifying towards climax
-    - Climax: 2-5 characters, ensemble moments
-    """
+    """Assign characters to scenes based on shape or balanced distribution."""
     if not graph.characters or not graph.scenes:
         return
 
@@ -351,38 +333,31 @@ def _assign_characters_to_scenes(graph: PlotGraph, shape: StoryShape | None, rng
     antagonist_ids = [c.id for c in graph.characters if c.role == "antagonist"]
     total_scenes = len(graph.scenes)
 
-    # Track character appearances for balance
     appearance_count: dict[str, int] = {cid: 0 for cid in character_ids}
 
     for scene_idx, scene in enumerate(graph.scenes):
         scene_chars: list[str] = []
 
-        # Calculate act position for finer-grained control
         act_position = scene_idx / max(1, total_scenes - 1) if total_scenes > 1 else 0.5
 
-        # Determine character count range based on position
         min_chars, max_chars = _get_character_count_range(
             scene.position_label, act_position, len(character_ids)
         )
 
-        # Target count with RNG variation
         target_count = rng.randint(min_chars, max_chars)
 
-        # Protagonist appears in most scenes (probability varies by position)
         protagonist_prob = 0.9 if scene.position_label in ["early", "climax"] else 0.75
         for prot_id in protagonist_ids:
             if rng.random() < protagonist_prob and len(scene_chars) < target_count:
                 scene_chars.append(prot_id)
                 appearance_count[prot_id] += 1
 
-        # Antagonist more likely in conflict-heavy positions
         antagonist_prob = 0.7 if scene.position_label in ["late", "climax"] else 0.4
         for ant_id in antagonist_ids:
             if ant_id not in scene_chars and rng.random() < antagonist_prob and len(scene_chars) < target_count:
                 scene_chars.append(ant_id)
                 appearance_count[ant_id] += 1
 
-        # Fill remaining slots with weighted selection favoring least-appeared characters
         available = [cid for cid in character_ids if cid not in scene_chars]
         remaining_slots = target_count - len(scene_chars)
 
@@ -406,30 +381,22 @@ def _get_character_count_range(position_label: str, act_position: float, total_c
     Returns:
         Tuple of (min_characters, max_characters)
     """
-    # Base ranges by position type
     if position_label == "early":
-        # Early scenes: introduce characters gradually
         min_chars, max_chars = 1, 2
     elif position_label == "middle":
-        # Middle scenes: varied, building complexity
         min_chars, max_chars = 2, 4
     elif position_label == "late":
-        # Late scenes: higher stakes, tighter focus
         min_chars, max_chars = 2, 3
     elif position_label == "climax":
-        # Climax: can be ensemble or focused showdown
         min_chars, max_chars = 2, 5
     else:
-        # Default fallback
         min_chars, max_chars = 1, 3
 
-    # Adjust for scenes at transition points (act boundaries)
-    if 0.20 <= act_position <= 0.30:  # Act 1 to Act 2 transition
-        min_chars = max(min_chars, 2)  # Ensure at least 2 for plot point
-    elif 0.70 <= act_position <= 0.80:  # Act 2 to Act 3 transition
-        max_chars = min(max_chars + 1, total_characters)  # Allow larger ensemble
+    if 0.20 <= act_position <= 0.30:
+        min_chars = max(min_chars, 2)
+    elif 0.70 <= act_position <= 0.80:
+        max_chars = min(max_chars + 1, total_characters)
 
-    # Cap at available characters
     max_chars = min(max_chars, total_characters)
     min_chars = min(min_chars, max_chars)
 
@@ -459,17 +426,14 @@ def _weighted_character_selection(
     count = min(count, len(available))
     selected: list[str] = []
 
-    # Create weighted pool - characters with fewer appearances get more weight
     for _ in range(count):
         if not available:
             break
 
-        # Calculate weights (inverse of appearance count + 1 to avoid division by zero)
         weights = [1.0 / (appearance_count.get(cid, 0) + 1) for cid in available]
         total_weight = sum(weights)
         normalized_weights = [w / total_weight for w in weights]
 
-        # Weighted random selection
         r = rng.random()
         cumulative = 0.0
         chosen_idx = 0
@@ -493,14 +457,11 @@ def _assign_locations_to_scenes(graph: PlotGraph, rng: random.Random) -> None:
 
     location_ids = [loc.id for loc in graph.locations]
 
-    # Group scenes into location runs (consecutive scenes at same location)
-    # Typical run length: 1-3 scenes
     current_location = rng.choice(location_ids)
     run_remaining = rng.randint(1, 3)
 
     for scene in graph.scenes:
         if run_remaining <= 0:
-            # Pick a new location (preferring different from current)
             other_locations = [lid for lid in location_ids if lid != current_location]
             if other_locations:
                 current_location = rng.choice(other_locations)
@@ -520,8 +481,7 @@ def _create_beat_slots_for_scenes(
     """Create beat slots for each scene based on shape and variation."""
     min_beats, max_beats = FORMAT_BEATS_PER_SCENE.get(format, (2, 4))
 
-    # Distribute required beats from shape across scenes
-    required_beat_assignments: dict[str, list[tuple[str, str]]] = {}  # scene_id -> [(beat_type, description)]
+    required_beat_assignments: dict[str, list[tuple[str, str]]] = {}
     if shape and shape.required_beats:
         required_beat_assignments = _distribute_required_beats(graph, shape, rng)
 
@@ -543,8 +503,6 @@ def _create_beat_slots_for_scenes(
                 )
             )
 
-        # Add filler beats to reach target count
-        # Target varies by position: climax gets more beats
         target = max_beats if scene.position_label == "climax" else rng.randint(min_beats, max_beats)
         filler_needed = max(0, target - len(beat_slots))
 
@@ -570,7 +528,6 @@ def _distribute_required_beats(
     """Distribute required beats from shape to appropriate scenes."""
     assignments: dict[str, list[tuple[str, str]]] = {}
 
-    # Group scenes by position
     scenes_by_position: dict[str, list[SceneSlot]] = {
         "early": [],
         "middle": [],
@@ -583,9 +540,7 @@ def _distribute_required_beats(
             scenes_by_position[pos].append(scene)
 
     for beat in shape.required_beats:
-        # Find appropriate scenes based on beat position
         if beat.position == "anywhere":
-            # Can go in any scene
             candidate_scenes = graph.scenes
         else:
             candidate_scenes = scenes_by_position.get(beat.position, graph.scenes)
@@ -593,14 +548,11 @@ def _distribute_required_beats(
         if not candidate_scenes:
             candidate_scenes = graph.scenes
 
-        # For flexible beats, randomly select a scene
-        # For fixed beats, prefer early scenes in the position group
         if beat.flexibility == "fixed" and candidate_scenes:
             target_scene = candidate_scenes[0]
         elif beat.flexibility == "very-flexible":
             target_scene = rng.choice(candidate_scenes)
         else:
-            # flexible - slight preference for earlier scenes in group
             weight_count = max(1, len(candidate_scenes) // 2)
             weighted = candidate_scenes[:weight_count] * 2 + candidate_scenes[weight_count:]
             target_scene = rng.choice(weighted)
@@ -630,11 +582,9 @@ def _calculate_count_with_variation(min_val: int, max_val: int, variation: float
     mid = (min_val + max_val) / 2
     range_size = max_val - min_val
 
-    # With low variation, stay close to mid; with high variation, use full range
     effective_min = max(min_val, int(mid - (range_size / 2) * variation))
     effective_max = min(max_val, int(mid + (range_size / 2) * variation))
 
-    # Ensure we have at least one valid value
     if effective_min > effective_max:
         effective_min = effective_max = int(mid)
 
@@ -659,14 +609,11 @@ def generate_micro_prose_graph(
     """
     rng = random.Random(seed)
 
-    # Get fragment count range from format configuration
     ranges = FORMAT_COUNT_RANGES.get("micro-prose", {})
     min_frags, max_frags = ranges.get("fragments", (1, 5))
 
-    # Calculate fragment count based on variation
     fragment_count = _calculate_count_with_variation(min_frags, max_frags, variation, rng)
 
-    # Create fragment slots with pre-allocated IDs
     fragment_slots = []
     for i in range(fragment_count):
         fragment_slots.append(
@@ -697,22 +644,17 @@ def generate_poem_graph(
     """
     rng = random.Random(seed)
 
-    # Get ranges from format configuration
     ranges = FORMAT_COUNT_RANGES.get("poem", {})
     min_stanzas, max_stanzas = ranges.get("stanzas", (1, 6))
     min_lines, max_lines = ranges.get("lines", (3, 18))
 
-    # Calculate stanza count based on variation
     stanza_count = _calculate_count_with_variation(min_stanzas, max_stanzas, variation, rng)
 
-    # Per-stanza line count range (more constrained than total)
-    # Typically 2-8 lines per stanza
     per_stanza_min = max(2, min_lines // max(1, stanza_count))
     per_stanza_max = min(8, max_lines // max(1, stanza_count))
     if per_stanza_min > per_stanza_max:
         per_stanza_min = per_stanza_max = 4
 
-    # Create stanza slots with varying line counts
     stanza_slots = []
     for i in range(stanza_count):
         line_count = rng.randint(per_stanza_min, per_stanza_max)
