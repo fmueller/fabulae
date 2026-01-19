@@ -8,6 +8,17 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+# Import entity schemas from the generation module (single source of truth)
+from fabulae.features.entities.generation.schemas import (
+    BeatOutput,
+    ChapterOutput,
+    CharacterOutput,
+    FragmentOutput,
+    SceneOutput,
+    StanzaOutput,
+    WorldFactOutput,
+)
+
 PipelineMode = Literal["batch", "sequential"]
 
 
@@ -31,24 +42,6 @@ class CreateOptions:
     full: bool = False
 
 
-class CharacterOutput(BaseModel):
-    """A character in the narrative."""
-
-    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'character-01'). Use assigned ID exactly.")
-    name: str = Field(description="Character's name.")
-    role: str | None = Field(default=None, description="Role: 'protagonist', 'antagonist', 'mentor', etc.")
-    desire: str | None = Field(default=None, description="What the character consciously wants.")
-    need: str | None = Field(default=None, description="What the character truly needs (often unknown to them).")
-    flaw: str | None = Field(default=None, description="Character's primary weakness or flaw.")
-    secret: str | None = Field(default=None, description="Hidden information about the character.")
-    traits: list[str] = Field(default_factory=list, description="Personality traits (e.g., 'curious', 'impulsive').")
-
-    @field_validator("name", "role", "desire", "need", "flaw", "secret", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
 class CharacterBatchOutput(BaseModel):
     characters: list[CharacterOutput] = Field(default_factory=list)
 
@@ -69,22 +62,6 @@ class CharacterPlanItem(BaseModel):
 
 class CharacterPlanOutput(BaseModel):
     characters: list[CharacterPlanItem] = Field(default_factory=list)
-
-
-class WorldFactOutput(BaseModel):
-    """A world-building fact or location."""
-
-    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'location-01'). Use assigned ID exactly.")
-    type: Literal["location", "culture", "history", "rule", "object"] = Field(
-        description="Type: 'location' (places), 'culture', 'history', 'rule', 'object'."
-    )
-    name: str = Field(description="Name of the location or concept.")
-    facts: list[str] = Field(default_factory=list, description="List of specific details about this element.")
-
-    @field_validator("name", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
 
 
 class WorldOutput(BaseModel):
@@ -146,25 +123,6 @@ class StakesOutput(BaseModel):
         return v.strip() if v else v
 
 
-class BeatOutput(BaseModel):
-    """A single beat (story moment) within a scene."""
-
-    id: str = Field(description="ID format: {scene_id}-beat-{nn} (e.g., 'scene-01-beat-01').")
-    kind: str = Field(description="Type: 'setup', 'turn', 'escalation', 'resolution', 'bridge', 'complication'.")
-    summary: str | None = Field(default=None, description="Brief description of what happens in this beat.")
-    target_words: int | None = Field(default=None, ge=1, description="Target word count for this beat.")
-    goal: str | None = Field(default=None, description="What the POV character wants to achieve.")
-    conflict: str | None = Field(default=None, description="What obstacle or tension exists.")
-    outcome: str | None = Field(default=None, description="How the beat resolves (success, failure, complication).")
-    pace: str | None = Field(default=None, description="Pacing note (e.g., 'fast', 'slow', 'tense').")
-    constraints: list[str] = Field(default_factory=list, description="Writing constraints for this beat.")
-
-    @field_validator("kind", "summary", "goal", "conflict", "outcome", "pace", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
 class BeatTemplateItem(BaseModel):
     kind: str
     required: bool = False
@@ -183,26 +141,6 @@ class SceneBeatTemplate(BaseModel):
     beats: list[BeatTemplateItem] = Field(default_factory=list)
 
 
-class SceneOutput(BaseModel):
-    """A fully expanded scene with beats."""
-
-    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'scene-01'). Use assigned ID exactly.")
-    location: str | None = Field(default=None, description="Location ID (e.g., 'location-01'). Must be valid.")
-    time: str | None = Field(default=None, description="Time of day (e.g., 'night', 'dawn').")
-    characters: list[str] = Field(default_factory=list, description="Character IDs in this scene. Use only valid IDs.")
-    world_fact_ids: list[str] = Field(default_factory=list, description="World fact IDs relevant to this scene.")
-    summary: str | None = Field(default=None, description="Brief summary of the scene's events.")
-    goal: str | None = Field(default=None, description="What the protagonist wants to achieve in this scene.")
-    conflict: str | None = Field(default=None, description="The obstacle or tension in this scene.")
-    outcome: str | None = Field(default=None, description="How the scene resolves (success, failure, complication).")
-    beats: list[BeatOutput] = Field(default_factory=list, description="Beats list. MUST match beat_count exactly.")
-
-    @field_validator("time", "summary", "goal", "conflict", "outcome", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
 class OutlineSceneOutput(BaseModel):
     """A scene outline with planned beat count."""
 
@@ -214,48 +152,6 @@ class OutlineSceneOutput(BaseModel):
     beat_count: int = Field(default=1, ge=1, description="Number of beats. Must be within beats-per-scene range.")
 
     @field_validator("summary", "goal", "conflict", "outcome", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
-class ChapterOutput(BaseModel):
-    """A chapter in the narrative."""
-
-    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'chapter-01').")
-    title: str | None = Field(default=None, description="Chapter title.")
-    summary: str | None = Field(default=None, description="Brief summary of the chapter.")
-    scene_ids: list[str] | None = Field(default=None, description="Scene IDs in this chapter. Must list all scenes.")
-
-    @field_validator("title", "summary", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
-class FragmentOutput(BaseModel):
-    """A micro-prose fragment."""
-
-    id: str = Field(description="Unique lowercase-hyphenated ID (e.g., 'fragment-01'). Use the assigned ID exactly.")
-    content: str = Field(description="The actual prose content of this fragment.")
-    target_words: int | None = Field(default=None, ge=1, description="Target word count.")
-    notes: str | None = Field(default=None, description="Optional notes about this fragment.")
-
-    @field_validator("content", "notes", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: str | None) -> str | None:
-        return v.strip() if v else v
-
-
-class StanzaOutput(BaseModel):
-    """A stanza in a poem."""
-
-    id: str = Field(description="Lowercase-hyphenated ID (e.g., 'stanza-01'). Use assigned ID exactly.")
-    lines: list[str] = Field(default_factory=list, description="Lines in stanza. MUST have exactly line_count lines.")
-    meter: str | None = Field(default=None, description="Meter pattern (e.g., 'iambic pentameter').")
-    rhyme_scheme: str | None = Field(default=None, description="Rhyme scheme (e.g., 'ABAB').")
-
-    @field_validator("meter", "rhyme_scheme", mode="before")
     @classmethod
     def strip_whitespace(cls, v: str | None) -> str | None:
         return v.strip() if v else v
@@ -521,3 +417,49 @@ class OutlineOutput(BaseModel):
     @classmethod
     def strip_whitespace(cls, v: str | None) -> str | None:
         return v.strip() if v else v
+
+
+# Explicit exports for mypy compatibility
+__all__ = [
+    # Re-exports from entities/generation/schemas.py (single source of truth)
+    "BeatOutput",
+    "ChapterOutput",
+    "CharacterOutput",
+    "FragmentOutput",
+    "SceneOutput",
+    "StanzaOutput",
+    "WorldFactOutput",
+    # Create-specific schemas
+    "CreateOptions",
+    "PipelineMode",
+    "CharacterBatchOutput",
+    "CharacterPlanItem",
+    "CharacterPlanOutput",
+    "WorldOutput",
+    "WorldFactPlanItem",
+    "WorldPlanOutput",
+    "HookOutput",
+    "StakesOutput",
+    "BeatTemplateItem",
+    "SceneBeatTemplate",
+    "OutlineSceneOutput",
+    "PlotOutput",
+    "PlotOutlineOutput",
+    "FragmentPlanItem",
+    "FragmentPlanOutput",
+    "StanzaPlanItem",
+    "PoemPlanOutput",
+    "PremiseOutput",
+    "StyleOutput",
+    "ChapterContentOutput",
+    "SceneContentOutput",
+    "OutlineContentOutput",
+    "SubplotAddition",
+    "ForeshadowingElement",
+    "EnrichmentOutput",
+    "CharacterSketchOutput",
+    "SceneSketchOutput",
+    "ChapterSketchOutput",
+    "LocationSketchOutput",
+    "OutlineOutput",
+]
