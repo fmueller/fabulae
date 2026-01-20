@@ -75,16 +75,18 @@ def build_premise_expansion_prompt(format_name: str, expected_language: str | No
         The system prompt for premise expansion.
     """
     purpose = (
-        "Expand a simple story idea into a compelling narrative premise. "
+        "Expand a simple story idea into a compelling narrative premise with a title. "
         "The premise should be 2-4 sentences that capture the core conflict, setting, and emotional hook."
     )
     schema = (
         "{\n"
+        '  "title": "A compelling, evocative title for the story.",\n'
         '  "premise": "A 2-4 sentence narrative premise that expands the original idea. '
         "Captures the core conflict, the setting, and what's emotionally at stake for the main character.\""
         "\n}"
     )
     notes_lines = [
+        "Create a title that captures the essence or mood of the story.",
         "The premise should feel more developed than the original idea.",
         "Focus on: What happens? Who is affected? What's at stake?",
         "Avoid spoiling the ending or over-explaining the plot.",

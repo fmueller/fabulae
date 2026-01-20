@@ -282,6 +282,7 @@ async def _generate_prose_sequential_inner(
             error_mode=ErrorMode.STRICT,
         )
         premise = premise_result.output.premise
+        title = premise_result.output.title
 
     progress.success("Premise expanded")
 
@@ -291,7 +292,7 @@ async def _generate_prose_sequential_inner(
 
     # Write premise artifact
     if artifacts_dir:
-        _write_artifact(artifacts_dir, "03-premise.yml", {"premise": premise})
+        _write_artifact(artifacts_dir, "03-premise.yml", {"title": title, "premise": premise})
 
     # Initialize project state for accumulating generated content
     state = ProjectState()
@@ -593,6 +594,7 @@ async def _generate_prose_sequential_inner(
             idea=idea,
             format_name=format_name,
             style_output=style_output,
+            title=title,
             premise=premise,
             state=state,
             graph=graph,
@@ -618,6 +620,7 @@ def _assemble_project(
     idea: str,
     format_name: LiteratureFormat,
     style_output: StyleOutput,
+    title: str | None,
     premise: str,
     state: ProjectState,
     graph: PlotGraph,
@@ -636,7 +639,7 @@ def _assemble_project(
     # Build plot
     plot = Plot(
         format=format_name,
-        title=None,  # Could be generated separately
+        title=title,
         premise=premise,
         themes=[],  # Could be extracted from premise
         chapters=state.chapters if state.chapters else [],

@@ -430,11 +430,16 @@ def build_premise_prompt_v2(format_name: str, idea: str, style: StyleOutput) -> 
         Prompt string for generating expanded premise
     """
     purpose = (
-        "Expand a simple story idea into a compelling narrative premise. "
+        "Expand a simple story idea into a compelling narrative premise with a title. "
         "The premise should be 2-4 sentences capturing the core conflict, setting, and stakes."
     )
 
-    schema = '{\n  "premise": "2-4 sentences capturing conflict, setting, and emotional stakes."\n}'
+    schema = (
+        "{\n"
+        '  "title": "A compelling, evocative title for the story.",\n'
+        '  "premise": "2-4 sentences capturing conflict, setting, and emotional stakes."\n'
+        "}"
+    )
 
     sections: dict[str, str] = {
         "Format": format_name,
@@ -442,6 +447,7 @@ def build_premise_prompt_v2(format_name: str, idea: str, style: StyleOutput) -> 
         "Style": _format_style_hint(style),
         "Output Schema (JSON)": schema,
         "Notes": (
+            "Create a title that captures the essence or mood of the story.\n"
             "The premise should feel more developed than the original idea.\n"
             "Focus on: What happens? Who is affected? What's at stake?\n"
             "Avoid spoiling the ending or over-explaining the plot.\n"

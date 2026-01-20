@@ -252,12 +252,16 @@ class PoemPlanOutput(BaseModel):
 class PremiseOutput(BaseModel):
     """Expanded premise generated from user's idea."""
 
+    title: str | None = Field(
+        default=None,
+        description="A compelling title for the story.",
+    )
     premise: str = Field(
         description="A 2-4 sentence narrative premise expanding on the original idea. "
         "Should capture the core conflict, setting, and emotional hook."
     )
 
-    @field_validator("premise", mode="before")
+    @field_validator("title", "premise", mode="before")
     @classmethod
     def strip_whitespace(cls, v: str | None) -> str | None:
         return v.strip() if v else v
