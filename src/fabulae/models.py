@@ -472,6 +472,76 @@ def _validate_format(plot: Plot) -> None:
             raise ValueError("Format 'poem' requires stanzas or lines.")
 
 
+def sanitize_project(project: Project) -> list[str]:
+    """Remove orphaned entities and invalid references from a project.
+
+    This function cleans up common issues that can occur during LLM generation:
+    - Scenes not assigned to any chapter (when chapters exist)
+    - Invalid character references in scenes
+    - Invalid world fact references in scenes
+    - Invalid location references in scenes
+
+    Returns:
+        A list of warning messages describing what was removed.
+    """
+    warnings: list[str] = []
+
+    # Collect valid entity IDs
+    characters = {character.id for character in project.characters}
+    world_facts = {fact.id: fact for fact in project.world.facts} if project.world else {}
+
+    # Clean up invalid references in scenes
+    for scene in project.plot.scenes:
+        if scene.characters:
+            missing_chars = set(scene.characters) - characters
+            if missing_chars:
+                warnings.append(
+                    f"Removed invalid character references from scene {scene.id!r}: {sorted(missing_chars)!r}"
+                )
+                scene.characters = [c for c in scene.characters if c in characters]
+
+        if scene.location:
+            if not world_facts or scene.location not in world_facts:
+                warnings.append(f"Removed invalid location {scene.location!r} from scene {scene.id!r}")
+                scene.location = None
+            elif world_facts[scene.location].type != "location":
+                warnings.append(
+                    f"Removed location {scene.location!r} from scene {scene.id!r} "
+                    f"(world fact is not type 'location')"
+                )
+                scene.location = None
+
+        if scene.world_fact_ids:
+            missing_facts = set(scene.world_fact_ids) - set(world_facts)
+            if missing_facts:
+                warnings.append(
+                    f"Removed invalid world fact references from scene {scene.id!r}: {sorted(missing_facts)!r}"
+                )
+                scene.world_fact_ids = [wf for wf in scene.world_fact_ids if wf in world_facts]
+
+    # Handle orphaned scenes (scenes not in any chapter when chapters exist)
+    if project.plot.chapters:
+        scene_ids = {scene.id for scene in project.plot.scenes}
+        all_referenced_scenes: set[EntityId] = set()
+        for chapter in project.plot.chapters:
+            if chapter.scene_ids:
+                # Also clean up invalid scene references in chapters
+                unknown = set(chapter.scene_ids) - scene_ids
+                if unknown:
+                    warnings.append(
+                        f"Removed invalid scene references from chapter {chapter.id!r}: {sorted(unknown)!r}"
+                    )
+                    chapter.scene_ids = [s for s in chapter.scene_ids if s in scene_ids]
+                all_referenced_scenes.update(chapter.scene_ids)
+
+        orphan_scenes = scene_ids - all_referenced_scenes
+        if orphan_scenes:
+            warnings.append(f"Removed orphaned scenes not assigned to any chapter: {sorted(orphan_scenes)!r}")
+            project.plot.scenes = [s for s in project.plot.scenes if s.id not in orphan_scenes]
+
+    return warnings
+
+
 def _validate_project(project: Project) -> None:
     _validate_format(project.plot)
     _validate_unique_ids(project)
