@@ -531,3 +531,362 @@ def test_no_circular_imports_from_outline_pipeline() -> None:
         from fabulae.features.create.pipelines import outline  # noqa: F401
     except ImportError as e:
         pytest.fail(f"Circular import or import error detected: {e}")
+
+
+class TestOutlineShapeAutoSelection:
+    """Tests for shape auto-selection in outline pipeline."""
+
+    def test_convert_outline_uses_auto_selected_shape_in_metadata(self) -> None:
+        """Test that _convert_outline_to_project uses auto-selected shape ID in metadata."""
+        from fabulae.features.create.pipelines.outline import _convert_outline_to_project
+        from fabulae.features.create.schemas import StyleOutput
+
+        outline = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        style_output = StyleOutput(pov="third", tense="past", language="en")
+        llm_config = LLMConfig()
+
+        # Simulate auto-selected shape by passing shape parameter
+        # (The actual auto-selection happens in generate_outline_only, not _convert_outline_to_project)
+        options = CreateOptions()
+
+        project = _convert_outline_to_project(
+            outline=outline,
+            style_output=style_output,
+            format_name="novel",
+            idea="Test idea",
+            llm_config=llm_config,
+            options=options,
+            auto_selected_shape_id="betrayal-arc",  # New parameter for auto-selected shape
+        )
+
+        # Metadata should include the auto-selected shape
+        assert project.config.metadata is not None
+        assert project.config.metadata.shape == "betrayal-arc"
+
+    def test_convert_outline_prefers_explicit_shape_over_auto_selected(self) -> None:
+        """Test that explicit shape_id option takes precedence over auto-selected shape."""
+        from fabulae.features.create.pipelines.outline import _convert_outline_to_project
+        from fabulae.features.create.schemas import StyleOutput
+
+        outline = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        style_output = StyleOutput(pov="third", tense="past", language="en")
+        llm_config = LLMConfig()
+
+        # Explicit shape option should take precedence
+        options = CreateOptions(shape_id="heros-journey")
+
+        project = _convert_outline_to_project(
+            outline=outline,
+            style_output=style_output,
+            format_name="novel",
+            idea="Test idea",
+            llm_config=llm_config,
+            options=options,
+            auto_selected_shape_id="betrayal-arc",  # Should be ignored
+        )
+
+        # Metadata should use explicit shape, not auto-selected
+        assert project.config.metadata is not None
+        assert project.config.metadata.shape == "heros-journey"
+
+    def test_convert_outline_no_shape_when_no_shape_flag_set(self) -> None:
+        """Test that no shape is recorded when --no-shape flag is used."""
+        from fabulae.features.create.pipelines.outline import _convert_outline_to_project
+        from fabulae.features.create.schemas import StyleOutput
+
+        outline = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        style_output = StyleOutput(pov="third", tense="past", language="en")
+        llm_config = LLMConfig()
+
+        # no_shape flag should prevent shape from being recorded
+        options = CreateOptions(no_shape=True)
+
+        project = _convert_outline_to_project(
+            outline=outline,
+            style_output=style_output,
+            format_name="novel",
+            idea="Test idea",
+            llm_config=llm_config,
+            options=options,
+            auto_selected_shape_id=None,  # No auto-selection when no_shape=True
+        )
+
+        # Metadata should have no_shape=True and shape=None
+        assert project.config.metadata is not None
+        assert project.config.metadata.shape is None
+        assert project.config.metadata.no_shape is True
+
+    @pytest.mark.anyio
+    async def test_generate_outline_only_auto_selects_shape(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Test that generate_outline_only calls select_shape_for_idea when no shape provided."""
+        from unittest.mock import MagicMock
+
+        from fabulae.features.create.pipelines.outline import generate_outline_only
+        from fabulae.features.create.progress import CreateProgress
+        from fabulae.models import StoryShape
+
+        # Track if select_shape_for_idea was called
+        shape_selection_called = False
+        selected_shape_id = "mystery-reveal"
+
+        # Create a mock StoryShape
+        mock_shape = MagicMock(spec=StoryShape)
+        mock_shape.id = selected_shape_id
+
+        async def mock_select_shape(idea: str, config: LLMConfig) -> StoryShape:
+            nonlocal shape_selection_called
+            shape_selection_called = True
+            return mock_shape
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.select_shape_for_idea",
+            mock_select_shape,
+        )
+
+        # Mock run_stage to return valid outputs
+        style_output = MagicMock()
+        style_output.pov = "third"
+        style_output.tense = "past"
+        style_output.voice = "literary"
+        style_output.language = "en"
+        style_output.model_dump = MagicMock(return_value={"pov": "third", "tense": "past", "language": "en"})
+
+        outline_output = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        call_count = 0
+
+        async def mock_run_stage(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            if call_count == 1:
+                result.output = style_output
+            else:
+                result.output = outline_output
+            return result
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.run_stage",
+            mock_run_stage,
+        )
+
+        # Run generate_outline_only without shape options
+        llm_config = LLMConfig(model="test-model")
+        options = CreateOptions()  # No shape, no no_shape
+        progress = CreateProgress()
+
+        project = await generate_outline_only(
+            idea="A detective investigates a murder",
+            format="novel",
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=tmp_path,
+        )
+
+        # Verify shape auto-selection was called
+        assert shape_selection_called is True
+
+        # Verify metadata includes auto-selected shape
+        assert project.config.metadata is not None
+        assert project.config.metadata.shape == selected_shape_id
+
+    @pytest.mark.anyio
+    async def test_generate_outline_only_skips_shape_selection_when_no_shape(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Test that generate_outline_only skips shape selection when --no-shape is used."""
+        from unittest.mock import MagicMock
+
+        from fabulae.features.create.pipelines.outline import generate_outline_only
+        from fabulae.features.create.progress import CreateProgress
+        from fabulae.models import StoryShape
+
+        # Track if select_shape_for_idea was called
+        shape_selection_called = False
+
+        async def mock_select_shape(idea: str, config: LLMConfig) -> StoryShape:
+            nonlocal shape_selection_called
+            shape_selection_called = True
+            raise AssertionError("Should not be called when no_shape=True")
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.select_shape_for_idea",
+            mock_select_shape,
+        )
+
+        # Mock run_stage to return valid outputs
+        style_output = MagicMock()
+        style_output.pov = "third"
+        style_output.tense = "past"
+        style_output.voice = "literary"
+        style_output.language = "en"
+        style_output.model_dump = MagicMock(return_value={"pov": "third", "tense": "past", "language": "en"})
+
+        outline_output = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        call_count = 0
+
+        async def mock_run_stage(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            if call_count == 1:
+                result.output = style_output
+            else:
+                result.output = outline_output
+            return result
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.run_stage",
+            mock_run_stage,
+        )
+
+        # Run generate_outline_only with no_shape=True
+        llm_config = LLMConfig(model="test-model")
+        options = CreateOptions(no_shape=True)
+        progress = CreateProgress()
+
+        project = await generate_outline_only(
+            idea="A detective investigates a murder",
+            format="novel",
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=tmp_path,
+        )
+
+        # Verify shape auto-selection was NOT called
+        assert shape_selection_called is False
+
+        # Verify metadata has no shape
+        assert project.config.metadata is not None
+        assert project.config.metadata.shape is None
+        assert project.config.metadata.no_shape is True
+
+    @pytest.mark.anyio
+    async def test_generate_outline_only_writes_shape_artifact(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Test that generate_outline_only writes shape artifact when shape is auto-selected."""
+        from unittest.mock import MagicMock
+
+        from fabulae.features.create.pipelines.outline import generate_outline_only
+        from fabulae.features.create.progress import CreateProgress
+        from fabulae.models import StoryShape
+
+        # Create a mock StoryShape
+        mock_shape = MagicMock(spec=StoryShape)
+        mock_shape.id = "betrayal-arc"
+
+        async def mock_select_shape(idea: str, config: LLMConfig) -> StoryShape:
+            return mock_shape
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.select_shape_for_idea",
+            mock_select_shape,
+        )
+
+        # Mock run_stage to return valid outputs
+        style_output = MagicMock()
+        style_output.pov = "third"
+        style_output.tense = "past"
+        style_output.voice = "literary"
+        style_output.language = "en"
+        style_output.model_dump = MagicMock(return_value={"pov": "third", "tense": "past", "language": "en"})
+
+        outline_output = OutlineOutput(
+            title="Test Story",
+            premise="Test premise",
+            chapters=[],
+            scenes=[],
+            characters=[],
+            locations=[],
+        )
+
+        call_count = 0
+
+        async def mock_run_stage(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            if call_count == 1:
+                result.output = style_output
+            else:
+                result.output = outline_output
+            return result
+
+        monkeypatch.setattr(
+            "fabulae.features.create.pipelines.outline.run_stage",
+            mock_run_stage,
+        )
+
+        # Create artifacts dir
+        artifacts_dir = tmp_path / "artifacts"
+        artifacts_dir.mkdir()
+
+        # Run generate_outline_only
+        llm_config = LLMConfig(model="test-model")
+        options = CreateOptions()
+        progress = CreateProgress()
+
+        await generate_outline_only(
+            idea="A story about betrayal",
+            format="novel",
+            options=options,
+            llm_config=llm_config,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+        )
+
+        # Verify shape artifact was written (artifacts are in .fabulae/create subdirectory)
+        shape_artifact = artifacts_dir / ".fabulae" / "create" / "01a-shape.yml"
+        assert shape_artifact.exists()
+
+        # Verify artifact contents
+        import yaml
+
+        with open(shape_artifact) as f:
+            content = yaml.safe_load(f)
+        assert content["shape_id"] == "betrayal-arc"
+        assert content["auto_selected"] is True
