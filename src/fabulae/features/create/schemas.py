@@ -129,8 +129,9 @@ class BeatTemplateItem(BaseModel):
     required: bool = False
     plot_pattern_beat: str | None = None
     notes: str | None = None
+    variation_point_description: str | None = None
 
-    @field_validator("kind", "plot_pattern_beat", "notes", mode="before")
+    @field_validator("kind", "plot_pattern_beat", "notes", "variation_point_description", mode="before")
     @classmethod
     def strip_whitespace(cls, v: str | None) -> str | None:
         return v.strip() if v else v
