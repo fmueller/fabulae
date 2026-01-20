@@ -22,7 +22,7 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
-from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, save_project
+from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, sanitize_project, save_project
 
 # Patterns that indicate a small model that may struggle with structured output
 _SMALL_MODEL_PATTERNS = [
@@ -351,6 +351,11 @@ def register_create_command(app: typer.Typer) -> None:
             # Validate generated content for quality issues
             quality_warnings = validate_title_diversity(project)
             for warning in quality_warnings:
+                progress.warn(warning)
+
+            # Sanitize project to remove orphaned entities
+            sanitize_warnings = sanitize_project(project)
+            for warning in sanitize_warnings:
                 progress.warn(warning)
 
             with progress.stage("Writing project files..."):

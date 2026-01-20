@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from fabulae.models import (
     Beat,
+    Chapter,
     Character,
     Fragment,
     Plot,
@@ -17,6 +18,7 @@ from fabulae.models import (
     World,
     WorldFact,
     load_project,
+    sanitize_project,
     save_project,
 )
 
@@ -588,3 +590,244 @@ class TestSaveProjectValidation:
 
         with pytest.raises(ValueError, match="micro-prose.*should not have stanzas"):
             save_project(project, tmp_path)
+
+
+class TestSanitizeProject:
+    """Tests for sanitize_project function."""
+
+    def test_removes_orphaned_scenes(self) -> None:
+        """Scenes not assigned to any chapter are removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                chapters=[
+                    Chapter(id="chapter-01", title="One", scene_ids=["scene-01"]),
+                ],
+                scenes=[
+                    Scene(id="scene-01", beats=[Beat(id="beat-01", kind="setup")]),
+                    Scene(id="scene-02", beats=[Beat(id="beat-02", kind="setup")]),  # orphan
+                    Scene(id="scene-03", beats=[Beat(id="beat-03", kind="setup")]),  # orphan
+                ],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # Orphaned scenes should be removed
+        assert len(project.plot.scenes) == 1
+        assert project.plot.scenes[0].id == "scene-01"
+
+        # Warning should mention both orphaned scenes
+        assert len(warnings) == 1
+        assert "orphaned scenes" in warnings[0].lower()
+        assert "scene-02" in warnings[0]
+        assert "scene-03" in warnings[0]
+
+    def test_removes_invalid_character_references(self) -> None:
+        """Invalid character references in scenes are removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        characters=["alice", "bob", "unknown-char"],
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                ],
+            ),
+            characters=[
+                Character(id="alice", name="Alice"),
+                Character(id="bob", name="Bob"),
+            ],
+        )
+
+        warnings = sanitize_project(project)
+
+        # Invalid character should be removed
+        assert project.plot.scenes[0].characters == ["alice", "bob"]
+        assert len(warnings) == 1
+        assert "unknown-char" in warnings[0]
+
+    def test_removes_invalid_location_reference(self) -> None:
+        """Invalid location reference in scene is removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        location="non-existent-location",
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                ],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # Invalid location should be removed
+        assert project.plot.scenes[0].location is None
+        assert len(warnings) == 1
+        assert "non-existent-location" in warnings[0]
+
+    def test_removes_location_reference_to_non_location_world_fact(self) -> None:
+        """Location reference to non-location world fact is removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        location="magic-system",
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                ],
+            ),
+            world=World(
+                setting="Test world",
+                facts=[WorldFact(id="magic-system", type="rule", name="Magic System")],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # Invalid location should be removed
+        assert project.plot.scenes[0].location is None
+        assert len(warnings) == 1
+        assert "not type 'location'" in warnings[0]
+
+    def test_removes_invalid_world_fact_references(self) -> None:
+        """Invalid world fact references in scenes are removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        world_fact_ids=["fact-exists", "fact-missing"],
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                ],
+            ),
+            world=World(
+                setting="Test world",
+                facts=[WorldFact(id="fact-exists", type="history", name="Existing Fact")],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # Invalid world fact should be removed
+        assert project.plot.scenes[0].world_fact_ids == ["fact-exists"]
+        assert len(warnings) == 1
+        assert "fact-missing" in warnings[0]
+
+    def test_removes_invalid_scene_references_from_chapters(self) -> None:
+        """Invalid scene references in chapters are removed with warning."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                chapters=[
+                    Chapter(id="chapter-01", title="One", scene_ids=["scene-01", "scene-missing"]),
+                ],
+                scenes=[
+                    Scene(id="scene-01", beats=[Beat(id="beat-01", kind="setup")]),
+                ],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # Invalid scene reference should be removed from chapter
+        assert project.plot.chapters[0].scene_ids == ["scene-01"]
+        assert len(warnings) == 1
+        assert "scene-missing" in warnings[0]
+
+    def test_no_changes_for_valid_project(self) -> None:
+        """Valid project returns no warnings and is not modified."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                chapters=[
+                    Chapter(id="chapter-01", title="One", scene_ids=["scene-01"]),
+                ],
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        characters=["hero"],
+                        location="forest",
+                        world_fact_ids=["magic"],
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                ],
+            ),
+            characters=[Character(id="hero", name="Hero")],
+            world=World(
+                setting="Fantasy",
+                facts=[
+                    WorldFact(id="forest", type="location", name="Forest"),
+                    WorldFact(id="magic", type="rule", name="Magic"),
+                ],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        assert warnings == []
+        assert len(project.plot.scenes) == 1
+        assert project.plot.scenes[0].characters == ["hero"]
+
+    def test_combined_issues_all_fixed(self) -> None:
+        """Multiple issues in one project are all fixed."""
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                format="short-story",
+                premise="Test",
+                chapters=[
+                    Chapter(id="chapter-01", title="One", scene_ids=["scene-01", "missing-scene"]),
+                ],
+                scenes=[
+                    Scene(
+                        id="scene-01",
+                        characters=["hero", "ghost-char"],
+                        location="fake-location",
+                        world_fact_ids=["valid-fact", "ghost-fact"],
+                        beats=[Beat(id="beat-01", kind="setup")],
+                    ),
+                    Scene(id="orphan-scene", beats=[Beat(id="beat-02", kind="setup")]),
+                ],
+            ),
+            characters=[Character(id="hero", name="Hero")],
+            world=World(
+                setting="Fantasy",
+                facts=[WorldFact(id="valid-fact", type="history", name="Valid")],
+            ),
+        )
+
+        warnings = sanitize_project(project)
+
+        # All issues should be fixed
+        assert len(project.plot.scenes) == 1
+        assert project.plot.scenes[0].characters == ["hero"]
+        assert project.plot.scenes[0].location is None
+        assert project.plot.scenes[0].world_fact_ids == ["valid-fact"]
+        assert project.plot.chapters[0].scene_ids == ["scene-01"]
+
+        # Should have warnings for all issues
+        assert len(warnings) >= 4  # At least: orphan scene, bad char, bad location, bad fact
