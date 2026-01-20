@@ -9,8 +9,6 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, Field
-
 from fabulae import __version__
 from fabulae.features.create.context import (
     PoemState,
@@ -54,14 +52,6 @@ from fabulae.models import (
     ProjectDefaults,
     Stanza,
 )
-
-
-class PoemPlanOutput(BaseModel):
-    """Minimal poem planning output."""
-
-    title: str | None = Field(default=None, description="Poem title")
-    poem_form: str | None = Field(default=None, description="Poem form (sonnet, haiku, free verse, etc.)")
-    themes: list[str] = Field(default_factory=list, description="Key themes")
 
 
 async def generate_poem_sequential(
@@ -195,6 +185,7 @@ async def _generate_poem_sequential_inner(
             error_mode=ErrorMode.STRICT,
         )
         premise = premise_result.output.premise
+        title = premise_result.output.title
 
     progress.success("Premise expanded")
 
@@ -204,7 +195,7 @@ async def _generate_poem_sequential_inner(
 
     # Write premise artifact
     if artifacts_dir:
-        _write_artifact(artifacts_dir, "03-premise.yml", {"premise": premise})
+        _write_artifact(artifacts_dir, "03-premise.yml", {"title": title, "premise": premise})
 
     # =========================================================================
     # Phase 4: Stanza Generation (One at a time)
@@ -275,6 +266,7 @@ async def _generate_poem_sequential_inner(
             idea=idea,
             format_name=format_name,
             style_output=style_output,
+            title=title,
             premise=premise,
             state=state,
             graph=graph,
@@ -297,6 +289,7 @@ def _assemble_poem_project(
     idea: str,
     format_name: LiteratureFormat,
     style_output: StyleOutput,
+    title: str | None,
     premise: str,
     state: PoemState,
     graph: PoemGraph,
@@ -310,7 +303,7 @@ def _assemble_poem_project(
     # Build plot
     plot = Plot(
         format=format_name,
-        title=None,
+        title=title,
         premise=premise,
         themes=[],
         stanzas=state.stanzas,

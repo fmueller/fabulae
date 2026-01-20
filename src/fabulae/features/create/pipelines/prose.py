@@ -255,6 +255,7 @@ async def _generate_prose_inner(
             error_mode=ErrorMode.STRICT,
         )
         premise = premise_result.output.premise
+        story_title = premise_result.output.title
 
     if progress:
         progress.success("Premise expanded")
@@ -265,7 +266,7 @@ async def _generate_prose_inner(
 
     # Write premise artifact
     if artifacts_dir:
-        _write_artifact(artifacts_dir, "02-premise.yml", {"premise": premise})
+        _write_artifact(artifacts_dir, "02-premise.yml", {"title": story_title, "premise": premise})
 
     # Load story shape
     shape: StoryShape | None = None
@@ -984,7 +985,7 @@ async def _generate_prose_inner(
         # Build Plot
         plot = Plot(
             format=format_name,
-            title=outline_content.chapters[0].title if outline_content.chapters else None,
+            title=story_title,
             premise=premise,
             themes=[],
             hook=None,

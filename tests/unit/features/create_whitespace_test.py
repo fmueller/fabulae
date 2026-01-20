@@ -190,8 +190,9 @@ def test_plot_output_strips_whitespace() -> None:
 
 
 def test_premise_output_strips_whitespace() -> None:
-    """Test PremiseOutput strips whitespace from premise."""
-    output = PremiseOutput(premise="  The premise  ")
+    """Test PremiseOutput strips whitespace from premise and title."""
+    output = PremiseOutput(title="  The Title  ", premise="  The premise  ")
+    assert output.title == "The Title"
     assert output.premise == "The premise"
 
 
