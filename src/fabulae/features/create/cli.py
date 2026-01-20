@@ -104,6 +104,43 @@ def _validate_language(language: str | None) -> str | None:
     return normalized
 
 
+def _resolve_shape(shape: str | None) -> tuple[str | None, Path | None]:
+    """Resolve shape argument to either a shape ID or a file path.
+
+    Args:
+        shape: The shape argument from CLI - can be a shape ID or a file path
+
+    Returns:
+        Tuple of (shape_id, shape_file) - one will be set, the other None
+
+    Raises:
+        typer.BadParameter: If shape ID is invalid or file not found
+    """
+    if shape is None:
+        return None, None
+
+    # Check if it's a file path (exists as a file)
+    candidate = Path(shape)
+    if candidate.exists():
+        if candidate.is_dir():
+            raise typer.BadParameter(f"Shape path is a directory, not a file: {candidate}")
+        return None, candidate
+
+    # Otherwise, treat as a shape ID and validate it
+    from fabulae.features.create.shapes.loader import get_shape_ids
+
+    available_ids = get_shape_ids()
+    if shape not in available_ids:
+        available = ", ".join(sorted(available_ids))
+        raise typer.BadParameter(
+            f"Unknown shape: '{shape}'. If this is a file path, ensure it exists. "
+            f"Available built-in shapes: {available}. "
+            "Use 'fabulae shapes' to list all available shapes."
+        )
+
+    return shape, None
+
+
 def register_create_command(app: typer.Typer) -> None:
     @app.command(
         name="create",
@@ -143,17 +180,12 @@ def register_create_command(app: typer.Typer) -> None:
             str | None,
             typer.Option(
                 "--shape",
+                "-s",
                 help=(
-                    "Story shape to use (e.g., 'betrayal-arc', 'heros-journey'). "
-                    "Use 'fabulae shapes' to list available shapes."
+                    "Story shape to use: either a built-in shape ID (e.g., 'betrayal-arc', "
+                    "'heros-journey') or a path to a custom shape YAML file. "
+                    "Use 'fabulae shapes' to list available built-in shapes."
                 ),
-            ),
-        ] = None,
-        shape_file: Annotated[
-            Path | None,
-            typer.Option(
-                "--shape-file",
-                help="Path to a custom story shape YAML file.",
             ),
         ] = None,
         no_shape: Annotated[
@@ -213,32 +245,12 @@ def register_create_command(app: typer.Typer) -> None:
         if directory.exists() and not force:
             raise typer.BadParameter(f"Target directory already exists: {directory}")
 
+        # Resolve shape argument (can be shape ID or file path)
+        shape_id, shape_file = _resolve_shape(shape)
+
         # Validate shape flags
-        if no_shape and (shape or shape_file):
-            raise typer.BadParameter(
-                "Cannot specify --no-shape with --shape or --shape-file."
-            )
-
-        if shape and shape_file:
-            raise typer.BadParameter(
-                "Cannot specify both --shape and --shape-file. "
-                "Use --shape for built-in shapes or --shape-file for custom shapes."
-            )
-
-        if shape_file and not shape_file.exists():
-            raise typer.BadParameter(f"Shape file not found: {shape_file}")
-
-        # Validate shape ID exists before starting generation
-        if shape:
-            from fabulae.features.create.shapes.loader import get_shape_ids
-
-            available_ids = get_shape_ids()
-            if shape not in available_ids:
-                available = ", ".join(sorted(available_ids))
-                raise typer.BadParameter(
-                    f"Unknown shape: {shape}. Available shapes: {available}. "
-                    "Use 'fabulae shapes' to list all available shapes."
-                )
+        if no_shape and shape:
+            raise typer.BadParameter("Cannot specify --no-shape with --shape.")
 
         idea_text = _resolve_idea(idea)
         language_code = _validate_language(language)
@@ -261,7 +273,7 @@ def register_create_command(app: typer.Typer) -> None:
         effective_enrich_for_full = effective_enrich if full else False
 
         create_options = CreateOptions(
-            shape_id=shape,
+            shape_id=shape_id,
             shape_file=shape_file,
             no_shape=no_shape,
             variation=variation,
@@ -303,7 +315,8 @@ def register_create_command(app: typer.Typer) -> None:
             "model": config.model,
             "temperature": temperature,
             "seed": seed,
-            "shape": shape,
+            "shape": shape_id,
+            "shape_file": str(shape_file) if shape_file else None,
             "variation": variation,
             "enrich": effective_enrich,
             "pipeline": effective_pipeline,

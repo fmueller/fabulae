@@ -67,7 +67,7 @@ The `create` feature generates narrative projects from ideas using a multi-stage
 **Story Shapes** (`src/fabulae/data/story_shapes/`): Pre-defined narrative templates that provide structural scaffolding:
 - Each shape defines: character slots, setting slots, required beats, variation points, themes, motifs
 - Built-in shapes: `heros-journey`, `betrayal-arc`, `coming-of-age`, `mystery-reveal`, `romance-arc`, etc.
-- Select via `--shape <id>` or provide custom via `--shape-file <path>`
+- Select via `--shape <id>` for built-in shapes or `--shape <path>` for custom shape files
 - CLI: `fabulae shapes` (list all) and `fabulae shape <id>` (show details)
 - Loader: `src/fabulae/features/create/shapes/loader.py` and `selector.py`
 

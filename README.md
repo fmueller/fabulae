@@ -109,7 +109,7 @@ fabulae create --idea "A detective story in a cyberpunk city" my-story
 fabulae create --idea "A hero's journey in space" --shape heros-journey my-space-opera
 
 # Use a custom story shape file
-fabulae create --idea "A unique tale" --shape-file my-shape.yml my-project
+fabulae create --idea "A unique tale" --shape my-shape.yml my-project
 
 # Control variation level (0.0 = minimal, 1.0 = maximum)
 fabulae create --idea "A mystery" --variation 0.8 my-mystery
@@ -127,8 +127,7 @@ fabulae create --idea "A fantasy epic" --seed 42 my-fantasy
 **Create command options:**
 - `--idea, -i` – Idea text or path to file containing the idea
 - `--format, -f` – Literature format (default: novel)
-- `--shape` – Built-in story shape ID (use `fabulae shapes` to list)
-- `--shape-file` – Path to custom story shape YAML file
+- `--shape, -s` – Story shape: built-in shape ID (use `fabulae shapes` to list) or path to custom YAML file
 - `--variation` – Variation level 0.0-1.0 (default: 0.5)
 - `--enrich/--no-enrich` – Enable/disable enrichment pass (default: auto - enabled for large models, disabled for small models <13B)
 - `--language, -l` – ISO 639-1 language code to enforce

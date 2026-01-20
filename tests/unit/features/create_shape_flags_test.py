@@ -1,4 +1,4 @@
-"""Tests for --shape and --shape-file flags in create command."""
+"""Tests for --shape flag in create command (accepts both shape ID and file path)."""
 
 from __future__ import annotations
 
@@ -89,10 +89,10 @@ def test_create_with_shape_flag_loads_shape(runner: CliRunner, tmp_path: Path, m
         assert options.shape_file is None
 
 
-def test_create_with_shape_file_flag_loads_custom_shape(
+def test_create_with_shape_file_path_loads_custom_shape(
     runner: CliRunner, tmp_path: Path, custom_shape_file: Path
 ) -> None:
-    """Test that --shape-file flag loads custom shape from file."""
+    """Test that --shape with a file path loads custom shape from file."""
     output_dir = tmp_path / "project"
 
     with (
@@ -113,7 +113,7 @@ def test_create_with_shape_file_flag_loads_custom_shape(
                 str(output_dir),
                 "--idea",
                 "A test story",
-                "--shape-file",
+                "--shape",
                 str(custom_shape_file),
             ],
         )
@@ -124,31 +124,6 @@ def test_create_with_shape_file_flag_loads_custom_shape(
         options: CreateOptions = call_args.kwargs["options"]
         assert options.shape_file == custom_shape_file
         assert options.shape_id is None
-
-
-def test_create_with_both_shape_flags_fails(runner: CliRunner, tmp_path: Path) -> None:
-    """Test that using both --shape and --shape-file together raises an error."""
-    output_dir = tmp_path / "project"
-    shape_file = tmp_path / "custom.yml"
-    shape_file.write_text("id: test\nname: Test")
-
-    result = runner.invoke(
-        app,
-        [
-            "create",
-            str(output_dir),
-            "--idea",
-            "A test story",
-            "--shape",
-            "betrayal-arc",
-            "--shape-file",
-            str(shape_file),
-        ],
-    )
-
-    assert result.exit_code != 0
-    output = strip_ansi(result.stdout + result.stderr)
-    assert "Cannot specify both --shape and --shape-file" in output
 
 
 def test_create_with_invalid_shape_id_shows_error(runner: CliRunner, tmp_path: Path) -> None:
@@ -173,10 +148,9 @@ def test_create_with_invalid_shape_id_shows_error(runner: CliRunner, tmp_path: P
     assert "nonexistent-shape" in output or "Unknown shape" in output
 
 
-def test_create_with_nonexistent_shape_file_fails(runner: CliRunner, tmp_path: Path) -> None:
-    """Test that using --shape-file with nonexistent file raises an error."""
+def test_create_with_nonexistent_shape_shows_helpful_error(runner: CliRunner, tmp_path: Path) -> None:
+    """Test that nonexistent shape (not a file, not a valid ID) shows helpful error."""
     output_dir = tmp_path / "project"
-    nonexistent_file = tmp_path / "does-not-exist.yml"
 
     result = runner.invoke(
         app,
@@ -185,14 +159,38 @@ def test_create_with_nonexistent_shape_file_fails(runner: CliRunner, tmp_path: P
             str(output_dir),
             "--idea",
             "A test story",
-            "--shape-file",
-            str(nonexistent_file),
+            "--shape",
+            "does-not-exist.yml",  # Looks like a file but doesn't exist, treated as invalid shape ID
         ],
     )
 
     assert result.exit_code != 0
-    output = (result.stdout + result.stderr).lower()
-    assert "not found" in output
+    output = result.stdout + result.stderr
+    # Should mention it's unknown and suggest it might be a file path
+    assert "Unknown shape" in output or "does-not-exist" in output
+
+
+def test_create_with_shape_directory_fails(runner: CliRunner, tmp_path: Path) -> None:
+    """Test that using a directory path as --shape raises an error."""
+    output_dir = tmp_path / "project"
+    shape_dir = tmp_path / "shapes"
+    shape_dir.mkdir()
+
+    result = runner.invoke(
+        app,
+        [
+            "create",
+            str(output_dir),
+            "--idea",
+            "A test story",
+            "--shape",
+            str(shape_dir),
+        ],
+    )
+
+    assert result.exit_code != 0
+    output = result.stdout + result.stderr
+    assert "directory" in output.lower()
 
 
 def test_create_without_shape_flags_works(runner: CliRunner, tmp_path: Path) -> None:
@@ -248,14 +246,13 @@ def test_shape_loaded_and_saved_to_artifacts(tmp_path: Path, mock_shape: StorySh
         mock_loader.assert_called_once_with("test-shape")
 
 
-def test_shape_precedence_when_both_provided() -> None:
-    """Test that --shape-file takes precedence if both are somehow provided."""
-    # This is enforced at CLI level, but let's ensure CreateOptions handles it
+def test_create_options_accepts_both_shape_id_and_file() -> None:
+    """Test that CreateOptions dataclass can hold both shape_id and shape_file (for internal use)."""
     from pathlib import Path
 
     from fabulae.features.create.schemas import CreateOptions
 
-    # CreateOptions allows both to be set (validation is in CLI)
+    # CreateOptions allows both to be set (pipelines check shape_file first, then shape_id)
     shape_file = Path("/tmp/custom.yml")
     options = CreateOptions(
         shape_id="betrayal-arc",
@@ -265,7 +262,7 @@ def test_shape_precedence_when_both_provided() -> None:
     # Both can be set in the dataclass
     assert options.shape_id == "betrayal-arc"
     assert options.shape_file == shape_file
-    # CLI validation prevents this scenario
+    # CLI resolves --shape to exactly one of these, but internal code can set both
 
 
 def test_create_with_no_shape_flag(runner: CliRunner, tmp_path: Path) -> None:
@@ -322,14 +319,14 @@ def test_create_with_no_shape_and_shape_fails(runner: CliRunner, tmp_path: Path)
 
     assert result.exit_code != 0
     output = strip_ansi(result.stdout + result.stderr)
-    assert "Cannot specify --no-shape with --shape or --shape-file" in output
+    assert "Cannot specify --no-shape with --shape" in output
 
 
-def test_create_with_no_shape_and_shape_file_fails(runner: CliRunner, tmp_path: Path) -> None:
-    """Test that using both --no-shape and --shape-file together raises an error."""
+def test_create_with_no_shape_and_shape_file_path_fails(
+    runner: CliRunner, tmp_path: Path, custom_shape_file: Path
+) -> None:
+    """Test that using both --no-shape and --shape (with file path) together raises an error."""
     output_dir = tmp_path / "project"
-    shape_file = tmp_path / "custom.yml"
-    shape_file.write_text("id: test\nname: Test")
 
     result = runner.invoke(
         app,
@@ -339,11 +336,11 @@ def test_create_with_no_shape_and_shape_file_fails(runner: CliRunner, tmp_path: 
             "--idea",
             "A test story",
             "--no-shape",
-            "--shape-file",
-            str(shape_file),
+            "--shape",
+            str(custom_shape_file),
         ],
     )
 
     assert result.exit_code != 0
     output = strip_ansi(result.stdout + result.stderr)
-    assert "Cannot specify --no-shape with --shape or --shape-file" in output
+    assert "Cannot specify --no-shape with --shape" in output
