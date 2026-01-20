@@ -99,7 +99,6 @@ async def suggest_stanza(
     if config is None:
         raise ValueError("LLM config is required for stanza generation")
 
-    # Build context from project or individual parameters
     if project:
         if existing_stanzas is None:
             existing_stanzas = project.plot.stanzas
@@ -110,7 +109,6 @@ async def suggest_stanza(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_stanza_prompt(
         premise=premise,
         existing_stanzas=existing_stanzas,
@@ -125,7 +123,6 @@ async def suggest_stanza(
         style=style,
     )
 
-    # Generate using LLM
     user_prompt = f"Generate a stanza with {target_line_count} lines."
     if position is not None and total_stanzas:
         user_prompt = f"Generate stanza {position + 1} of {total_stanzas} with {target_line_count} lines."
@@ -136,7 +133,6 @@ async def suggest_stanza(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to Stanza model
     return Stanza(
         id=suggestion.id,
         lines=suggestion.lines,

@@ -124,7 +124,6 @@ async def suggest_chapter(
         if language is None and project.style:
             language = project.style.language
 
-    # Auto-generate title requirement if in create mode but not provided
     title_req = title_requirement
     if title_req is None and chapter_index is not None and total_chapters is not None:
         title_req = get_title_requirement(
@@ -133,7 +132,6 @@ async def suggest_chapter(
             previous_titles=previous_chapter_titles or [],
         )
 
-    # Format title requirement for prompt
     title_requirement_str = None
     if title_req:
         title_requirement_str = title_req.format_for_prompt(language)

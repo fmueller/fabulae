@@ -90,7 +90,6 @@ async def suggest_beat(
     if config is None:
         raise ValueError("LLM config is required for beat generation")
 
-    # Build context from scene and project or individual parameters
     if scene:
         if scene_id is None:
             scene_id = scene.id
@@ -110,7 +109,6 @@ async def suggest_beat(
     if scene_id is None:
         raise ValueError("scene_id is required for beat generation")
 
-    # Build prompt
     prompt = build_beat_prompt(
         scene_id=scene_id,
         scene_summary=scene_summary,
@@ -121,7 +119,6 @@ async def suggest_beat(
         assigned_id=assigned_id,
     )
 
-    # Generate using LLM
     user_prompt = f"Generate a beat for scene '{scene_id}'."
     if guidance:
         user_prompt = f"Create a beat: {guidance[:100]}"
@@ -130,7 +127,6 @@ async def suggest_beat(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to Beat model
     return Beat(
         id=suggestion.id,
         kind=suggestion.kind,
