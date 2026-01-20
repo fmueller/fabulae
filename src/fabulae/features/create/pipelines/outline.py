@@ -52,6 +52,8 @@ from fabulae.features.create.service import (
     _write_world,
     run_stage,
 )
+from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shapes.selector import select_shape_for_idea
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
@@ -64,6 +66,7 @@ from fabulae.models import (
     ProjectConfig,
     ProjectDefaults,
     Scene,
+    StoryShape,
     World,
     WorldFact,
 )
@@ -218,6 +221,33 @@ async def generate_outline_only(
         _write_artifact(artifacts_dir, "01-style.yml", style_output.model_dump(exclude_none=True, by_alias=True))
 
     # =========================================================================
+    # Shape Selection (auto-select if not provided)
+    # =========================================================================
+
+    shape: StoryShape | None = None
+    if options.shape_file:
+        shape = load_shape_from_file(options.shape_file)
+    elif options.shape_id:
+        shape = load_shape(options.shape_id)
+    elif not options.no_shape:
+        # Auto-select shape based on idea
+        with maybe_stage(progress, "Selecting story shape..."):
+            shape = await select_shape_for_idea(idea, llm_config)
+        if progress and shape:
+            progress.info(f"Selected shape: {shape.id}")
+
+        # Write shape selection artifact
+        if artifacts_dir and shape:
+            _write_artifact(
+                artifacts_dir,
+                "01a-shape.yml",
+                {
+                    "shape_id": shape.id,
+                    "auto_selected": True,
+                },
+            )
+
+    # =========================================================================
     # Phase 2: Outline Generation
     # =========================================================================
 
@@ -256,6 +286,12 @@ async def generate_outline_only(
     # Phase 3: Project Assembly
     # =========================================================================
 
+    # Determine the effective shape ID for metadata (user-provided or auto-selected)
+    auto_selected_shape_id: str | None = None
+    if not options.shape_id and not options.shape_file and shape:
+        # Shape was auto-selected (not explicitly provided)
+        auto_selected_shape_id = shape.id
+
     with maybe_stage(progress, "Assembling project..."):
         project = _convert_outline_to_project(
             outline=outline,
@@ -264,6 +300,7 @@ async def generate_outline_only(
             idea=idea,
             llm_config=llm_config,
             options=options,
+            auto_selected_shape_id=auto_selected_shape_id,
         )
 
     progress.success("Project assembled")
@@ -287,12 +324,22 @@ def _convert_outline_to_project(
     idea: str,
     llm_config: LLMConfig,
     options: CreateOptions,
+    auto_selected_shape_id: str | None = None,
 ) -> Project:
     """Convert outline output to Project structure with placeholder content.
 
     Characters have minimal info (name, role) - detailed attributes left empty.
     Scenes have no beats - to be filled in with --full mode later.
     World facts are minimal (just location names).
+
+    Args:
+        outline: The outline output from the LLM
+        style_output: The style output from the LLM
+        format_name: The literature format
+        idea: The original idea
+        llm_config: The LLM config
+        options: The create options
+        auto_selected_shape_id: The ID of the auto-selected shape, if any
     """
     # Convert style
     style = _coerce_style(style_output)
@@ -372,6 +419,13 @@ def _convert_outline_to_project(
         scene_ids=scene_ids_list,
     )
 
+    # Determine the effective shape ID for metadata (explicit takes precedence over auto-selected)
+    effective_shape_id: str | None = None
+    if options.shape_id:
+        effective_shape_id = options.shape_id
+    elif auto_selected_shape_id:
+        effective_shape_id = auto_selected_shape_id
+
     # Build metadata
     metadata = GenerationMetadata(
         generated_at=datetime.now(),
@@ -379,7 +433,7 @@ def _convert_outline_to_project(
         original_idea=idea,
         model=llm_config.model,
         temperature=llm_config.temperature,
-        shape=options.shape_id,
+        shape=effective_shape_id,
         shape_file=str(options.shape_file) if options.shape_file else None,
         no_shape=options.no_shape if options.no_shape else None,
         variation=options.variation,
