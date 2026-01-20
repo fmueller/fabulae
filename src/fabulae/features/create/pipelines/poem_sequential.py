@@ -279,8 +279,7 @@ async def _generate_poem_sequential_inner(
             state=state,
             graph=graph,
             llm_config=llm_config,
-            variation=options.variation,
-            enrich=options.enrich,
+            options=options,
         )
 
     progress.success("Project assembled")
@@ -302,8 +301,7 @@ def _assemble_poem_project(
     state: PoemState,
     graph: PoemGraph,
     llm_config: LLMConfig,
-    variation: float,
-    enrich: bool,
+    options: CreateOptions,
 ) -> Project:
     """Assemble the final Project from generated components."""
     # Build style
@@ -326,10 +324,11 @@ def _assemble_poem_project(
         original_idea=idea,
         model=llm_config.model,
         temperature=llm_config.temperature,
-        variation=variation,
+        variation=options.variation,
         seed=graph.seed,
-        enrichment_enabled=enrich,
+        enrichment_enabled=options.enrich,
         format=format_name,
+        no_shape=options.no_shape if options.no_shape else None,
     )
 
     config = ProjectConfig(

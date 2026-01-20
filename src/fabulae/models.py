@@ -271,6 +271,7 @@ class GenerationMetadata(BaseModel):
     temperature: float
     shape: str | None = None
     shape_file: str | None = None
+    no_shape: bool | None = None  # True if user explicitly used --no-shape
     variation: float
     seed: int | None = None
     enrichment_enabled: bool

@@ -28,6 +28,7 @@ class CreateOptions:
 
     shape_id: str | None = None
     shape_file: Path | None = None
+    no_shape: bool = False  # Explicitly skip story shape (free-form generation)
     variation: float = 0.5
     seed: int | None = None
     enrich: bool = True

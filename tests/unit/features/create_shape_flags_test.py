@@ -266,3 +266,84 @@ def test_shape_precedence_when_both_provided() -> None:
     assert options.shape_id == "betrayal-arc"
     assert options.shape_file == shape_file
     # CLI validation prevents this scenario
+
+
+def test_create_with_no_shape_flag(runner: CliRunner, tmp_path: Path) -> None:
+    """Test that --no-shape flag sets no_shape=True in CreateOptions."""
+    output_dir = tmp_path / "project"
+
+    with (
+        patch("fabulae.features.create.cli.generate_project_from_idea_sync") as mock_generate,
+        patch("fabulae.features.create.cli.save_project"),
+    ):
+        mock_project = MagicMock()
+        mock_project.characters = []
+        mock_project.plot.scenes = []
+        mock_project.plot.fragments = []
+        mock_project.plot.stanzas = []
+        mock_generate.return_value = mock_project
+
+        result = runner.invoke(
+            app,
+            [
+                "create",
+                str(output_dir),
+                "--idea",
+                "A test story",
+                "--no-shape",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        # Verify that generate was called with no_shape=True in options
+        call_args = mock_generate.call_args
+        options: CreateOptions = call_args.kwargs["options"]
+        assert options.no_shape is True
+        assert options.shape_id is None
+        assert options.shape_file is None
+
+
+def test_create_with_no_shape_and_shape_fails(runner: CliRunner, tmp_path: Path) -> None:
+    """Test that using both --no-shape and --shape together raises an error."""
+    output_dir = tmp_path / "project"
+
+    result = runner.invoke(
+        app,
+        [
+            "create",
+            str(output_dir),
+            "--idea",
+            "A test story",
+            "--no-shape",
+            "--shape",
+            "betrayal-arc",
+        ],
+    )
+
+    assert result.exit_code != 0
+    output = strip_ansi(result.stdout + result.stderr)
+    assert "Cannot specify --no-shape with --shape or --shape-file" in output
+
+
+def test_create_with_no_shape_and_shape_file_fails(runner: CliRunner, tmp_path: Path) -> None:
+    """Test that using both --no-shape and --shape-file together raises an error."""
+    output_dir = tmp_path / "project"
+    shape_file = tmp_path / "custom.yml"
+    shape_file.write_text("id: test\nname: Test")
+
+    result = runner.invoke(
+        app,
+        [
+            "create",
+            str(output_dir),
+            "--idea",
+            "A test story",
+            "--no-shape",
+            "--shape-file",
+            str(shape_file),
+        ],
+    )
+
+    assert result.exit_code != 0
+    output = strip_ansi(result.stdout + result.stderr)
+    assert "Cannot specify --no-shape with --shape or --shape-file" in output

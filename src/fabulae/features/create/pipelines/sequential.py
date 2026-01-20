@@ -65,6 +65,7 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shapes.selector import select_shape_for_idea
 from fabulae.features.create.shutdown import graceful_shutdown
 from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_plot_graph
@@ -133,12 +134,18 @@ async def generate_prose_sequential(
 
     format_name = cast(LiteratureFormat, format)
 
-    # Load story shape if provided
+    # Load story shape
     shape: StoryShape | None = None
     if options.shape_file:
         shape = load_shape_from_file(options.shape_file)
     elif options.shape_id:
         shape = load_shape(options.shape_id)
+    elif not options.no_shape:
+        # Auto-select shape based on idea
+        with progress.stage("Selecting story shape..."):
+            shape = await select_shape_for_idea(idea, llm_config)
+        if shape:
+            progress.info(f"Selected shape: {shape.id}")
 
     # =========================================================================
     # Phase 1: Structure Generation (No LLM)
@@ -182,6 +189,7 @@ async def generate_prose_sequential(
             artifacts_dir=artifacts_dir,
             graph=graph,
             gen_state=gen_state,
+            shape=shape,
         )
 
 
@@ -194,6 +202,7 @@ async def _generate_prose_sequential_inner(
     artifacts_dir: Path | None,
     graph: PlotGraph,
     gen_state: GenerationState,
+    shape: StoryShape | None,
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
     # =========================================================================
@@ -564,8 +573,8 @@ async def _generate_prose_sequential_inner(
             state=state,
             graph=graph,
             llm_config=llm_config,
-            variation=options.variation,
-            enrich=options.enrich,
+            options=options,
+            shape=shape,
         )
 
     progress.success("Project assembled")
@@ -589,8 +598,8 @@ def _assemble_project(
     state: ProjectState,
     graph: PlotGraph,
     llm_config: LLMConfig,
-    variation: float,
-    enrich: bool,
+    options: CreateOptions,
+    shape: StoryShape | None,
 ) -> Project:
     """Assemble the final Project from generated components."""
     # Build style
@@ -610,6 +619,14 @@ def _assemble_project(
         scenes=state.scenes,
     )
 
+    # Determine the effective shape ID for metadata (user-provided or auto-selected)
+    effective_shape_id: str | None = None
+    if options.shape_id:
+        effective_shape_id = options.shape_id
+    elif shape:
+        # Auto-selected shape
+        effective_shape_id = shape.id
+
     # Build config with metadata
     metadata = GenerationMetadata(
         generated_at=datetime.now(),
@@ -617,9 +634,12 @@ def _assemble_project(
         original_idea=idea,
         model=llm_config.model,
         temperature=llm_config.temperature,
-        variation=variation,
+        shape=effective_shape_id,
+        shape_file=str(options.shape_file) if options.shape_file else None,
+        no_shape=options.no_shape if options.no_shape else None,
+        variation=options.variation,
         seed=graph.seed,
-        enrichment_enabled=enrich,
+        enrichment_enabled=options.enrich,
         format=format_name,
     )
 
