@@ -70,6 +70,10 @@ from fabulae.features.create.shutdown import graceful_shutdown
 from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_plot_graph
 from fabulae.features.create.validation import is_title_acceptable
+from fabulae.features.create.variation import (
+    VariationEngine,
+    create_variation_config_from_level,
+)
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
 from fabulae.models import (
@@ -152,7 +156,19 @@ async def generate_prose_sequential(
     # =========================================================================
 
     with progress.stage("Planning story structure..."):
-        graph = generate_plot_graph(format_name, shape, options.variation, options.seed)
+        # Select variation points if we have a shape
+        selected_variation_points = None
+        if shape:
+            variation_config = create_variation_config_from_level(options.variation, options.seed)
+            variation_engine = VariationEngine(shape, variation_config)
+            # Select variation points based on probabilities (assignment happens in generate_plot_graph)
+            selected_variation_points = variation_engine._select_variation_points()
+
+        # Generate the plot graph with variation points
+        # The graph will assign variation points to scenes and create beats for them
+        graph = generate_plot_graph(
+            format_name, shape, options.variation, options.seed, selected_variation_points
+        )
 
     progress.success(
         f"Structure planned: {len(graph.chapters)} chapters, {len(graph.scenes)} scenes, {graph.total_beats()} beats"
@@ -160,20 +176,28 @@ async def generate_prose_sequential(
 
     # Write structure artifact
     if artifacts_dir:
-        _write_artifact(
-            artifacts_dir,
-            "01-structure.yml",
-            {
-                "format": format_name,
-                "chapters": len(graph.chapters),
-                "scenes": len(graph.scenes),
-                "total_beats": graph.total_beats(),
-                "characters": len(graph.characters),
-                "locations": len(graph.locations),
-                "seed": graph.seed,
-                "summary": graph.to_summary(),
-            },
-        )
+        structure_data: dict[str, object] = {
+            "format": format_name,
+            "chapters": len(graph.chapters),
+            "scenes": len(graph.scenes),
+            "total_beats": graph.total_beats(),
+            "characters": len(graph.characters),
+            "locations": len(graph.locations),
+            "seed": graph.seed,
+            "summary": graph.to_summary(),
+        }
+        # Include variation points in artifact if any were selected
+        if selected_variation_points:
+            structure_data["selected_variation_points"] = [
+                {
+                    "type": vp.type,
+                    "description": vp.description,
+                    "position": vp.position,
+                    "assigned_scene_id": vp.assigned_scene_id,
+                }
+                for vp in selected_variation_points
+            ]
+        _write_artifact(artifacts_dir, "01-structure.yml", structure_data)
 
     # Initialize generation state for graceful shutdown
     gen_state = GenerationState(idea=idea, format_name=format_name)

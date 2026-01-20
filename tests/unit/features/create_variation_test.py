@@ -475,7 +475,7 @@ class TestVariationEngine:
     def test_variation_engine_initialization(self) -> None:
         """Test VariationEngine can be initialized."""
         config = VariationConfig(seed=42)
-        shape = object()  # Mock shape for now
+        shape = None  # No shape needed for basic engine tests
         engine = VariationEngine(shape, config)
 
         assert engine.shape is shape
@@ -486,7 +486,7 @@ class TestVariationEngine:
         """Test with seeded RNG for reproducibility."""
         config1 = VariationConfig(seed=12345)
         config2 = VariationConfig(seed=12345)
-        shape = object()
+        shape = None
 
         engine1 = VariationEngine(shape, config1)
         engine2 = VariationEngine(shape, config2)
@@ -512,7 +512,7 @@ class TestVariationEngine:
     def test_variation_engine_generates_all_scene_variations(self) -> None:
         """Test that all scenes get variations."""
         config = VariationConfig(seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02", "scene-03", "scene-04", "scene-05"]
@@ -527,7 +527,7 @@ class TestVariationEngine:
     def test_variation_engine_assigns_positions(self) -> None:
         """Test that scenes are assigned correct positions."""
         config = VariationConfig(seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02", "scene-03", "scene-04", "scene-05"]
@@ -543,7 +543,7 @@ class TestVariationEngine:
     def test_variation_engine_complication_probability(self) -> None:
         """Test complication probability is respected (approximately)."""
         config = VariationConfig(complication_probability=0.8, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = [f"scene-{i:02d}" for i in range(1, 21)]
@@ -560,7 +560,7 @@ class TestVariationEngine:
     def test_variation_engine_complication_type_set_when_has_complication(self) -> None:
         """Test complication type is set when has_complication is True."""
         config = VariationConfig(complication_probability=1.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02", "scene-03"]
@@ -587,7 +587,7 @@ class TestVariationEngine:
     def test_variation_engine_character_moment_probability(self) -> None:
         """Test character moment probability is respected (approximately)."""
         config = VariationConfig(character_moment_probability=0.5, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = [f"scene-{i:02d}" for i in range(1, 21)]
@@ -604,7 +604,7 @@ class TestVariationEngine:
     def test_variation_engine_character_focus_balanced(self) -> None:
         """Test character focus distribution is balanced."""
         config = VariationConfig(character_moment_probability=1.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         # Use many scenes to test balancing
@@ -633,7 +633,7 @@ class TestVariationEngine:
     def test_variation_engine_character_focus_none_when_no_moment(self) -> None:
         """Test character focus is None when no character moment."""
         config = VariationConfig(character_moment_probability=0.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02", "scene-03"]
@@ -648,7 +648,7 @@ class TestVariationEngine:
     def test_variation_engine_subplot_seeds_only_early_middle(self) -> None:
         """Test subplot seeds only appear in early/middle scenes, not late/climax."""
         config = VariationConfig(subplot_seed_probability=1.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = [f"scene-{i:02d}" for i in range(1, 11)]
@@ -667,7 +667,7 @@ class TestVariationEngine:
     def test_variation_engine_subplot_seed_probability(self) -> None:
         """Test subplot seed probability is respected for early/middle scenes."""
         config = VariationConfig(subplot_seed_probability=0.5, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         # Use many scenes to get good early/middle distribution
@@ -688,7 +688,7 @@ class TestVariationEngine:
     def test_variation_engine_subplot_seeds_collected(self) -> None:
         """Test that subplot seeds are collected in the ProjectVariation."""
         config = VariationConfig(subplot_seed_probability=1.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = [f"scene-{i:02d}" for i in range(1, 11)]
@@ -705,7 +705,7 @@ class TestVariationEngine:
     def test_variation_engine_filler_beats_generated(self) -> None:
         """Test that filler beats are generated for all scenes."""
         config = VariationConfig(seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02", "scene-03"]
@@ -720,7 +720,7 @@ class TestVariationEngine:
     def test_variation_engine_filler_beats_count_by_position(self) -> None:
         """Test filler beats count varies by position."""
         config = VariationConfig(seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = [f"scene-{i:02d}" for i in range(1, 11)]
@@ -740,7 +740,7 @@ class TestVariationEngine:
     def test_variation_engine_empty_character_list(self) -> None:
         """Test engine works with empty character list."""
         config = VariationConfig(character_moment_probability=1.0, seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01", "scene-02"]
@@ -755,7 +755,7 @@ class TestVariationEngine:
     def test_variation_engine_single_scene(self) -> None:
         """Test engine works with a single scene."""
         config = VariationConfig(seed=42)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01"]
@@ -770,7 +770,7 @@ class TestVariationEngine:
     def test_variation_engine_config_stored(self) -> None:
         """Test that config is stored in ProjectVariation."""
         config = VariationConfig(seed=999)
-        shape = object()
+        shape = None
         engine = VariationEngine(shape, config)
 
         scene_ids = ["scene-01"]

@@ -19,12 +19,14 @@ class BeatSlot:
         kind: Beat type (action, dialogue, revelation, etc.)
         required: Whether this beat is required by the story shape
         shape_beat_type: If from story shape, the RequiredBeat.type that generated this
+        variation_point_description: If from a variation point, the guidance for LLM generation
     """
 
     id: str
     kind: str
     required: bool = False
     shape_beat_type: str | None = None
+    variation_point_description: str | None = None
 
 
 @dataclass

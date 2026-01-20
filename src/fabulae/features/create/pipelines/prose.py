@@ -754,8 +754,20 @@ async def _generate_prose_inner(
                             }
                             for sv in scene_variations
                         ],
+                        "selected_variation_points": [
+                            {
+                                "type": vp.type,
+                                "description": vp.description,
+                                "position": vp.position,
+                                "assigned_scene_id": vp.assigned_scene_id,
+                            }
+                            for vp in project_variation.selected_variation_points
+                        ],
                     },
                 )
+
+        # Get selected variation points for beat templates
+        selected_variation_points = project_variation.selected_variation_points if project_variation else None
 
         # Build beat templates
         beat_templates = build_beat_templates_with_variation(
@@ -763,6 +775,7 @@ async def _generate_prose_inner(
             beats_per_scene=structure.beats_per_scene,
             beat_assignments=beat_assignments,
             scene_variations=scene_variations,
+            selected_variation_points=selected_variation_points,
             rng=rng,
         )
 

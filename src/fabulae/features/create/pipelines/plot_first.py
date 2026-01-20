@@ -23,7 +23,7 @@ from fabulae.prompts import build_system_prompt, format_sections
 
 if TYPE_CHECKING:
     from fabulae.features.create.schemas import SceneBeatTemplate
-    from fabulae.features.create.variation import SceneVariation
+    from fabulae.features.create.variation import SceneVariation, SelectedVariationPoint
 
 
 @dataclass
@@ -909,18 +909,21 @@ def build_beat_templates_with_variation(
     beats_per_scene: list[int],
     beat_assignments: list[BeatAssignment],
     scene_variations: list[SceneVariation] | None = None,
+    selected_variation_points: list[SelectedVariationPoint] | None = None,
     rng: random.Random | None = None,
 ) -> dict[str, SceneBeatTemplate]:
-    """Build beat templates incorporating variation decisions.
+    """Build beat templates incorporating variation decisions and shape variation points.
 
     Constructs beat templates for each scene by:
     1. Getting the beat count for each scene from beats_per_scene
     2. Finding required beats assigned to this scene from beat_assignments
-    3. Finding variation decisions for this scene from scene_variations (if provided)
-    4. Placing required beats at spread positions throughout the template
-    5. Including complication beats where variation decided (has_complication=True)
-    6. Including character moment beats where variation decided (has_character_moment=True)
-    7. Filling remaining slots with filler beats (from scene_variation.filler_beats if available,
+    3. Finding variation points assigned to this scene from selected_variation_points
+    4. Finding variation decisions for this scene from scene_variations (if provided)
+    5. Placing required beats at spread positions throughout the template
+    6. Adding variation point beats with their descriptions
+    7. Including complication beats where variation decided (has_complication=True)
+    8. Including character moment beats where variation decided (has_character_moment=True)
+    9. Filling remaining slots with filler beats (from scene_variation.filler_beats if available,
        otherwise random from DEFAULT_FILLER_BEAT_KINDS)
 
     Args:
@@ -928,6 +931,7 @@ def build_beat_templates_with_variation(
         beats_per_scene: List of beat counts for each scene (same length as scene_ids)
         beat_assignments: List of BeatAssignment objects mapping required beats to scenes
         scene_variations: Optional list of SceneVariation objects with variation decisions
+        selected_variation_points: Optional list of variation points selected from story shape
         rng: Optional random number generator for reproducibility
 
     Returns:
@@ -937,7 +941,12 @@ def build_beat_templates_with_variation(
         ValueError: If scene_ids and beats_per_scene have different lengths
     """
     from fabulae.features.create.schemas import BeatTemplateItem, SceneBeatTemplate
-    from fabulae.features.create.variation import SceneVariation as SceneVariationType
+    from fabulae.features.create.variation import (
+        SceneVariation as SceneVariationType,
+    )
+    from fabulae.features.create.variation import (
+        SelectedVariationPoint as SelectedVariationPointType,
+    )
 
     if len(scene_ids) != len(beats_per_scene):
         raise ValueError(
@@ -953,6 +962,13 @@ def build_beat_templates_with_variation(
         if assignment.scene_id in scene_beat_assignments:
             scene_beat_assignments[assignment.scene_id].append(assignment)
 
+    # Build lookup for variation points by scene_id
+    scene_variation_points_map: dict[str, list[SelectedVariationPointType]] = {scene_id: [] for scene_id in scene_ids}
+    if selected_variation_points:
+        for vp in selected_variation_points:
+            if vp.assigned_scene_id and vp.assigned_scene_id in scene_variation_points_map:
+                scene_variation_points_map[vp.assigned_scene_id].append(vp)
+
     # Build lookup for scene variations by scene_id
     scene_variation_map: dict[str, SceneVariationType] = {}
     if scene_variations:
@@ -964,9 +980,10 @@ def build_beat_templates_with_variation(
     for scene_index, scene_id in enumerate(scene_ids):
         beat_count = beats_per_scene[scene_index]
         required_beats = scene_beat_assignments[scene_id]
+        variation_points = scene_variation_points_map[scene_id]
         variation: SceneVariationType | None = scene_variation_map.get(scene_id)
 
-        # Calculate total beats needed: required + complication + character moment
+        # Calculate total beats needed: required + variation points + complication + character moment
         num_required = len(required_beats)
         num_complication = 1 if variation and variation.has_complication else 0
         num_character_moment = 1 if variation and variation.has_character_moment else 0
@@ -1006,6 +1023,25 @@ def build_beat_templates_with_variation(
                         plot_pattern_beat=assignment.beat_type,
                         notes=None,
                     )
+
+        # Find available positions for variation points
+        available_positions_for_vp = [i for i in range(beat_count) if all_beats[i] is None]
+
+        # Add variation point beats (optional enhancements from story shape)
+        for vp in variation_points:
+            if available_positions_for_vp:
+                # Place variation point beat
+                pos = rng.choice(available_positions_for_vp)
+                # Normalize the description (remove excess whitespace from YAML)
+                desc = " ".join(vp.description.strip().split()) if vp.description else None
+                all_beats[pos] = BeatTemplateItem(
+                    kind=vp.type,
+                    required=False,
+                    plot_pattern_beat=vp.type,
+                    notes=None,
+                    variation_point_description=desc,
+                )
+                available_positions_for_vp.remove(pos)
 
         # Find positions for complication and character moment beats
         # Place them in unfilled positions, preferring middle to late positions

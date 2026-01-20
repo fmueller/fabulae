@@ -35,6 +35,7 @@ from fabulae.features.create.ids import (
 )
 from fabulae.features.create.service import FORMAT_BEATS_PER_SCENE, FORMAT_COUNT_RANGES
 from fabulae.features.create.variation import (
+    SelectedVariationPoint,
     assign_scene_positions,
     select_filler_beats,
 )
@@ -49,13 +50,14 @@ def generate_plot_graph(
     shape: StoryShape | None,
     variation: float,
     seed: int | None = None,
+    selected_variation_points: list[SelectedVariationPoint] | None = None,
 ) -> PlotGraph:
     """Generate a complete plot structure using RNG.
 
     This function creates a PlotGraph with all structural decisions made deterministically:
     - Number of chapters (based on format and variation)
     - Scenes per chapter (distributed based on variation)
-    - Beats per scene (from shape required beats + filler)
+    - Beats per scene (from shape required beats + variation points + filler)
     - Character slots (from shape or format defaults)
     - Location slots (from shape or format defaults)
     - Character and location assignments to scenes
@@ -65,6 +67,9 @@ def generate_plot_graph(
         shape: Optional story shape providing structural guidance
         variation: Variation level (0.0-1.0) affecting count spread
         seed: Optional RNG seed for reproducibility
+        selected_variation_points: Optional list of variation points selected from the
+            story shape. If provided, these will be added as optional beats to scenes
+            matching their position.
 
     Returns:
         A PlotGraph with all structure determined but no content
@@ -130,8 +135,14 @@ def generate_plot_graph(
     # Assign locations to scenes
     _assign_locations_to_scenes(graph, rng)
 
+    # If variation points were provided but not yet assigned to scenes, assign them now
+    if selected_variation_points:
+        selected_variation_points = _assign_variation_points_to_scenes(
+            selected_variation_points, positions, rng
+        )
+
     # Create beat slots for each scene
-    _create_beat_slots_for_scenes(graph, shape, format, variation, rng)
+    _create_beat_slots_for_scenes(graph, shape, format, variation, rng, selected_variation_points)
 
     return graph
 
@@ -450,6 +461,66 @@ def _weighted_character_selection(
     return selected
 
 
+def _assign_variation_points_to_scenes(
+    variation_points: list[SelectedVariationPoint],
+    positions: dict[str, str],
+    rng: random.Random,
+) -> list[SelectedVariationPoint]:
+    """Assign each selected variation point to a scene matching its position.
+
+    Groups scenes by their narrative position and assigns each variation point
+    to a randomly selected scene from the matching position group.
+
+    Args:
+        variation_points: List of selected variation points to assign.
+        positions: Dictionary mapping scene_id to position label (early/middle/late/climax).
+        rng: Random number generator for reproducible selection.
+
+    Returns:
+        The input list with assigned_scene_id populated for each point.
+    """
+    # Group scenes by position
+    scenes_by_position: dict[str, list[str]] = {
+        "early": [],
+        "middle": [],
+        "late": [],
+        "climax": [],
+    }
+    for scene_id, pos in positions.items():
+        if pos in scenes_by_position:
+            scenes_by_position[pos].append(scene_id)
+
+    # Track which scenes already have variation points assigned
+    # to distribute variation points across different scenes when possible
+    assigned_scenes: set[str] = set()
+
+    for vp in variation_points:
+        # Skip if already assigned
+        if vp.assigned_scene_id:
+            assigned_scenes.add(vp.assigned_scene_id)
+            continue
+
+        # Handle "anywhere" position by collecting all scenes
+        candidates = list(positions.keys()) if vp.position == "anywhere" else scenes_by_position.get(vp.position, [])
+
+        if not candidates:
+            # No matching scenes, leave unassigned
+            continue
+
+        # Prefer scenes without variation points already
+        unassigned_candidates = [s for s in candidates if s not in assigned_scenes]
+        if unassigned_candidates:
+            vp.assigned_scene_id = rng.choice(unassigned_candidates)
+        else:
+            # All matching scenes already have a variation point, pick any
+            vp.assigned_scene_id = rng.choice(candidates)
+
+        if vp.assigned_scene_id:
+            assigned_scenes.add(vp.assigned_scene_id)
+
+    return variation_points
+
+
 def _assign_locations_to_scenes(graph: PlotGraph, rng: random.Random) -> None:
     """Assign locations to scenes with some variety but avoiding too much jumping."""
     if not graph.locations or not graph.scenes:
@@ -477,13 +548,32 @@ def _create_beat_slots_for_scenes(
     format: LiteratureFormat,
     variation: float,
     rng: random.Random,
+    selected_variation_points: list[SelectedVariationPoint] | None = None,
 ) -> None:
-    """Create beat slots for each scene based on shape and variation."""
+    """Create beat slots for each scene based on shape, variation points, and variation.
+
+    Args:
+        graph: The PlotGraph being built.
+        shape: Optional story shape providing required beats.
+        format: Narrative format determining beat count ranges.
+        variation: Variation level (unused currently, reserved for future use).
+        rng: Random number generator for beat selection.
+        selected_variation_points: Optional list of variation points to add as beats.
+    """
     min_beats, max_beats = FORMAT_BEATS_PER_SCENE.get(format, (2, 4))
 
     required_beat_assignments: dict[str, list[tuple[str, str]]] = {}
     if shape and shape.required_beats:
         required_beat_assignments = _distribute_required_beats(graph, shape, rng)
+
+    # Index variation points by assigned scene ID for quick lookup
+    variation_points_by_scene: dict[str, list[SelectedVariationPoint]] = {}
+    if selected_variation_points:
+        for vp in selected_variation_points:
+            if vp.assigned_scene_id:
+                if vp.assigned_scene_id not in variation_points_by_scene:
+                    variation_points_by_scene[vp.assigned_scene_id] = []
+                variation_points_by_scene[vp.assigned_scene_id].append(vp)
 
     for scene in graph.scenes:
         beat_slots: list[BeatSlot] = []
@@ -500,6 +590,21 @@ def _create_beat_slots_for_scenes(
                     kind=beat_type,
                     required=True,
                     shape_beat_type=beat_type,
+                )
+            )
+
+        # Add variation point beats (optional enhancements from story shape)
+        scene_variation_points = variation_points_by_scene.get(scene.id, [])
+        for vp in scene_variation_points:
+            beat_index += 1
+            beat_id = generate_beat_id(scene.id, beat_index)
+            beat_slots.append(
+                BeatSlot(
+                    id=beat_id,
+                    kind=vp.type,
+                    required=False,  # Variation points are optional enhancements
+                    shape_beat_type=vp.type,
+                    variation_point_description=vp.description,
                 )
             )
 

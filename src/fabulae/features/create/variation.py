@@ -4,6 +4,30 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fabulae.models import StoryShape
+
+
+@dataclass
+class SelectedVariationPoint:
+    """A variation point selected from a story shape.
+
+    Tracks which variation points were selected based on their probabilities
+    and which scene they are assigned to.
+
+    Attributes:
+        type: The variation point type (e.g., "mentor-death", "ally-betrayal").
+        description: Guidance for LLM generation from the shape definition.
+        position: Target position in the narrative (early/middle/late/climax/anywhere).
+        assigned_scene_id: Scene ID this variation point is assigned to, if any.
+    """
+
+    type: str
+    description: str
+    position: str
+    assigned_scene_id: str | None = None
 
 
 @dataclass
@@ -62,11 +86,13 @@ class ProjectVariation:
         scene_variations: List of SceneVariation objects, one per scene.
         subplot_seeds: List of distinct subplot seed concepts used across the project.
         config: The VariationConfig used to generate these variations.
+        selected_variation_points: List of variation points selected from the story shape.
     """
 
     scene_variations: list[SceneVariation]
     subplot_seeds: list[str]
     config: VariationConfig
+    selected_variation_points: list[SelectedVariationPoint] = field(default_factory=list)
 
 
 def assign_scene_positions(scene_ids: list[str]) -> dict[str, str]:
@@ -267,29 +293,112 @@ class VariationEngine:
         rng: The random.Random instance for controlled randomness.
     """
 
-    def __init__(self, shape: object, config: VariationConfig) -> None:
+    def __init__(self, shape: StoryShape | None, config: VariationConfig) -> None:
         """Initialize the variation engine.
 
         Args:
-            shape: The StoryShape to guide variation decisions (type hint as object
-                to avoid circular import, but should be StoryShape from models.py).
+            shape: The StoryShape to guide variation decisions, or None.
             config: The VariationConfig controlling probabilities and randomness.
         """
         self.shape = shape
         self.config = config
         self.rng = random.Random(config.seed)
 
+    def _select_variation_points(self) -> list[SelectedVariationPoint]:
+        """Select variation points from the story shape based on their probabilities.
+
+        Each variation point in the shape has a probability field (0.0-1.0).
+        The RNG determines which variation points are selected for this project.
+
+        Returns:
+            List of SelectedVariationPoint objects for points that were selected.
+        """
+        selected: list[SelectedVariationPoint] = []
+
+        if self.shape is None:
+            return selected
+
+        if not hasattr(self.shape, "variation_points") or not self.shape.variation_points:
+            return selected
+
+        for vp in self.shape.variation_points:
+            if self.rng.random() < vp.probability:
+                selected.append(
+                    SelectedVariationPoint(
+                        type=vp.type,
+                        description=vp.description,
+                        position=vp.position,
+                    )
+                )
+
+        return selected
+
+    def _assign_variation_points_to_scenes(
+        self,
+        variation_points: list[SelectedVariationPoint],
+        positions: dict[str, str],
+    ) -> list[SelectedVariationPoint]:
+        """Assign each selected variation point to a scene matching its position.
+
+        Groups scenes by their narrative position and assigns each variation point
+        to a randomly selected scene from the matching position group.
+
+        Args:
+            variation_points: List of selected variation points to assign.
+            positions: Dictionary mapping scene_id to position label
+                (early/middle/late/climax).
+
+        Returns:
+            The input list with assigned_scene_id populated for each point.
+        """
+        # Group scenes by position
+        scenes_by_position: dict[str, list[str]] = {
+            "early": [],
+            "middle": [],
+            "late": [],
+            "climax": [],
+        }
+        for scene_id, pos in positions.items():
+            if pos in scenes_by_position:
+                scenes_by_position[pos].append(scene_id)
+
+        # Track which scenes already have variation points assigned
+        # to distribute variation points across different scenes when possible
+        assigned_scenes: set[str] = set()
+
+        for vp in variation_points:
+            # Handle "anywhere" position by collecting all scenes
+            if vp.position == "anywhere":
+                candidates = list(positions.keys())
+            else:
+                candidates = scenes_by_position.get(vp.position, [])
+
+            if not candidates:
+                # No matching scenes, leave unassigned
+                continue
+
+            # Prefer scenes without variation points already
+            unassigned_candidates = [s for s in candidates if s not in assigned_scenes]
+            if unassigned_candidates:
+                vp.assigned_scene_id = self.rng.choice(unassigned_candidates)
+            else:
+                # All matching scenes already have a variation point, pick any
+                vp.assigned_scene_id = self.rng.choice(candidates)
+
+            if vp.assigned_scene_id:
+                assigned_scenes.add(vp.assigned_scene_id)
+
+        return variation_points
+
     def generate_project_variation(self, scene_ids: list[str], character_ids: list[str]) -> ProjectVariation:
         """Generate variation decisions for an entire project.
 
-        This method assigns positions to all scenes, then for each scene:
-        1. Decides whether to include a complication
-        2. If complication, selects a complication type
-        3. Decides whether to include a character moment
-        4. If character moment, selects a character to focus on (balanced)
-        5. Decides whether to include a subplot seed (only early/middle)
-        6. If subplot, generates a subplot seed
-        7. Selects filler beats appropriate for position
+        This method:
+        1. Assigns positions to all scenes
+        2. Selects variation points from the story shape based on probabilities
+        3. Assigns variation points to matching scenes
+        4. For each scene, decides on complications, character moments, subplot seeds
+        5. Selects filler beats appropriate for position
 
         Args:
             scene_ids: List of scene IDs in narrative order.
@@ -300,6 +409,12 @@ class VariationEngine:
         """
         # Assign positions to all scenes
         positions = assign_scene_positions(scene_ids)
+
+        # Select and assign variation points from the story shape
+        selected_variation_points = self._select_variation_points()
+        selected_variation_points = self._assign_variation_points_to_scenes(
+            selected_variation_points, positions
+        )
 
         # Track character focus distribution for balancing
         character_focus_count: dict[str, int] = {char_id: 0 for char_id in character_ids}
@@ -353,4 +468,5 @@ class VariationEngine:
             scene_variations=scene_variations,
             subplot_seeds=subplot_seeds,
             config=self.config,
+            selected_variation_points=selected_variation_points,
         )

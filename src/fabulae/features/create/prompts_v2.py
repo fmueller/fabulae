@@ -293,10 +293,19 @@ def build_scene_prompt_v2(context: SceneContext, style: StyleOutput) -> str:
     else:
         location_info = "No specific location - use implied setting."
 
-    # Build beat list with required IDs
-    beat_list = "\n".join(
-        f"- {b.id}: {b.kind}" + (" [REQUIRED - from story shape]" if b.required else "") for b in context.beat_slots
-    )
+    # Build beat list with required IDs and variation point descriptions
+    beat_lines = []
+    for b in context.beat_slots:
+        line = f"- {b.id}: {b.kind}"
+        if b.required:
+            line += " [REQUIRED - from story shape]"
+        if b.variation_point_description:
+            # Include variation point guidance for the LLM
+            # Strip and normalize the description (remove excess whitespace from YAML)
+            desc = " ".join(b.variation_point_description.strip().split())
+            line += f"\n  Variation guidance: {desc}"
+        beat_lines.append(line)
+    beat_list = "\n".join(beat_lines)
 
     # Build the output schema with actual beat IDs
     beat_examples = ",\n    ".join(
