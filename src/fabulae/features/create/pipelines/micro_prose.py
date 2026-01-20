@@ -299,6 +299,7 @@ async def _generate_micro_prose_inner(
             temperature=llm_config.temperature,
             shape=options.shape_id,
             shape_file=str(options.shape_file) if options.shape_file else None,
+            no_shape=options.no_shape if options.no_shape else None,
             variation=options.variation,
             seed=llm_config.seed,
             enrichment_enabled=options.enrich,

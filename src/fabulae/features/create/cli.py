@@ -156,6 +156,13 @@ def register_create_command(app: typer.Typer) -> None:
                 help="Path to a custom story shape YAML file.",
             ),
         ] = None,
+        no_shape: Annotated[
+            bool,
+            typer.Option(
+                "--no-shape",
+                help="Skip story shape selection for free-form generation without structural scaffolding.",
+            ),
+        ] = False,
         variation: Annotated[
             float,
             typer.Option(
@@ -207,6 +214,11 @@ def register_create_command(app: typer.Typer) -> None:
             raise typer.BadParameter(f"Target directory already exists: {directory}")
 
         # Validate shape flags
+        if no_shape and (shape or shape_file):
+            raise typer.BadParameter(
+                "Cannot specify --no-shape with --shape or --shape-file."
+            )
+
         if shape and shape_file:
             raise typer.BadParameter(
                 "Cannot specify both --shape and --shape-file. "
@@ -251,6 +263,7 @@ def register_create_command(app: typer.Typer) -> None:
         create_options = CreateOptions(
             shape_id=shape,
             shape_file=shape_file,
+            no_shape=no_shape,
             variation=variation,
             seed=seed,
             enrich=effective_enrich_for_full,

@@ -427,7 +427,7 @@ def test_generate_project_from_idea_builds_project(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=use_full),
+            options=CreateOptions(seed=seed, full=use_full, no_shape=True),
         )
     )
 
@@ -656,7 +656,7 @@ def test_generate_project_writes_artifacts_and_language(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -739,7 +739,7 @@ def test_generate_project_retries_on_validation_error(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -807,7 +807,7 @@ def test_generate_project_uses_provided_ids(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -879,7 +879,7 @@ def test_world_fact_generation_retries_on_id_mismatch(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -948,7 +948,7 @@ def test_character_generation_retries_on_id_mismatch(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1013,7 +1013,7 @@ def test_scene_generation_retries_on_id_mismatch(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1070,7 +1070,7 @@ def test_scene_generation_accepts_any_beat_ids(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1136,7 +1136,7 @@ def test_scene_generation_retries_on_unknown_characters(
             "short-story",
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1319,7 +1319,7 @@ def test_create_warns_but_does_not_fail_on_scene_count(
             LLMConfig(),
             output_dir=tmp_path,
             progress=messages.append,
-            options=CreateOptions(seed=seed, full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, full=True, no_shape=True),  # full=True for prose pipeline test
         )
     )
 
@@ -1360,7 +1360,7 @@ def test_language_override_flows_to_output_files(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, idea_language="fr", full=True),  # full=True for prose pipeline test
+            options=CreateOptions(seed=seed, idea_language="fr", full=True, no_shape=True)
         )
     )
 
@@ -1409,7 +1409,7 @@ def test_language_detection_from_idea_when_no_override(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # No idea_language override; full=True for prose pipeline
+            options=CreateOptions(seed=seed, full=True, no_shape=True)
         )
     )
 
@@ -1457,7 +1457,7 @@ def test_language_defaults_to_english_when_not_detected(
             format_value,
             LLMConfig(),
             output_dir=tmp_path,
-            options=CreateOptions(seed=seed, full=True),  # No idea_language override; full=True for prose pipeline
+            options=CreateOptions(seed=seed, full=True, no_shape=True)
         )
     )
 

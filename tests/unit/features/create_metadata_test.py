@@ -100,3 +100,54 @@ def test_generation_metadata_timestamp() -> None:
         format="novel",
     )
     assert metadata.generated_at == timestamp
+
+
+def test_generation_metadata_with_no_shape_true() -> None:
+    """Test GenerationMetadata with no_shape=True (explicit free-form generation)."""
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea="test idea",
+        model="test-model",
+        temperature=0.7,
+        variation=0.5,
+        enrichment_enabled=True,
+        format="novel",
+        no_shape=True,
+    )
+    assert metadata.no_shape is True
+    assert metadata.shape is None
+    assert metadata.shape_file is None
+
+
+def test_generation_metadata_no_shape_defaults_to_none() -> None:
+    """Test GenerationMetadata no_shape defaults to None (backward compatibility)."""
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea="test idea",
+        model="test-model",
+        temperature=0.7,
+        variation=0.5,
+        enrichment_enabled=True,
+        format="novel",
+    )
+    assert metadata.no_shape is None
+
+
+def test_generation_metadata_shape_and_no_shape_both_false() -> None:
+    """Test GenerationMetadata with auto-selected shape (no_shape is None/False, shape is set)."""
+    metadata = GenerationMetadata(
+        generated_at=datetime.now(),
+        generator_version=__version__,
+        original_idea="test idea",
+        model="test-model",
+        temperature=0.7,
+        variation=0.5,
+        enrichment_enabled=True,
+        format="novel",
+        shape="romance-arc",  # Auto-selected shape
+        no_shape=None,  # Not explicitly set to --no-shape
+    )
+    assert metadata.shape == "romance-arc"
+    assert metadata.no_shape is None

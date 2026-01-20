@@ -101,6 +101,7 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.features.create.shapes.loader import load_shape, load_shape_from_file
+from fabulae.features.create.shapes.selector import select_shape_for_idea
 from fabulae.features.create.shutdown import graceful_shutdown
 from fabulae.features.create.state import GenerationState
 from fabulae.features.create.variation import (
@@ -266,12 +267,29 @@ async def _generate_prose_inner(
     if artifacts_dir:
         _write_artifact(artifacts_dir, "02-premise.yml", {"premise": premise})
 
-    # Load story shape if provided
+    # Load story shape
     shape: StoryShape | None = None
     if options.shape_file:
         shape = load_shape_from_file(options.shape_file)
     elif options.shape_id:
         shape = load_shape(options.shape_id)
+    elif not options.no_shape:
+        # Auto-select shape based on idea
+        with maybe_stage(progress, "Selecting story shape..."):
+            shape = await select_shape_for_idea(idea, llm_config)
+        if progress and shape:
+            progress.info(f"Selected shape: {shape.id}")
+
+        # Write shape selection artifact
+        if artifacts_dir and shape:
+            _write_artifact(
+                artifacts_dir,
+                "02a-shape.yml",
+                {
+                    "shape_id": shape.id,
+                    "auto_selected": True,
+                },
+            )
 
     # =========================================================================
     # Phase 2: Structure
@@ -964,14 +982,23 @@ async def _generate_prose_inner(
         )
 
         # Build Project
+        # Determine the effective shape ID for metadata (user-provided or auto-selected)
+        effective_shape_id: str | None = None
+        if options.shape_id:
+            effective_shape_id = options.shape_id
+        elif shape:
+            # Auto-selected shape
+            effective_shape_id = shape.id
+
         metadata = GenerationMetadata(
             generated_at=datetime.now(),
             generator_version=__version__,
             original_idea=idea,
             model=llm_config.model,
             temperature=llm_config.temperature,
-            shape=options.shape_id,
+            shape=effective_shape_id,
             shape_file=str(options.shape_file) if options.shape_file else None,
+            no_shape=options.no_shape if options.no_shape else None,
             variation=options.variation,
             seed=llm_config.seed,
             enrichment_enabled=options.enrich,
