@@ -12,8 +12,8 @@ from fabulae.main import app
 runner = CliRunner()
 
 
-class TestShapesCommand:
-    """Tests for the 'shapes' command."""
+class TestShapesListCommand:
+    """Tests for the 'shapes' command (list mode)."""
 
     def test_shapes_lists_all_available_shapes(self) -> None:
         """Test that shapes command lists all available shapes."""
@@ -70,12 +70,12 @@ class TestShapesCommand:
             assert "error loading" in result.stdout.lower()
 
 
-class TestShapeCommand:
-    """Tests for the 'shape' command."""
+class TestShapesDetailCommand:
+    """Tests for the 'shapes <id>' command (detail mode)."""
 
-    def test_shape_shows_betrayal_arc_details(self) -> None:
-        """Test that shape command shows correct details for betrayal-arc."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_betrayal_arc_details(self) -> None:
+        """Test that shapes command shows correct details for betrayal-arc."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
 
@@ -115,9 +115,9 @@ class TestShapeCommand:
         # Check for tone
         assert "Tone:" in result.stdout
 
-    def test_shape_shows_beat_positions_and_flexibility(self) -> None:
-        """Test that shape command shows beat position and flexibility info."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_beat_positions_and_flexibility(self) -> None:
+        """Test that shapes command shows beat position and flexibility info."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
         # Check that beats show position and flexibility
@@ -127,57 +127,57 @@ class TestShapeCommand:
         assert "climax" in result.stdout
         assert "flexible" in result.stdout or "fixed" in result.stdout
 
-    def test_shape_shows_variation_probabilities(self) -> None:
-        """Test that shape command shows variation probabilities."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_variation_probabilities(self) -> None:
+        """Test that shapes command shows variation probabilities."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
         # Check that variation points show probabilities (should have % sign)
         assert "%" in result.stdout
         assert "probability" in result.stdout
 
-    def test_shape_shows_optional_markers(self) -> None:
-        """Test that shape command marks optional slots."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_optional_markers(self) -> None:
+        """Test that shapes command marks optional slots."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
         # Check that optional slots are marked
         assert "(optional)" in result.stdout
 
-    def test_shape_nonexistent_shows_error(self) -> None:
-        """Test that shape command shows error for nonexistent shape."""
-        result = runner.invoke(app, ["shape", "nonexistent-shape"])
+    def test_shapes_nonexistent_shows_error(self) -> None:
+        """Test that shapes command shows error for nonexistent shape."""
+        result = runner.invoke(app, ["shapes", "nonexistent-shape"])
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
         assert "Available shapes:" in result.stdout
 
-    def test_shape_handles_load_error(self) -> None:
-        """Test that shape command handles load errors gracefully."""
+    def test_shapes_handles_load_error(self) -> None:
+        """Test that shapes command handles load errors gracefully."""
         mock_load_shape = MagicMock(side_effect=ValueError("Test load error"))
 
         with patch("fabulae.features.create.shapes_cli.load_shape", mock_load_shape):
-            result = runner.invoke(app, ["shape", "test-shape"])
+            result = runner.invoke(app, ["shapes", "test-shape"])
 
             assert result.exit_code == 1
             assert "Error loading shape" in result.stdout
             assert "test-shape" in result.stdout
 
-    def test_shape_handles_shape_not_found_error(self) -> None:
-        """Test that shape command handles ShapeNotFoundError."""
+    def test_shapes_handles_shape_not_found_error(self) -> None:
+        """Test that shapes command handles ShapeNotFoundError."""
         mock_load_shape = MagicMock(
             side_effect=ShapeNotFoundError("Shape 'missing' not found. Available shapes: betrayal-arc, heros-journey")
         )
 
         with patch("fabulae.features.create.shapes_cli.load_shape", mock_load_shape):
-            result = runner.invoke(app, ["shape", "missing"])
+            result = runner.invoke(app, ["shapes", "missing"])
 
             assert result.exit_code == 1
             assert "not found" in result.stdout
             assert "Available shapes:" in result.stdout
 
-    def test_shape_works_for_all_built_in_shapes(self) -> None:
-        """Test that shape command works for all built-in shapes."""
+    def test_shapes_works_for_all_built_in_shapes(self) -> None:
+        """Test that shapes command works for all built-in shapes."""
         # List of all 10 shapes
         shapes = [
             "betrayal-arc",
@@ -193,21 +193,21 @@ class TestShapeCommand:
         ]
 
         for shape_id in shapes:
-            result = runner.invoke(app, ["shape", shape_id])
+            result = runner.invoke(app, ["shapes", shape_id])
             assert result.exit_code == 0, f"Failed for shape: {shape_id}"
             assert "Required Beats" in result.stdout, f"Missing beats for: {shape_id}"
 
-    def test_shape_shows_can_merge_with_for_character_slots(self) -> None:
-        """Test that shape command shows can_merge_with for character slots."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_can_merge_with_for_character_slots(self) -> None:
+        """Test that shapes command shows can_merge_with for character slots."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
         # Witness slot can merge with ally or confessor
         assert "Can merge with:" in result.stdout
 
-    def test_shape_shows_used_in_for_setting_slots(self) -> None:
-        """Test that shape command shows used_in for setting slots."""
-        result = runner.invoke(app, ["shape", "betrayal-arc"])
+    def test_shapes_shows_used_in_for_setting_slots(self) -> None:
+        """Test that shapes command shows used_in for setting slots."""
+        result = runner.invoke(app, ["shapes", "betrayal-arc"])
 
         assert result.exit_code == 0
         # Setting slots should show which beats they're used in
