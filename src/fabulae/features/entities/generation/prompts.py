@@ -189,7 +189,6 @@ def build_character_prompt(
     if role_hint:
         purpose += f" The character should fill the role of {role_hint}."
 
-    # Build schema with optional assigned ID
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     schema = (
@@ -216,7 +215,6 @@ def build_character_prompt(
     if premise:
         sections["Story Premise"] = premise
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
@@ -287,7 +285,6 @@ def build_world_fact_prompt(
     if fact_type:
         purpose += f" Generate a {fact_type}."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     if fact_type:
@@ -315,7 +312,6 @@ def build_world_fact_prompt(
     if premise:
         sections["Story Premise"] = premise
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
@@ -408,7 +404,6 @@ def build_scene_prompt(
     if effective_include_beats:
         purpose += f" Include {effective_beat_count} beats."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     # Build characters list for schema
@@ -435,8 +430,7 @@ def build_scene_prompt(
     if use_beat_slots and beat_slots:
         # Build beat examples from actual beat slots
         beat_examples = ",\n    ".join(
-            f'{{"id": "{b.id}", "kind": "{b.kind}", "summary": "Beat action summary"}}'
-            for b in beat_slots[:2]
+            f'{{"id": "{b.id}", "kind": "{b.kind}", "summary": "Beat action summary"}}' for b in beat_slots[:2]
         )
         if len(beat_slots) > 2:
             beat_examples += ",\n    ..."
@@ -461,17 +455,14 @@ def build_scene_prompt(
     if chapter_context:
         sections["Chapter Context"] = chapter_context
 
-    # Add position context (for create pipeline)
     if position_in_story is not None and total_scenes:
         label = position_label or "middle"
         sections["Story Position"] = f"Scene {position_in_story + 1} of {total_scenes} ({label})"
 
-    # Add previous scene summaries for continuity
     if previous_scene_summaries:
-        recent = previous_scene_summaries[-3:]  # Last 3 for context
+        recent = previous_scene_summaries[-3:]
         sections["Previous Scenes"] = "\n".join(f"- {s}" for s in recent)
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
@@ -488,15 +479,10 @@ def build_scene_prompt(
 
     existing = existing_scenes or []
     if existing and not previous_scene_summaries:
-        # Only show existing scenes if we don't have previous summaries
         sections["Existing Scenes (avoid duplicating)"] = _format_existing_scenes(existing)
 
-    # Add beat slots list (for create pipeline)
     if use_beat_slots and beat_slots:
-        beat_list = "\n".join(
-            f"- {b.id}: {b.kind}" + (" [REQUIRED]" if b.required else "")
-            for b in beat_slots
-        )
+        beat_list = "\n".join(f"- {b.id}: {b.kind}" + (" [REQUIRED]" if b.required else "") for b in beat_slots)
         sections["Required Beats"] = beat_list
 
     if guidance:
@@ -504,7 +490,6 @@ def build_scene_prompt(
 
     sections["Output Schema (JSON)"] = schema
 
-    # Build notes based on mode
     notes_lines = [
         "Create a scene that advances the plot or develops characters.",
         "Use ONLY valid character and location IDs from above.",
@@ -556,7 +541,6 @@ def build_beat_prompt(
     """
     purpose = f"Create a beat (story moment) for scene '{scene_id}'."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     schema = (
@@ -644,7 +628,6 @@ def build_fragment_prompt(
     if position is not None and total_fragments:
         purpose = f"Generate fragment {position + 1} of {total_fragments}."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     schema = (
@@ -667,7 +650,6 @@ def build_fragment_prompt(
     if premise:
         sections["Premise"] = premise
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
@@ -740,7 +722,6 @@ def build_stanza_prompt(
         purpose = f"Generate stanza {position + 1} of {total_stanzas}."
     purpose += f" Create exactly {target_line_count} lines."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     schema = (
@@ -763,7 +744,6 @@ def build_stanza_prompt(
     if premise:
         sections["Premise"] = premise
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
@@ -849,7 +829,6 @@ def build_chapter_prompt(
     else:
         purpose = "Create a chapter for a story."
 
-    # Build schema
     id_line = f'  "id": "{assigned_id}",' if assigned_id else '  "id": "lowercase-with-hyphens",'
 
     schema = (
@@ -868,7 +847,6 @@ def build_chapter_prompt(
     if language:
         sections["Language"] = f"Generate all text content in {language}."
 
-    # Add position context for create pipeline
     if chapter_index is not None and total_chapters:
         # Determine chapter position description
         if chapter_index == 0:
@@ -890,26 +868,22 @@ def build_chapter_prompt(
     if premise:
         sections["Story Premise"] = premise
 
-    # Add style hint if provided (from create pipeline)
     style_hint = _format_style_hint(style)
     if style_hint:
         sections["Style"] = style_hint
 
-    # Add previous chapter summaries for continuity
     if previous_chapter_summaries:
         recent = previous_chapter_summaries[-3:]
         sections["Previous Chapters"] = "\n".join(f"- {summary}" for summary in recent)
 
     existing = existing_chapters or []
     if existing and not previous_chapter_summaries:
-        # Only show existing chapters if we don't have previous summaries
         sections["Existing Chapters (avoid duplicating)"] = _format_existing_chapters(existing)
 
     scenes = existing_scenes or []
     if scenes:
         sections["Available Scenes"] = _format_existing_scenes(scenes)
 
-    # Add title requirement for create pipeline
     if title_requirement_str:
         sections["Title Requirements"] = title_requirement_str
 
@@ -918,7 +892,6 @@ def build_chapter_prompt(
 
     sections["Output Schema (JSON)"] = schema
 
-    # Build notes
     notes_lines = [
         "Create a chapter that advances the overall plot arc.",
         "The chapter should fit naturally after existing chapters.",

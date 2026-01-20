@@ -91,7 +91,6 @@ async def suggest_world_fact(
     if config is None:
         raise ValueError("LLM config is required for world fact generation")
 
-    # Build context from project or individual parameters
     if project:
         if existing_facts is None and project.world:
             existing_facts = project.world.facts
@@ -100,7 +99,6 @@ async def suggest_world_fact(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_world_fact_prompt(
         premise=premise,
         existing_facts=existing_facts,
@@ -112,7 +110,6 @@ async def suggest_world_fact(
         style=style,
     )
 
-    # Generate using LLM
     user_prompt = "Generate a world fact based on the context provided."
     if fact_type:
         user_prompt = f"Create a {fact_type} for the story"
@@ -123,7 +120,6 @@ async def suggest_world_fact(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to WorldFact model
     return WorldFact(
         id=suggestion.id,
         type=suggestion.type,

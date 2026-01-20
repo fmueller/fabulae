@@ -112,7 +112,6 @@ async def suggest_scene(
     if config is None:
         raise ValueError("LLM config is required for scene generation")
 
-    # Build context from project or individual parameters
     if project:
         if available_characters is None:
             available_characters = project.characters
@@ -125,7 +124,6 @@ async def suggest_scene(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_scene_prompt(
         premise=premise,
         available_characters=available_characters,
@@ -145,7 +143,6 @@ async def suggest_scene(
         position_label=position_label,
     )
 
-    # Generate using LLM
     user_prompt = "Generate a scene based on the context provided."
     if guidance:
         user_prompt = f"Create a scene: {guidance[:100]}"
@@ -154,7 +151,6 @@ async def suggest_scene(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert beats if present
     beats: list[Beat] = []
     if suggestion.beats:
         for beat_output in suggestion.beats:
@@ -169,7 +165,6 @@ async def suggest_scene(
             )
             beats.append(beat)
 
-    # Convert to Scene model
     return Scene(
         id=suggestion.id,
         summary=suggestion.summary,

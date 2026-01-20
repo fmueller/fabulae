@@ -90,7 +90,6 @@ async def suggest_character(
     if config is None:
         raise ValueError("LLM config is required for character generation")
 
-    # Build context from project or individual parameters
     if project:
         if existing_characters is None:
             existing_characters = project.characters
@@ -99,7 +98,6 @@ async def suggest_character(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_character_prompt(
         premise=premise,
         existing_characters=existing_characters,
@@ -112,7 +110,6 @@ async def suggest_character(
         style=style,
     )
 
-    # Generate using LLM
     user_prompt = "Generate a character based on the context provided."
     if role_hint:
         user_prompt = f"Create a character for the role: {role_hint}"
@@ -123,7 +120,6 @@ async def suggest_character(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to Character model
     return Character(
         id=suggestion.id,
         name=suggestion.name,

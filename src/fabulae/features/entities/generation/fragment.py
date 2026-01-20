@@ -92,7 +92,6 @@ async def suggest_fragment(
     if config is None:
         raise ValueError("LLM config is required for fragment generation")
 
-    # Build context from project or individual parameters
     if project:
         if existing_fragments is None:
             existing_fragments = project.plot.fragments
@@ -101,7 +100,6 @@ async def suggest_fragment(
         if language is None and project.style:
             language = project.style.language
 
-    # Build prompt
     prompt = build_fragment_prompt(
         premise=premise,
         existing_fragments=existing_fragments,
@@ -114,7 +112,6 @@ async def suggest_fragment(
         style=style,
     )
 
-    # Generate using LLM
     user_prompt = "Generate a flash fiction fragment."
     if position is not None and total_fragments:
         user_prompt = f"Generate fragment {position + 1} of {total_fragments}."
@@ -125,7 +122,6 @@ async def suggest_fragment(
     result = await agent.run(user_prompt)
     suggestion = result.output
 
-    # Convert to Fragment model
     return Fragment(
         id=suggestion.id,
         content=suggestion.content,
