@@ -60,6 +60,10 @@ def _resolve_version() -> str:
 
     git_suffix = _git_description()
     if git_suffix:
+        if git_suffix.startswith(f"v{base}"):
+            return git_suffix[1:]
+        if git_suffix.startswith(base):
+            return git_suffix
         return f"{base}+{git_suffix}"
     return base
 
