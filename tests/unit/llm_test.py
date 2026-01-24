@@ -15,7 +15,14 @@ class DummyResult(BaseModel):
     value: str
 
 
-def test_resolve_config_defaults() -> None:
+def test_resolve_config_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FABULAE_LLM_MODEL", raising=False)
+    monkeypatch.delenv("FABULAE_LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("FABULAE_LLM_API_KEY", raising=False)
+    monkeypatch.delenv("FABULAE_LLM_TEMPERATURE", raising=False)
+    monkeypatch.delenv("FABULAE_LLM_SEED", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     config = llm.resolve_config(None, None, None, None, None)
     assert config.model == llm.DEFAULT_MODEL
     assert config.base_url == llm.DEFAULT_BASE_URL
