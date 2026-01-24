@@ -53,15 +53,16 @@ def _git_description() -> str | None:
 
 def _resolve_version() -> str:
     """Resolve the package version using multiple strategies."""
-    try:
-        base = pkg_version("fabulae")
-    except PackageNotFoundError:
-        base = _version_from_pyproject()
+    # If we have a git description, use it directly (it already includes the version tag)
+    git_desc = _git_description()
+    if git_desc:
+        return git_desc
 
-    git_suffix = _git_description()
-    if git_suffix:
-        return f"{base}+{git_suffix}"
-    return base
+    # Otherwise fall back to package metadata or pyproject.toml
+    try:
+        return pkg_version("fabulae")
+    except PackageNotFoundError:
+        return _version_from_pyproject()
 
 
 __version__ = _resolve_version()
