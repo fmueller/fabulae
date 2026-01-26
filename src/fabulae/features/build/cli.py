@@ -43,6 +43,13 @@ def register_build_command(app: typer.Typer) -> None:
             Literal["md", "txt", "html"],
             typer.Option("--format", "-f", help="Output file format."),
         ] = "md",
+        language: Annotated[
+            str | None,
+            typer.Option(
+                "--language", "-l",
+                help="Target language (ISO 639-1 code, e.g. 'de', 'fr'). Overrides style.yml.",
+            ),
+        ] = None,
     ) -> None:
         """Build a complete narrative from a Fabulae project.
 
@@ -102,6 +109,11 @@ def register_build_command(app: typer.Typer) -> None:
             "output_dir": str(build_dir),
         }
 
+        # Resolve target language: CLI flag > style.yml > None
+        expected_language = language
+        if expected_language is None and project.style and project.style.language:
+            expected_language = project.style.language
+
         # Run build
         try:
             with history_manager.track_action(
@@ -110,7 +122,7 @@ def register_build_command(app: typer.Typer) -> None:
                 parameters=history_params,
             ):
                 with progress.stage("Generating narrative..."):
-                    result = asyncio.run(build_project(project, config, seed, progress))
+                    result = asyncio.run(build_project(project, config, seed, progress, expected_language))
 
                 with progress.stage("Writing output files..."):
                     write_build_output(result, build_dir, output_format)

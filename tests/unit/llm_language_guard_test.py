@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -19,11 +19,8 @@ class DummyOutput:
 @dataclass
 class CallTracker:
     runner: int = 0
-    reprompts: list[int] | None = None
-
-    def __post_init__(self) -> None:
-        if self.reprompts is None:
-            self.reprompts = []
+    reprompts: list[int] = field(default_factory=list)
+    corrections: list[tuple[int, str]] = field(default_factory=list)
 
 
 def _run_guard(
@@ -32,6 +29,7 @@ def _run_guard(
     expected_language: str,
     config: language_guard.LanguageGuardConfig | None = None,
     reprompt: Callable[[int], None] | None = None,
+    correct: Callable[[int, DummyOutput], DummyOutput | Awaitable[DummyOutput]] | None = None,
 ) -> tuple[DummyOutput, language_guard.LanguageGuardResult]:
     return asyncio.run(
         language_guard.run_with_language_guard(
@@ -40,6 +38,7 @@ def _run_guard(
             expected_language,
             config=config,
             reprompt=reprompt,
+            correct=correct,
         )
     )
 
@@ -144,3 +143,147 @@ def test_enforces_max_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls.reprompts == [1]
     assert result.passed is False
     assert result.reason == "language_mismatch"
+
+
+def test_correct_callback_called_with_previous_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """correct callback receives the wrong-language output for correction."""
+    # First detection: French (mismatch), then correction returns German (match)
+    detections = [("fr", 0.9), ("de", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    calls = CallTracker()
+
+    async def runner() -> DummyOutput:
+        calls.runner += 1
+        return DummyOutput(text="Bonjour le monde" * 5)
+
+    async def correct(attempt: int, previous: DummyOutput) -> DummyOutput:
+        calls.corrections.append((attempt, previous.text))
+        return DummyOutput(text="Hallo Welt " * 10)
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=2)
+    output, result = _run_guard(
+        runner,
+        lambda value: value.text,
+        "de",
+        config=config,
+        correct=correct,
+    )
+
+    assert calls.runner == 1  # Only one initial call
+    assert len(calls.corrections) == 1
+    assert calls.corrections[0][0] == 1  # attempt number
+    assert "Bonjour" in calls.corrections[0][1]  # received original output
+    assert result.passed is True
+    assert output.text.startswith("Hallo Welt")
+
+
+def test_correct_output_reevaluated_for_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Corrected output is re-evaluated; if still wrong, loop continues."""
+    # Initial: French, correction also French, then next runner: French, second correction: German
+    detections = [("fr", 0.9), ("fr", 0.9), ("fr", 0.9), ("de", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    calls = CallTracker()
+
+    async def runner() -> DummyOutput:
+        calls.runner += 1
+        return DummyOutput(text="Bonjour " * 10)
+
+    async def correct(attempt: int, previous: DummyOutput) -> DummyOutput:
+        calls.corrections.append((attempt, previous.text))
+        # First correction also returns wrong language
+        if len(calls.corrections) <= 1:
+            return DummyOutput(text="Encore français " * 10)
+        return DummyOutput(text="Hallo Welt " * 10)
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=3)
+    output, result = _run_guard(
+        runner,
+        lambda value: value.text,
+        "de",
+        config=config,
+        correct=correct,
+    )
+
+    # Runner called twice, first correction failed, second correction succeeds
+    assert calls.runner == 2
+    assert len(calls.corrections) == 2
+    assert result.passed is True
+
+
+def test_correct_takes_precedence_over_reprompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When both correct and reprompt are provided, correct is used."""
+    detections = [("fr", 0.9), ("de", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    calls = CallTracker()
+
+    async def runner() -> DummyOutput:
+        calls.runner += 1
+        return DummyOutput(text="Bonjour " * 10)
+
+    def reprompt(attempt: int) -> None:
+        calls.reprompts.append(attempt)
+
+    async def correct(attempt: int, previous: DummyOutput) -> DummyOutput:
+        calls.corrections.append((attempt, previous.text))
+        return DummyOutput(text="Hallo Welt " * 10)
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=2)
+    output, result = _run_guard(
+        runner,
+        lambda value: value.text,
+        "de",
+        config=config,
+        reprompt=reprompt,
+        correct=correct,
+    )
+
+    assert len(calls.corrections) == 1  # correct was called
+    assert len(calls.reprompts) == 0  # reprompt was NOT called
+    assert result.passed is True
+
+
+def test_backward_compat_reprompt_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Existing reprompt-only callers still work without correct callback."""
+    detections = [("fr", 0.9), ("en", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    calls = CallTracker()
+
+    async def runner() -> DummyOutput:
+        calls.runner += 1
+        return DummyOutput(text="x" * 10)
+
+    def reprompt(attempt: int) -> None:
+        calls.reprompts.append(attempt)
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=2)
+    _, result = _run_guard(
+        runner,
+        lambda value: value.text,
+        "en",
+        config=config,
+        reprompt=reprompt,
+    )
+
+    assert calls.runner == 2
+    assert calls.reprompts == [1]
+    assert result.passed is True
