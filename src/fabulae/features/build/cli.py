@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import typer
+import yaml
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, seed_option, temperature_option
 from fabulae.features.build.service import build_project
@@ -60,7 +61,7 @@ def register_build_command(app: typer.Typer) -> None:
         with progress.stage("Loading project..."):
             try:
                 project = load_project(project_dir)
-            except (FileNotFoundError, ValueError) as exc:
+            except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
                 progress.error(f"Failed to load project: {exc}")
                 raise typer.Exit(code=1) from exc
 
