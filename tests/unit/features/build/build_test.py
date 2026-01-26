@@ -269,6 +269,9 @@ class TestBuildWriter:
         assert (output_dir / "build.json").exists()
         assert (output_dir / "story.md").exists()
 
+        story_content = (output_dir / "story.md").read_text()
+        assert story_content.startswith("# Test Story\n\n")
+
     def test_write_build_output_txt_format(self, tmp_path: Path) -> None:
         """Writer strips markdown for txt format."""
         output = BuildOutput(
@@ -284,6 +287,7 @@ class TestBuildWriter:
         assert "# Heading" not in txt_content
         assert "**Bold**" not in txt_content
         assert "Bold text" in txt_content
+        assert txt_content.startswith("Test Story")
 
     def test_write_build_output_html_format(self, tmp_path: Path) -> None:
         """Writer converts to HTML correctly."""
@@ -297,6 +301,7 @@ class TestBuildWriter:
         write_build_output(output, output_dir, "html")
 
         html_content = (output_dir / "story.html").read_text()
+        assert "<h1>Test Story</h1>" in html_content
         assert "<h1>Heading</h1>" in html_content
         assert "<p>Paragraph text.</p>" in html_content
         assert "<!DOCTYPE html>" in html_content
@@ -354,6 +359,29 @@ class TestBuildWriter:
         assert fragments_dir.exists()
         fragment_files = list(fragments_dir.glob("*.md"))
         assert len(fragment_files) == 2
+
+    def test_write_build_output_no_title_header_for_untitled(self, tmp_path: Path) -> None:
+        """Writer does not add title header when project is 'Untitled'."""
+        metadata = BuildMetadata(
+            project_name="Untitled",
+            format="novel",
+            seed=None,
+            model="test-model",
+            temperature=0.7,
+            timestamp=datetime(2024, 1, 15, 14, 30, 52),
+            version="0.1.0",
+        )
+        output = BuildOutput(
+            metadata=metadata,
+            full_text="Some content.",
+            total_word_count=2,
+        )
+        output_dir = tmp_path / "output"
+
+        write_build_output(output, output_dir, "md")
+
+        story_content = (output_dir / "story.md").read_text()
+        assert story_content == "Some content."
 
     def test_write_build_metadata_json(self, tmp_path: Path) -> None:
         """Writer saves metadata as JSON."""

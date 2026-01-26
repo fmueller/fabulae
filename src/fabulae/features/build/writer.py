@@ -169,8 +169,11 @@ def write_build_output(
     # Determine file extension
     ext = output_format
 
-    # Write combined story
-    story_content = _format_content(result.full_text, output_format, title)
+    # Write combined story with title header
+    full_text = result.full_text
+    if title and title != "Untitled":
+        full_text = f"# {title}\n\n{full_text}"
+    story_content = _format_content(full_text, output_format, title)
     story_path = output_dir / f"story.{ext}"
     story_path.write_text(story_content)
 
