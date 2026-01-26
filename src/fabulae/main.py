@@ -20,12 +20,13 @@ from fabulae.features.entities import (
     world_app,
 )
 from fabulae.features.history.cli import register_history_command
+from fabulae.features.tui.cli import register_tui_command
 from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
 
 app = typer.Typer(
-    help="Fabulae — your CLI application.",
+    help="Fabulae -- CLI toolkit for building narratives. Launches TUI without a command.",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
@@ -42,10 +43,25 @@ def app_callback(
         ),
     ] = False,
 ) -> None:
-    """Root callback invoked when no subcommand is provided."""
+    """Fabulae — CLI toolkit for building narratives.
+
+    When called without a command, launches the interactive TUI.
+    """
     set_history_enabled(not no_history)
     if ctx.invoked_subcommand is None:
-        typer.echo(ctx.get_help())
+        if _is_interactive():
+            from fabulae.features.tui.cli import launch_tui
+
+            launch_tui()
+        else:
+            typer.echo(ctx.get_help())
+
+
+def _is_interactive() -> bool:
+    """Check if the current environment supports interactive TUI."""
+    import sys
+
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
 
 app.command(name="version", help="Display the current version.")(version_command)
@@ -53,6 +69,7 @@ register_create_command(app)
 register_build_command(app)
 register_shapes_commands(app)
 register_history_command(app)
+register_tui_command(app)
 
 # Entity CRUD commands
 app.add_typer(character_app, name="character")

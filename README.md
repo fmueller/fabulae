@@ -8,7 +8,8 @@ Fabulae is a CLI-first toolkit for building narratives from small, versionable b
 and world facts – so you can iterate without losing consistency. Instead of starting from a blank page,
 you assemble a structure (YAML) and let Fabulae render readable prose or scene drafts you can edit and own. It's built
 for exploration and repeatability: explore your story space by generating candidates, comparing variants, keeping what
-resonates, and exporting to clean artifacts.
+resonates, and exporting to clean artifacts. Fabulae also includes an interactive TUI for browsing and editing projects
+directly in the terminal.
 
 ## Supported Formats
 
@@ -73,6 +74,8 @@ Templates:
 
 ## CLI
 
+- `fabulae` launches the interactive TUI when run in a terminal.
+- `fabulae tui [path] [--new]` explicitly launches the TUI.
 - `fabulae validate <dir>` validates a project directory.
 - `fabulae version` prints the current version.
 - `fabulae init [--format FORMAT] <dir>` scaffolds a new project from a template.
@@ -265,6 +268,37 @@ output/
     │   └── ...
     └── fragments/          # Individual fragments (for micro-prose)
 ```
+
+### Interactive TUI
+
+Fabulae includes a terminal-based user interface built with [Textual](https://textual.textualize.io/) for browsing and editing projects interactively.
+
+```bash
+# Launch TUI in the current directory (auto-detected when running in a terminal)
+fabulae
+
+# Launch TUI for a specific project
+fabulae tui ./my-novel
+
+# Launch TUI in project creation mode
+fabulae tui --new ./my-new-project
+```
+
+The TUI provides:
+- **Project tree** – Navigate chapters, scenes, characters, world facts, and format-specific entities (fragments, stanzas)
+- **Entity detail view** – Inspect any entity's fields in a formatted panel
+- **Entity CRUD** – Add, edit, and delete characters, world facts, scenes, fragments, and stanzas via modal dialogs
+- **Build integration** – Trigger narrative builds with a progress indicator
+- **Project creation** – Create new projects from an idea with format and shape selection
+
+**Key bindings:**
+| Key | Action |
+|-----|--------|
+| `a` | Add new entity |
+| `e` | Edit selected entity |
+| `d` | Delete selected entity |
+| `b` | Build narrative output |
+| `q` | Quit |
 
 ## Development
 

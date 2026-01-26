@@ -212,6 +212,37 @@ output/2024-01-15_143052_seed42/
 └── fragments/          # Per-fragment files (micro-prose)
 ```
 
+### TUI Feature Architecture
+
+The `tui` feature (`src/fabulae/features/tui/`) provides an interactive Textual-based terminal UI:
+
+**Entry Points**:
+- `fabulae` (no subcommand, TTY detected) launches the TUI in the current directory
+- `fabulae tui [path]` explicitly launches the TUI
+- `fabulae tui --new` starts in project creation mode
+- Non-TTY environments fall back to help output
+
+**Core Components**:
+- `app.py` - `FabulaeApp` main Textual app, manages screen lifecycle
+- `cli.py` - CLI registration (`register_tui_command`) and `launch_tui()` entry point
+- `styles.tcss` - Textual CSS for layout and styling
+
+**Screens** (`screens/`):
+- `welcome.py` - `WelcomeScreen` for new project creation (idea, format, shape selection)
+- `project.py` - `ProjectScreen` main editing screen with tree navigation and entity CRUD
+- `build.py` - `BuildScreen` for build progress and results
+
+**Widgets** (`widgets/`):
+- `project_tree.py` - `ProjectTree` tree view of all project entities (format-aware)
+- `entity_view.py` - `EntityView` detail panel for selected entities
+
+**Modals** (`modals/`):
+- `add_entity.py` - Modals for adding characters, world facts, scenes, fragments, stanzas
+- `edit_entity.py` - Modals for editing characters and world facts
+- `confirm.py` - `ConfirmModal` for destructive action confirmation
+
+**Key Bindings** (ProjectScreen): `a` (add), `e` (edit), `d` (delete), `b` (build), `q` (quit)
+
 ## Key Validation Rules
 
 - All entity IDs must be globally unique across the entire project

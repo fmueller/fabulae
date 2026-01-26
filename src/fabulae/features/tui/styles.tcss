@@ -1,0 +1,117 @@
+/* Fabulae TUI Styles */
+
+/* Layout */
+#sidebar {
+    width: 30%;
+    min-width: 25;
+    border-right: solid $primary;
+    padding: 1;
+}
+
+#content {
+    width: 70%;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+/* Welcome screen */
+WelcomeScreen {
+    align: center middle;
+}
+
+#welcome-container {
+    width: 70;
+    height: auto;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+#title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#subtitle {
+    text-align: center;
+    margin-bottom: 2;
+}
+
+#idea-input {
+    margin-bottom: 1;
+}
+
+.form-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
+.form-buttons {
+    height: 3;
+    align: center middle;
+    margin-top: 1;
+}
+
+/* Build screen */
+BuildScreen {
+    align: center middle;
+}
+
+#build-container {
+    width: 70;
+    height: auto;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+#build-title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 2;
+}
+
+#build-progress {
+    margin: 1 4;
+}
+
+#build-status {
+    margin: 1 2;
+}
+
+.build-buttons {
+    height: 3;
+    align: center middle;
+    margin-top: 1;
+}
+
+/* Modals */
+ModalScreen {
+    align: center middle;
+}
+
+.modal-dialog {
+    width: 60;
+    height: auto;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+.modal-title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.modal-buttons {
+    height: 3;
+    align: center middle;
+    margin-top: 1;
+}
+
+/* Entity view */
+#entity-content {
+    padding: 1 2;
+}
