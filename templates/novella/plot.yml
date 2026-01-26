@@ -10,6 +10,13 @@ hook:
 stakes:
   external: The orchard will be sold by week's end.
   internal: June risks abandoning the place that shaped her.
+chapters:
+  - id: return
+    title: Return
+    scene_ids: [orchard-return]
+  - id: confrontation
+    title: Confrontation
+    scene_ids: [night-fire]
 scenes:
   - id: orchard-return
     time: late afternoon

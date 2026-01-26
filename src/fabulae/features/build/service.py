@@ -48,6 +48,14 @@ async def _build_chaptered(
     progress: CreateProgress | None,
 ) -> BuildOutput:
     """Build prose for chaptered formats (novel, novella)."""
+    if not project.plot.chapters:
+        if progress:
+            progress.warn(
+                "No chapters found — building scenes without chapter structure. "
+                "Add chapters to plot.yml for chaptered output."
+            )
+        return await _build_short_story(project, config, seed, progress)
+
     chapters: list[ChapterOutput] = []
     prior_summaries: list[str] = []
     total_scenes = sum(len(ch.scene_ids or []) for ch in project.plot.chapters)
@@ -63,9 +71,7 @@ async def _build_chaptered(
             scene_count += 1
 
             if progress:
-                progress.console.print(
-                    f"  [dim]Building scene {scene_count}/{total_scenes}: {scene_id}[/dim]"
-                )
+                progress.console.print(f"  [dim]Building scene {scene_count}/{total_scenes}: {scene_id}[/dim]")
 
             # Use sliding window for prior context
             prior_context = "\n\n".join(prior_summaries[-SLIDING_WINDOW_SIZE:])
@@ -157,9 +163,7 @@ async def _build_micro_prose(
 
     for i, fragment in enumerate(project.plot.fragments, 1):
         if progress:
-            progress.console.print(
-                f"  [dim]Building fragment {i}/{total_fragments}: {fragment.id}[/dim]"
-            )
+            progress.console.print(f"  [dim]Building fragment {i}/{total_fragments}: {fragment.id}[/dim]")
 
         fragment_output = await build_fragment(
             fragment=fragment,
@@ -194,9 +198,7 @@ async def _build_poem(
 
         for i, stanza in enumerate(project.plot.stanzas, 1):
             if progress:
-                progress.console.print(
-                    f"  [dim]Building stanza {i}/{total_stanzas}: {stanza.id}[/dim]"
-                )
+                progress.console.print(f"  [dim]Building stanza {i}/{total_stanzas}: {stanza.id}[/dim]")
 
             stanza_output = await build_stanza(
                 stanza=stanza,

@@ -150,6 +150,30 @@ def create_poem_lines_project(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def create_novella_project_without_chapters(tmp_path: Path) -> Path:
+    """Create a novella project with scenes but no chapters."""
+    (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
+    (tmp_path / "plot.yml").write_text(
+        yaml.dump(
+            {
+                "premise": "A botanist returns to confront the family land sale.",
+                "format": "novella",
+                "scenes": [
+                    {
+                        "id": "scene-01",
+                        "summary": "June walks the orchard rows.",
+                    },
+                    {
+                        "id": "scene-02",
+                        "summary": "June confronts her uncle.",
+                    },
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
 class TestBuildCommand:
     """Tests for build CLI command."""
 
@@ -608,6 +632,70 @@ class TestBuildService:
             result = asyncio.run(build_project(project, config, seed=12345))
 
         assert result.metadata.seed == 12345
+
+    def test_build_project_chaptered_without_chapters_falls_back(self, tmp_path: Path) -> None:
+        """Chaptered format without chapters falls back to scene-based build."""
+        import asyncio
+
+        from fabulae.features.build.schemas import SceneProseOutput
+        from fabulae.features.build.service import build_project
+        from fabulae.llm import LLMConfig
+        from fabulae.models import load_project
+
+        create_novella_project_without_chapters(tmp_path)
+        project = load_project(tmp_path)
+        config = LLMConfig(model="test")
+
+        mock_result = AsyncMock()
+        mock_result.output = SceneProseOutput(content="Generated scene content.")
+
+        summary_mock = AsyncMock()
+        summary_mock.output = type("Summary", (), {"summary": "Scene summary."})()
+
+        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
+            mock_create.return_value = mock_agent
+
+            result = asyncio.run(build_project(project, config))
+
+        assert result.scenes is not None
+        assert len(result.scenes) == 2
+        assert result.chapters is None
+        assert result.total_word_count > 0
+        assert "Generated scene content" in result.full_text
+
+    def test_build_project_chaptered_without_chapters_warns(self, tmp_path: Path) -> None:
+        """Chaptered format without chapters issues a warning via progress."""
+        import asyncio
+        from unittest.mock import MagicMock
+
+        from fabulae.features.build.schemas import SceneProseOutput
+        from fabulae.features.build.service import build_project
+        from fabulae.llm import LLMConfig
+        from fabulae.models import load_project
+
+        create_novella_project_without_chapters(tmp_path)
+        project = load_project(tmp_path)
+        config = LLMConfig(model="test")
+
+        mock_result = AsyncMock()
+        mock_result.output = SceneProseOutput(content="Content.")
+
+        summary_mock = AsyncMock()
+        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
+
+        progress = MagicMock()
+
+        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
+            mock_create.return_value = mock_agent
+
+            asyncio.run(build_project(project, config, progress=progress))
+
+        progress.warn.assert_called_once()
+        assert "No chapters found" in progress.warn.call_args[0][0]
 
     def test_build_project_unknown_format_raises(self, tmp_path: Path) -> None:
         """Build service raises for unknown format."""
