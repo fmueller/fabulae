@@ -194,6 +194,17 @@ class TestBuildCommand:
         assert result.exit_code == 1
         assert "Failed to load project" in result.output or "not found" in result.output.lower()
 
+    def test_build_malformed_yaml_shows_clean_error(self, tmp_path: Path) -> None:
+        """Building with malformed YAML shows a clean error, not a traceback."""
+        (tmp_path / "fabulae.yml").write_text("version: 0.1.0\n")
+        (tmp_path / "plot.yml").write_text("{{{broken\n")
+
+        result = runner.invoke(app, ["build", str(tmp_path)])
+        output = strip_ansi(result.output)
+        assert result.exit_code == 1
+        assert "Failed to load project" in output
+        assert "Traceback" not in output
+
     def test_build_invalid_format_project_fails(self, tmp_path: Path) -> None:
         """Building with invalid format project fails."""
         (tmp_path / "fabulae.yml").write_text(yaml.dump({"version": "0.1.0"}))
