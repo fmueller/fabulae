@@ -128,8 +128,19 @@ async def run_with_language_guard(
     expected_language: str | None,
     config: LanguageGuardConfig | None = None,
     reprompt: Callable[[int], None] | None = None,
+    correct: Callable[[int, T], T | Awaitable[T]] | None = None,
 ) -> tuple[T, LanguageGuardResult]:
-    """Run an LLM call and enforce project language, retrying if needed."""
+    """Run an LLM call and enforce project language, retrying if needed.
+
+    Args:
+        runner: Callable that produces LLM output.
+        extract_text: Extracts narrative text from the output for language detection.
+        expected_language: ISO 639-1 code for the target language.
+        config: Language guard configuration (thresholds, retries).
+        reprompt: Legacy callback that modifies the system prompt for re-generation.
+        correct: Correction callback that receives the wrong-language output and
+            returns a corrected version. Takes precedence over ``reprompt``.
+    """
     resolved_config = config or LanguageGuardConfig()
     if expected_language is None or not expected_language.strip():
         output = await _maybe_await(runner())
@@ -165,7 +176,13 @@ async def run_with_language_guard(
         if result.passed or result.skipped or attempt >= resolved_config.max_retries:
             return output, result
         attempt += 1
-        if reprompt is not None:
+        if correct is not None:
+            output = await _maybe_await(correct(attempt, output))
+            text = extract_text(output)
+            result = _evaluate_text(text, expected_code, resolved_config)
+            if result.passed or result.skipped or attempt >= resolved_config.max_retries:
+                return output, result
+        elif reprompt is not None:
             reprompt(attempt)
 
 

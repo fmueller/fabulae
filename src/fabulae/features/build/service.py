@@ -46,6 +46,7 @@ async def _build_chaptered(
     config: LLMConfig,
     seed: int | None,
     progress: CreateProgress | None,
+    expected_language: str | None = None,
 ) -> BuildOutput:
     """Build prose for chaptered formats (novel, novella)."""
     if not project.plot.chapters:
@@ -54,7 +55,7 @@ async def _build_chaptered(
                 "No chapters found — building scenes without chapter structure. "
                 "Add chapters to plot.yml for chaptered output."
             )
-        return await _build_short_story(project, config, seed, progress)
+        return await _build_short_story(project, config, seed, progress, expected_language)
 
     chapters: list[ChapterOutput] = []
     prior_summaries: list[str] = []
@@ -82,6 +83,7 @@ async def _build_chaptered(
                 prior_context=prior_context,
                 config=config,
                 chapter_id=chapter.id,
+                expected_language=expected_language,
             )
             chapter_scenes.append(scene_output)
 
@@ -111,6 +113,7 @@ async def _build_short_story(
     config: LLMConfig,
     seed: int | None,
     progress: CreateProgress | None,
+    expected_language: str | None = None,
 ) -> BuildOutput:
     """Build prose for short-story format (scenes without chapters)."""
     scenes: list[SceneOutput] = []
@@ -134,6 +137,7 @@ async def _build_short_story(
             project=project,
             prior_context=prior_context,
             config=config,
+            expected_language=expected_language,
         )
         scenes.append(scene_output)
 
@@ -155,6 +159,7 @@ async def _build_micro_prose(
     config: LLMConfig,
     seed: int | None,
     progress: CreateProgress | None,
+    expected_language: str | None = None,
 ) -> BuildOutput:
     """Build prose for micro-prose format (fragments)."""
     fragments: list[FragmentOutput] = []
@@ -170,6 +175,7 @@ async def _build_micro_prose(
             project=project,
             prior_fragments=prior_contents[-SLIDING_WINDOW_SIZE:],
             config=config,
+            expected_language=expected_language,
         )
         fragments.append(fragment_output)
         prior_contents.append(fragment_output.content)
@@ -188,6 +194,7 @@ async def _build_poem(
     config: LLMConfig,
     seed: int | None,
     progress: CreateProgress | None,
+    expected_language: str | None = None,
 ) -> BuildOutput:
     """Build prose for poem format (stanzas or lines)."""
     # If we have stanzas, generate them individually
@@ -205,6 +212,7 @@ async def _build_poem(
                 project=project,
                 prior_stanzas=prior_stanzas[-SLIDING_WINDOW_SIZE:],
                 config=config,
+                expected_language=expected_language,
             )
             stanzas.append(stanza_output)
             prior_stanzas.append(stanza_output.lines)
@@ -221,7 +229,7 @@ async def _build_poem(
     if progress:
         progress.console.print("  [dim]Building poem...[/dim]")
 
-    poem_text = await build_poem_from_lines(project, config)
+    poem_text = await build_poem_from_lines(project, config, expected_language=expected_language)
     return BuildOutput(
         metadata=_create_metadata(project, config, seed),
         poem=poem_text,
@@ -273,6 +281,7 @@ async def build_project(
     config: LLMConfig,
     seed: int | None = None,
     progress: CreateProgress | None = None,
+    expected_language: str | None = None,
 ) -> BuildOutput:
     """Orchestrate the complete build process.
 
@@ -281,6 +290,7 @@ async def build_project(
         config: LLM configuration.
         seed: Optional seed for reproducibility.
         progress: Optional progress display.
+        expected_language: ISO 639-1 code for language enforcement (e.g. 'de').
 
     Returns:
         BuildOutput with complete generated narrative.
@@ -294,13 +304,13 @@ async def build_project(
     format_type = project.plot.format or "novel"
 
     if format_type in ("novel", "novella"):
-        return await _build_chaptered(project, config, seed, progress)
+        return await _build_chaptered(project, config, seed, progress, expected_language)
     elif format_type == "short-story":
-        return await _build_short_story(project, config, seed, progress)
+        return await _build_short_story(project, config, seed, progress, expected_language)
     elif format_type == "micro-prose":
-        return await _build_micro_prose(project, config, seed, progress)
+        return await _build_micro_prose(project, config, seed, progress, expected_language)
     elif format_type == "poem":
-        return await _build_poem(project, config, seed, progress)
+        return await _build_poem(project, config, seed, progress, expected_language)
     else:
         raise ValueError(f"Unknown format: {format_type}")
 

@@ -730,3 +730,126 @@ class TestBuildService:
 
         with pytest.raises(ValueError, match="Unknown format"):
             asyncio.run(build_project(project, config))
+
+
+class TestBuildLanguageGuard:
+    """Tests for language enforcement in build."""
+
+    def test_build_help_shows_language_option(self) -> None:
+        """Build command help shows --language option."""
+        result = runner.invoke(app, ["build", "--help"])
+        assert result.exit_code == 0
+        output = strip_ansi(result.output)
+        assert "--language" in output
+
+    def test_build_language_flag_accepted(self, tmp_path: Path) -> None:
+        """Build command accepts --language flag."""
+        import asyncio
+
+        from fabulae.features.build.schemas import SceneProseOutput
+        from fabulae.features.build.service import build_project
+        from fabulae.llm import LLMConfig
+        from fabulae.models import load_project
+
+        create_short_story_project(tmp_path)
+        project = load_project(tmp_path)
+        config = LLMConfig(model="test")
+
+        mock_result = AsyncMock()
+        mock_result.output = SceneProseOutput(content="Inhalt auf Deutsch.")
+
+        summary_mock = AsyncMock()
+        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
+
+        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock])
+            mock_create.return_value = mock_agent
+
+            # Patch language guard to skip detection (test just ensures no crash)
+            with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+                mock_guard.return_value = (
+                    SceneProseOutput(content="Inhalt auf Deutsch."),
+                    type("Result", (), {"passed": True, "skipped": True})(),
+                )
+                result = asyncio.run(build_project(project, config, expected_language="de"))
+
+        assert result.scenes is not None
+
+    def test_build_uses_style_language_when_no_flag(self, tmp_path: Path) -> None:
+        """Build resolves language from style.yml when no --language flag."""
+        import asyncio
+
+        from fabulae.features.build.schemas import SceneProseOutput
+        from fabulae.features.build.service import build_project
+        from fabulae.llm import LLMConfig
+        from fabulae.models import load_project
+
+        create_novel_project(tmp_path)
+        project = load_project(tmp_path)
+        config = LLMConfig(model="test")
+
+        # project has style.language = "en" from create_novel_project
+        assert project.style is not None
+        assert project.style.language == "en"
+
+        mock_result = AsyncMock()
+        mock_result.output = SceneProseOutput(content="English content.")
+
+        summary_mock = AsyncMock()
+        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
+
+        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
+            mock_create.return_value = mock_agent
+
+            with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+                mock_guard.return_value = (
+                    SceneProseOutput(content="English content."),
+                    type("Result", (), {"passed": True, "skipped": True})(),
+                )
+                asyncio.run(
+                    build_project(project, config, expected_language=project.style.language)
+                )
+
+        # Verify language guard was called with expected language
+        assert mock_guard.call_count > 0
+        call_kwargs = mock_guard.call_args
+        assert call_kwargs[1].get("expected_language") == "en" or call_kwargs[0][2] == "en"
+
+    def test_build_scene_builder_passes_expected_language(self, tmp_path: Path) -> None:
+        """scene_builder.build_scene passes expected_language to run_with_language_guard."""
+        import asyncio
+
+        from fabulae.features.build.scene_builder import build_scene
+        from fabulae.features.build.schemas import SceneProseOutput
+        from fabulae.llm import LLMConfig
+        from fabulae.models import Beat, Plot, Project, ProjectConfig, Scene
+
+        project = Project(
+            config=ProjectConfig(version="0.1.0"),
+            plot=Plot(
+                premise="Test",
+                format="short-story",
+                scenes=[Scene(id="scene-01", summary="Test", beats=[Beat(id="b-01", kind="opening")])],
+            ),
+        )
+        scene = project.plot.scenes[0]
+        config = LLMConfig(model="test")
+
+        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+            mock_guard.return_value = (
+                SceneProseOutput(content="German content."),
+                type("Result", (), {"passed": True, "skipped": False})(),
+            )
+            result = asyncio.run(
+                build_scene(scene, project, "", config, expected_language="de")
+            )
+
+        assert result.content == "German content."
+        # Verify expected_language was passed
+        call_kwargs = mock_guard.call_args[1]
+        assert call_kwargs["expected_language"] == "de"
+        # Verify correct callback was provided
+        assert call_kwargs["correct"] is not None

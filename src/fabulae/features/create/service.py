@@ -63,7 +63,7 @@ from fabulae.models import (
     _dump_plot,
     save_yaml_file,
 )
-from fabulae.prompts import build_language_guard_prompt, format_project_context
+from fabulae.prompts import build_language_correction_prompt, build_language_guard_prompt, format_project_context
 
 T = TypeVar("T")
 
@@ -247,17 +247,25 @@ async def run_stage(
             result = await agent.run(current_prompt)
             return cast(T, result.output)
 
-        def reprompt(attempt: int) -> None:
+        async def correct(attempt: int, previous_output: T) -> T:
             if not expected_language:
-                return
+                return previous_output
+            if hasattr(previous_output, "model_dump_json"):
+                original_json = previous_output.model_dump_json(indent=2)
+            else:
+                original_json = str(previous_output)
+            correction_prompt = build_language_correction_prompt(expected_language, original_json)
             guard_prompt = build_language_guard_prompt(expected_language)
-            prompt_state["system"] = f"{system_prompt}\n\n{guard_prompt}\n\nRetry attempt: {attempt}"
+            correction_system = f"{system_prompt}\n\n{guard_prompt}"
+            agent = create_agent(result_type, correction_system, config)
+            result = await agent.run(correction_prompt)
+            return cast(T, result.output)
 
         output, _ = await run_with_language_guard(
             runner=runner,
             extract_text=extract_text,
             expected_language=expected_language,
-            reprompt=reprompt,
+            correct=correct,
         )
         return output
 

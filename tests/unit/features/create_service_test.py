@@ -159,8 +159,9 @@ def test_run_stage_retries_append_error(monkeypatch: pytest.MonkeyPatch) -> None
     assert any("RETRY" in prompt for prompt in prompts)
 
 
-def test_run_stage_reprompts_language_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    outputs_by_type: dict[type[object], list[object]] = {str: ["first", "second"]}
+def test_run_stage_correction_language_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    """run_stage now uses correct callback instead of reprompt for language guard."""
+    outputs_by_type: dict[type[object], list[object]] = {str: ["first", "corrected"]}
     system_prompts: list[str] = []
     monkeypatch.setattr(
         "fabulae.features.create.service.create_agent",
@@ -173,13 +174,20 @@ def test_run_stage_reprompts_language_guard(monkeypatch: pytest.MonkeyPatch) -> 
         expected_language: str | None,
         config: object | None = None,
         reprompt: Callable[[int], None] | None = None,
+        correct: Callable[[int, Any], Any] | None = None,
     ) -> tuple[Any, LanguageGuardResult]:
-        await runner()
-        if reprompt:
-            reprompt(1)
-        second = await runner()
-        extract_text(second)
-        return second, LanguageGuardResult(
+        output = await runner()
+        if correct is not None:
+            corrected = await correct(1, output)
+            return corrected, LanguageGuardResult(
+                expected=expected_language or "",
+                detected="",
+                confidence=1.0,
+                passed=True,
+                skipped=False,
+                reason="fake",
+            )
+        return output, LanguageGuardResult(
             expected=expected_language or "",
             detected="",
             confidence=1.0,
@@ -206,8 +214,9 @@ def test_run_stage_reprompts_language_guard(monkeypatch: pytest.MonkeyPatch) -> 
         )
     )
 
-    assert result.output == "second"
-    assert any("Retry attempt: 1" in prompt for prompt in system_prompts)
+    assert result.output == "corrected"
+    # The correction uses a separate agent with language guard in the system prompt
+    assert any("language" in prompt.lower() for prompt in system_prompts)
 
 
 def test_shared_utilities_can_be_imported_from_service() -> None:
