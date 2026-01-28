@@ -1,0 +1,80 @@
+/* Layout */
+#sidebar {
+    width: 30%;
+    min-width: 25;
+    border-right: solid $primary;
+    padding: 1;
+}
+
+#content {
+    width: 70%;
+    padding: 1 2;
+}
+
+#status {
+    height: 1;
+    padding: 0 1;
+    color: $warning;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Welcome screen */
+WelcomeScreen {
+    align: center middle;
+}
+
+#title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 2;
+}
+
+#selectors {
+    margin: 1 0;
+    height: auto;
+}
+
+#buttons {
+    margin-top: 1;
+}
+
+#progress {
+    margin-top: 1;
+}
+
+/* Build screen */
+BuildScreen {
+    align: center middle;
+}
+
+#build-container {
+    width: 80%;
+    padding: 1 2;
+    border: thick $primary;
+    background: $surface;
+}
+
+#build-progress {
+    margin: 1 0;
+}
+
+/* Modals */
+ModalScreen {
+    align: center middle;
+}
+
+.modal-dialog {
+    width: 70%;
+    height: auto;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+.modal-title {
+    text-style: bold;
+    margin-bottom: 1;
+}

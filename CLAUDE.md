@@ -36,7 +36,7 @@ Fabulae is a CLI toolkit for building narratives from YAML building blocks. The 
 
 **CLI Layer** (`src/fabulae/main.py`): Typer-based command wiring only. Command functions live in `src/fabulae/features/<slice>/cli.py` and should call feature services while avoiding embedded business logic. Entry point is `fabulae = "fabulae.main:main"`.
 
-**Feature Slices** (`src/fabulae/features/`): Each feature owns its prompts, schemas, and service logic (e.g., `create/`, `build/`, `check/`, `doctor/`, `entities/`, `tui/`, `history/`). The CLI and TUI should call into these services to share behavior.
+**Feature Slices** (`src/fabulae/features/`): Each feature owns its prompts, schemas, and service logic (e.g., `create/`, `build/`, `check/`, `doctor/`, `entities/`, `tui/`, `history/`). The CLI and TUI should call into these services to share behavior. The TUI lives under `src/fabulae/features/tui/` and is implemented with Textual (screens, widgets, and modals).
 
 **Shared LLM + Prompts**:
 - `src/fabulae/llm/` for `LLMConfig`, agent factory, config resolution, and connectivity tests.

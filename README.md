@@ -81,9 +81,32 @@ Templates:
 - `fabulae shape <id>` shows details of a specific story shape.
 - `fabulae history [OPTIONS] <dir>` views or manages project history.
 - `fabulae build [OPTIONS] <dir>` generates complete narrative output from a project.
+- `fabulae tui [--new] [path]` launches the interactive TUI (also the default when no command is provided).
 
 **Global options:**
 - `--no-history` disables project history tracking for the command.
+
+## TUI
+
+Fabulae ships with a minimal Textual-based TUI for v0.1.0:
+
+```bash
+# Launch the TUI in the current directory
+fabulae
+
+# Open a specific project directory
+fabulae /path/to/project
+
+# Open a specific project directory (explicit command)
+fabulae tui /path/to/project
+
+# Jump straight into project creation
+fabulae tui --new
+```
+
+The TUI mirrors the CLI workflows: create a project, browse entities, edit core fields, and build output with progress feedback. If a project is incomplete or fails validation, the TUI opens in a relaxed mode so you can inspect and repair the data.
+
+Tip: set `FABULAE_DISABLE_TUI=1` to force the CLI help output instead of launching the TUI (useful for automation or tests).
 
 ### Initializing a Project
 

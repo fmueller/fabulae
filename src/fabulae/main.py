@@ -20,19 +20,27 @@ from fabulae.features.entities import (
     world_app,
 )
 from fabulae.features.history.cli import register_history_command
+from fabulae.features.tui.cli import launch_tui, register_tui_command, tui_disabled
 from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
 
 app = typer.Typer(
     help="Fabulae — your CLI application.",
-    context_settings={"help_option_names": ["-h", "--help"]},
+    context_settings={
+        "help_option_names": ["-h", "--help"],
+        "allow_extra_args": True,
+    },
 )
 
 
 @app.callback(invoke_without_command=True)
 def app_callback(
     ctx: typer.Context,
+    new: Annotated[
+        bool,
+        typer.Option("--new", help="Start with project creation."),
+    ] = False,
     no_history: Annotated[
         bool,
         typer.Option(
@@ -45,7 +53,11 @@ def app_callback(
     """Root callback invoked when no subcommand is provided."""
     set_history_enabled(not no_history)
     if ctx.invoked_subcommand is None:
-        typer.echo(ctx.get_help())
+        if tui_disabled():
+            typer.echo(ctx.get_help())
+            return
+        path = Path(ctx.args[0]) if ctx.args else Path.cwd()
+        launch_tui(path, start_create=new)
 
 
 app.command(name="version", help="Display the current version.")(version_command)
@@ -53,6 +65,7 @@ register_create_command(app)
 register_build_command(app)
 register_shapes_commands(app)
 register_history_command(app)
+register_tui_command(app)
 
 # Entity CRUD commands
 app.add_typer(character_app, name="character")

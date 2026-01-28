@@ -44,7 +44,7 @@ def test_short_help_flag_shows_help() -> None:
 
 def test_no_command_shows_help() -> None:
     """Running without a command shows help."""
-    result = runner.invoke(app)
+    result = runner.invoke(app, env={"FABULAE_DISABLE_TUI": "1"})
     assert result.exit_code == 0
     assert "Fabulae" in result.output
 
