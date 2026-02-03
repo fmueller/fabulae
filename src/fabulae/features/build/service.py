@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from datetime import datetime
 
 from fabulae import __version__
@@ -26,6 +27,26 @@ from fabulae.llm import LLMConfig
 from fabulae.models import Project, Scene
 
 SLIDING_WINDOW_SIZE = 5
+
+
+def _make_language_correction_callback(
+    progress: CreateProgress | None,
+) -> Callable[[str, str, int], None] | None:
+    """Create a callback to notify user of language correction attempts.
+
+    Args:
+        progress: Progress display instance, or None if not available.
+
+    Returns:
+        A callback function, or None if progress is not available.
+    """
+    if progress is None:
+        return None
+
+    def notify(expected: str, detected: str, attempt: int) -> None:
+        progress.info(f"Language mismatch (expected: {expected}, got: {detected}), correcting (attempt {attempt})...")
+
+    return notify
 
 
 def _get_scene_by_id(scene_id: str, project: Project) -> Scene:
@@ -61,6 +82,7 @@ async def _build_chaptered(
     prior_summaries: list[str] = []
     total_scenes = sum(len(ch.scene_ids or []) for ch in project.plot.chapters)
     scene_count = 0
+    on_language_correction = _make_language_correction_callback(progress)
 
     for chapter in project.plot.chapters:
         if not chapter.scene_ids:
@@ -84,6 +106,7 @@ async def _build_chaptered(
                 config=config,
                 chapter_id=chapter.id,
                 expected_language=expected_language,
+                on_language_correction=on_language_correction,
             )
             chapter_scenes.append(scene_output)
 
@@ -119,6 +142,7 @@ async def _build_short_story(
     scenes: list[SceneOutput] = []
     prior_summaries: list[str] = []
     total_scenes = len(project.plot.scenes)
+    on_language_correction = _make_language_correction_callback(progress)
 
     # Determine scene order
     scene_order = project.plot.scene_ids or [s.id for s in project.plot.scenes]
@@ -138,6 +162,7 @@ async def _build_short_story(
             prior_context=prior_context,
             config=config,
             expected_language=expected_language,
+            on_language_correction=on_language_correction,
         )
         scenes.append(scene_output)
 
@@ -165,6 +190,7 @@ async def _build_micro_prose(
     fragments: list[FragmentOutput] = []
     prior_contents: list[str] = []
     total_fragments = len(project.plot.fragments)
+    on_language_correction = _make_language_correction_callback(progress)
 
     for i, fragment in enumerate(project.plot.fragments, 1):
         if progress:
@@ -176,6 +202,7 @@ async def _build_micro_prose(
             prior_fragments=prior_contents[-SLIDING_WINDOW_SIZE:],
             config=config,
             expected_language=expected_language,
+            on_language_correction=on_language_correction,
         )
         fragments.append(fragment_output)
         prior_contents.append(fragment_output.content)
@@ -197,6 +224,8 @@ async def _build_poem(
     expected_language: str | None = None,
 ) -> BuildOutput:
     """Build prose for poem format (stanzas or lines)."""
+    on_language_correction = _make_language_correction_callback(progress)
+
     # If we have stanzas, generate them individually
     if project.plot.stanzas:
         stanzas: list[StanzaOutput] = []
@@ -213,6 +242,7 @@ async def _build_poem(
                 prior_stanzas=prior_stanzas[-SLIDING_WINDOW_SIZE:],
                 config=config,
                 expected_language=expected_language,
+                on_language_correction=on_language_correction,
             )
             stanzas.append(stanza_output)
             prior_stanzas.append(stanza_output.lines)
@@ -229,7 +259,9 @@ async def _build_poem(
     if progress:
         progress.console.print("  [dim]Building poem...[/dim]")
 
-    poem_text = await build_poem_from_lines(project, config, expected_language=expected_language)
+    poem_text = await build_poem_from_lines(
+        project, config, expected_language=expected_language, on_language_correction=on_language_correction
+    )
     return BuildOutput(
         metadata=_create_metadata(project, config, seed),
         poem=poem_text,

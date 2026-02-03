@@ -241,6 +241,13 @@ async def run_stage(
     prompt_state = {"system": system_prompt}
     warnings: list[str] = []
 
+    def _on_correction(expected_code: str, detected_code: str, attempt: int) -> None:
+        if progress is not None:
+            progress(
+                f"Language mismatch (expected: {expected_code}, got: {detected_code}), "
+                f"correcting (attempt {attempt})..."
+            )
+
     async def _invoke_stage(current_prompt: str) -> T:
         async def runner() -> T:
             agent = create_agent(result_type, prompt_state["system"], config)
@@ -266,6 +273,7 @@ async def run_stage(
             extract_text=extract_text,
             expected_language=expected_language,
             correct=correct,
+            on_correction=_on_correction,
         )
         return output
 

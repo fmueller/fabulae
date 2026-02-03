@@ -69,6 +69,7 @@ async def build_scene(
     config: LLMConfig,
     chapter_id: str | None = None,
     expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
 ) -> SceneOutput:
     """Generate prose for a single scene.
 
@@ -123,6 +124,7 @@ async def build_scene(
         extract_text=lambda o: o.content,
         expected_language=expected_language,
         correct=correct_cb,
+        on_correction=on_language_correction,
     )
 
     return SceneOutput(
@@ -163,6 +165,7 @@ async def build_fragment(
     prior_fragments: list[str],
     config: LLMConfig,
     expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
 ) -> FragmentOutput:
     """Generate prose for a micro-prose fragment.
 
@@ -209,6 +212,7 @@ async def build_fragment(
         extract_text=lambda o: o.content,
         expected_language=expected_language,
         correct=correct_cb,
+        on_correction=on_language_correction,
     )
 
     return FragmentOutput(
@@ -224,6 +228,7 @@ async def build_stanza(
     prior_stanzas: list[list[str]],
     config: LLMConfig,
     expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
 ) -> StanzaOutput:
     """Generate lines for a poem stanza.
 
@@ -273,6 +278,7 @@ async def build_stanza(
         extract_text=lambda o: "\n".join(o.lines),
         expected_language=expected_language,
         correct=correct_cb,
+        on_correction=on_language_correction,
     )
 
     content = "\n".join(prose_output.lines)
@@ -287,6 +293,7 @@ async def build_poem_from_lines(
     project: Project,
     config: LLMConfig,
     expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
 ) -> str:
     """Generate a complete poem from line seeds.
 
@@ -333,6 +340,7 @@ async def build_poem_from_lines(
         extract_text=lambda o: o.content,
         expected_language=expected_language,
         correct=correct_cb,
+        on_correction=on_language_correction,
     )
 
     return prose_output.content

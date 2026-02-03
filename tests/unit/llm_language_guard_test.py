@@ -287,3 +287,143 @@ def test_backward_compat_reprompt_only(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls.runner == 2
     assert calls.reprompts == [1]
     assert result.passed is True
+
+
+@dataclass
+class CorrectionNotification:
+    expected: str
+    detected: str
+    attempt: int
+
+
+@dataclass
+class NotificationTracker:
+    notifications: list[CorrectionNotification] = field(default_factory=list)
+
+
+def _run_guard_with_on_correction(
+    runner: Callable[[], DummyOutput | Awaitable[DummyOutput]],
+    extract_text: Callable[[DummyOutput], str],
+    expected_language: str,
+    config: language_guard.LanguageGuardConfig | None = None,
+    reprompt: Callable[[int], None] | None = None,
+    correct: Callable[[int, DummyOutput], DummyOutput | Awaitable[DummyOutput]] | None = None,
+    on_correction: Callable[[str, str, int], None] | None = None,
+) -> tuple[DummyOutput, language_guard.LanguageGuardResult]:
+    return asyncio.run(
+        language_guard.run_with_language_guard(
+            runner,
+            extract_text,
+            expected_language,
+            config=config,
+            reprompt=reprompt,
+            correct=correct,
+            on_correction=on_correction,
+        )
+    )
+
+
+def test_on_correction_callback_invoked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """on_correction callback is invoked with (expected, detected, attempt) before correction."""
+    detections = [("fr", 0.9), ("de", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    tracker = NotificationTracker()
+
+    async def runner() -> DummyOutput:
+        return DummyOutput(text="Bonjour le monde" * 5)
+
+    async def correct(attempt: int, previous: DummyOutput) -> DummyOutput:
+        return DummyOutput(text="Hallo Welt " * 10)
+
+    def on_correction(expected: str, detected: str, attempt: int) -> None:
+        tracker.notifications.append(CorrectionNotification(expected, detected, attempt))
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=2)
+    _, result = _run_guard_with_on_correction(
+        runner,
+        lambda value: value.text,
+        "de",
+        config=config,
+        correct=correct,
+        on_correction=on_correction,
+    )
+
+    assert len(tracker.notifications) == 1
+    notification = tracker.notifications[0]
+    assert notification.expected == "de"
+    assert notification.detected == "fr"
+    assert notification.attempt == 1
+    assert result.passed is True
+
+
+def test_on_correction_not_called_when_match(monkeypatch: pytest.MonkeyPatch) -> None:
+    """on_correction callback is not invoked when language matches on first attempt."""
+    monkeypatch.setattr(language_guard, "detect_language", lambda _: ("en", 0.95))
+
+    tracker = NotificationTracker()
+
+    async def runner() -> DummyOutput:
+        return DummyOutput(text="x" * 10)
+
+    def on_correction(expected: str, detected: str, attempt: int) -> None:
+        tracker.notifications.append(CorrectionNotification(expected, detected, attempt))
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=2)
+    _, result = _run_guard_with_on_correction(
+        runner,
+        lambda value: value.text,
+        "en",
+        config=config,
+        on_correction=on_correction,
+    )
+
+    assert len(tracker.notifications) == 0
+    assert result.passed is True
+
+
+def test_on_correction_called_on_each_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """on_correction callback is invoked before each retry attempt."""
+    # First: French, correction: French, second runner: French, second correction: German
+    detections = [("fr", 0.9), ("fr", 0.9), ("fr", 0.9), ("de", 0.9)]
+
+    def fake_detect(_: str) -> tuple[str | None, float | None]:
+        return detections.pop(0)
+
+    monkeypatch.setattr(language_guard, "detect_language", fake_detect)
+
+    tracker = NotificationTracker()
+    correction_count = 0
+
+    async def runner() -> DummyOutput:
+        return DummyOutput(text="Bonjour " * 10)
+
+    async def correct(attempt: int, previous: DummyOutput) -> DummyOutput:
+        nonlocal correction_count
+        correction_count += 1
+        if correction_count <= 1:
+            return DummyOutput(text="Encore français " * 10)
+        return DummyOutput(text="Hallo Welt " * 10)
+
+    def on_correction(expected: str, detected: str, attempt: int) -> None:
+        tracker.notifications.append(CorrectionNotification(expected, detected, attempt))
+
+    config = language_guard.LanguageGuardConfig(min_chars=1, min_confidence=0.5, max_retries=3)
+    _, result = _run_guard_with_on_correction(
+        runner,
+        lambda value: value.text,
+        "de",
+        config=config,
+        correct=correct,
+        on_correction=on_correction,
+    )
+
+    # Should have been called twice: once before each correction attempt
+    assert len(tracker.notifications) == 2
+    assert tracker.notifications[0].attempt == 1
+    assert tracker.notifications[1].attempt == 2
+    assert result.passed is True
