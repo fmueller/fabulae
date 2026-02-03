@@ -31,6 +31,7 @@ class AddEntityModal(ModalScreen[dict[str, Any] | None]):
     def compose(self) -> ComposeResult:
         with Vertical(classes="modal-dialog"):
             yield Static(f"Add {self.entity_type.replace('_', ' ').title()}", classes="modal-title")
+            yield Static("", id="error-message", classes="error-text")
             for field in self._field_specs:
                 yield Static(field.label)
                 if field.kind == "select" and field.options:
@@ -42,6 +43,9 @@ class AddEntityModal(ModalScreen[dict[str, Any] | None]):
             with Horizontal():
                 yield Button("Save", variant="primary", id="save")
                 yield Button("Cancel", id="cancel")
+
+    def _show_error(self, message: str) -> None:
+        self.query_one("#error-message", Static).update(message)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
@@ -60,6 +64,12 @@ class AddEntityModal(ModalScreen[dict[str, Any] | None]):
             else:
                 value = self.query_one(f"#{field.name}", Input).value
             data[field.name] = value
+
+        # Validate before normalizing
+        errors = _validate_form_data(self.entity_type, data)
+        if errors:
+            self._show_error(errors[0])
+            return
 
         self.dismiss(_normalize_form_data(self.entity_type, data))
 
@@ -149,6 +159,40 @@ def _field_specs(entity_type: str) -> list[FieldSpec]:
             FieldSpec("constraints", "Constraints (comma-separated)", kind="text-area"),
         ]
     return []
+
+
+def _validate_form_data(entity_type: str, data: dict[str, Any]) -> list[str]:
+    """Validate form data and return list of error messages."""
+    errors: list[str] = []
+
+    # Validate required ID field
+    entity_id = data.get("id", "")
+    if entity_id and not _is_valid_id(entity_id):
+        errors.append("ID must be lowercase alphanumeric with hyphens (e.g., scene-01)")
+
+    # Validate integer fields
+    if entity_type in ("beat", "fragment"):
+        target_words = data.get("target_words", "")
+        if target_words and not _is_valid_int(target_words):
+            errors.append("Target words must be a number")
+
+    return errors
+
+
+def _is_valid_id(value: str) -> bool:
+    """Check if value is a valid entity ID."""
+    import re
+
+    return bool(re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", value))
+
+
+def _is_valid_int(value: str) -> bool:
+    """Check if value can be converted to an integer."""
+    try:
+        int(value)
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 def _normalize_form_data(entity_type: str, raw: dict[str, Any]) -> dict[str, Any]:

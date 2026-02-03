@@ -50,14 +50,14 @@ class BuildScreen(Screen[None]):
     async def _run_build(self) -> None:
         project = self.state.project
         if project is None:
-            self.app.call_from_thread(self._finish_failure, "No project loaded.")
+            self._finish_failure("No project loaded.")
             return
 
         try:
             config = resolve_config(None, None, None, None, None)
             result = await build_project(project, config, seed=None, progress=None)
         except Exception as exc:  # noqa: BLE001
-            self.app.call_from_thread(self._finish_failure, f"Build failed: {exc}")
+            self._finish_failure(f"Build failed: {exc}")
             return
 
         output_dir = self.state.project_path / "output"
@@ -65,7 +65,7 @@ class BuildScreen(Screen[None]):
         build_dir = output_dir / timestamp
         write_build_output(result, build_dir, "md")
 
-        self.app.call_from_thread(self._finish_success, result.total_word_count, str(build_dir))
+        self._finish_success(result.total_word_count, str(build_dir))
 
     def _start_progress_animation(self) -> None:
         progress = self.query_one("#build-progress", ProgressBar)

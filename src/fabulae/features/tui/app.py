@@ -37,14 +37,22 @@ class FabulaeApp(App[None]):
             return
         except (FileNotFoundError, ValueError, ValidationError) as exc:
             self.state.load_error = str(exc)
+        except Exception as exc:  # noqa: BLE001
+            # Catch YAML parse errors and other unexpected exceptions
+            self.state.load_error = str(exc)
 
         config_path = self.project_path / "fabulae.yml"
         plot_path = self.project_path / "plot.yml"
         if config_path.exists() or plot_path.exists():
-            self.state.project = load_project_relaxed(self.project_path)
-            self.push_screen(ProjectScreen(self.state))
-            return
+            try:
+                self.state.project = load_project_relaxed(self.project_path)
+                self.push_screen(ProjectScreen(self.state))
+                return
+            except Exception as exc:  # noqa: BLE001
+                # Relaxed load failed, fall through to welcome screen
+                self.state.load_error = str(exc)
 
         screen = WelcomeScreen(self.state)
-        screen.set_error("Project not found. Create a new project to continue.")
+        error_msg = self.state.load_error or "Project not found. Create a new project to continue."
+        screen.set_error(error_msg)
         self.push_screen(screen)

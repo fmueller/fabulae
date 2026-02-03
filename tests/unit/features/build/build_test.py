@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
@@ -18,6 +18,7 @@ from fabulae.features.build.schemas import (
     ChapterOutput,
     FragmentOutput,
     SceneOutput,
+    StanzaOutput,
 )
 from fabulae.features.build.writer import write_build_output
 from fabulae.main import app
@@ -222,6 +223,40 @@ class TestBuildCommand:
         result = runner.invoke(app, ["build", str(tmp_path)])
         assert result.exit_code == 1
 
+    def test_build_validation_error_shows_clean_message(self, tmp_path: Path) -> None:
+        """Build validation errors show clean message without traceback."""
+        create_novel_project(tmp_path)
+
+        # Mock build_project to raise a ValueError
+        with patch(
+            "fabulae.features.build.cli.build_project",
+            side_effect=ValueError("Scene not found: scene-missing"),
+        ):
+            result = runner.invoke(app, ["build", str(tmp_path)])
+
+        output = strip_ansi(result.output)
+        assert result.exit_code == 1
+        assert "Scene not found" in output
+        # Should not show full traceback for expected validation errors
+        assert "Traceback" not in output
+
+    def test_build_llm_timeout_shows_helpful_error(self, tmp_path: Path) -> None:
+        """Build LLM timeout shows helpful error message."""
+        import asyncio
+
+        create_novel_project(tmp_path)
+
+        with patch(
+            "fabulae.features.build.cli.build_project",
+            side_effect=asyncio.TimeoutError("Connection timed out"),
+        ):
+            result = runner.invoke(app, ["build", str(tmp_path)])
+
+        output = strip_ansi(result.output)
+        assert result.exit_code == 1
+        assert "Build failed" in output
+        assert "Traceback" not in output
+
 
 class TestBuildSchemas:
     """Tests for build output schemas."""
@@ -395,6 +430,33 @@ class TestBuildWriter:
         assert fragments_dir.exists()
         fragment_files = list(fragments_dir.glob("*.md"))
         assert len(fragment_files) == 2
+
+    def test_write_build_output_with_stanzas(self, tmp_path: Path) -> None:
+        """Writer creates stanza files when stanzas present."""
+        output = BuildOutput(
+            metadata=BuildMetadata(
+                project_name="Test Poem",
+                format="poem",
+                model="test",
+                temperature=0.7,
+                timestamp=datetime.now(),
+                version="0.1.0",
+            ),
+            stanzas=[
+                StanzaOutput(stanza_id="stanza-01", lines=["First line", "Second line"], word_count=4),
+                StanzaOutput(stanza_id="stanza-02", lines=["Third line", "Fourth line"], word_count=4),
+            ],
+            full_text="First line\nSecond line\n\nThird line\nFourth line",
+            total_word_count=8,
+        )
+        output_dir = tmp_path / "output"
+
+        write_build_output(output, output_dir, "md")
+
+        stanzas_dir = output_dir / "stanzas"
+        assert stanzas_dir.exists()
+        stanza_files = list(stanzas_dir.glob("*.md"))
+        assert len(stanza_files) == 2
 
     def test_write_build_output_no_title_header_for_untitled(self, tmp_path: Path) -> None:
         """Writer does not add title header when project is 'Untitled'."""
@@ -689,7 +751,6 @@ class TestBuildService:
     def test_build_project_chaptered_without_chapters_warns(self, tmp_path: Path) -> None:
         """Chaptered format without chapters issues a warning via progress."""
         import asyncio
-        from unittest.mock import MagicMock
 
         from fabulae.features.build.schemas import SceneProseOutput
         from fabulae.features.build.service import build_project

@@ -210,5 +210,16 @@ def write_build_output(
             content = _format_content(fragment.content, output_format, f"Fragment {i}")
             (fragments_dir / filename).write_text(content)
 
+    # Write individual stanzas if present
+    if result.stanzas:
+        stanzas_dir = output_dir / "stanzas"
+        stanzas_dir.mkdir(exist_ok=True)
+
+        for i, stanza in enumerate(result.stanzas, 1):
+            filename = f"{i:02d}-{stanza.stanza_id}.{ext}"
+            stanza_text = "\n".join(stanza.lines)
+            content = _format_content(stanza_text, output_format, f"Stanza {i}")
+            (stanzas_dir / filename).write_text(content)
+
 
 __all__ = ["OutputFormat", "write_build_output"]

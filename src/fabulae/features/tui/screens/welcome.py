@@ -131,12 +131,12 @@ class WelcomeScreen(Screen[None]):
             save_project(project, self.state.project_path)
             self.state.project = project
         except (CreateProjectError, ValueError) as exc:
-            self.app.call_from_thread(self.set_error, f"Create failed: {exc}")
-            self.app.call_from_thread(self._stop_progress_animation, False)
+            self.set_error(f"Create failed: {exc}")
+            self._stop_progress_animation(False)
             return
 
-        self.app.call_from_thread(self._stop_progress_animation, True)
-        self.app.call_from_thread(self.app.push_screen, ProjectScreen(self.state))
+        self._stop_progress_animation(True)
+        self.app.push_screen(ProjectScreen(self.state))
 
     def _stop_progress_animation(self, success: bool) -> None:
         if self._progress_timer:
