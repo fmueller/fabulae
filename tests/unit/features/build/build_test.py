@@ -755,23 +755,18 @@ class TestBuildLanguageGuard:
         project = load_project(tmp_path)
         config = LLMConfig(model="test")
 
-        mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="Inhalt auf Deutsch.")
-
-        summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
-
-        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
-            mock_agent = AsyncMock()
-            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock])
-            mock_create.return_value = mock_agent
-
-            # Patch language guard to skip detection (test just ensures no crash)
-            with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
-                mock_guard.return_value = (
-                    SceneProseOutput(content="Inhalt auf Deutsch."),
-                    type("Result", (), {"passed": True, "skipped": True})(),
-                )
+        # Patch language guard to skip detection (test just ensures no crash)
+        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+            mock_guard.return_value = (
+                SceneProseOutput(content="Inhalt auf Deutsch."),
+                type("Result", (), {"passed": True, "skipped": True})(),
+            )
+            # Also mock generate_continuity_summary since it's called after scene building
+            with patch(
+                "fabulae.features.build.service.generate_continuity_summary",
+                new_callable=AsyncMock,
+                return_value="Summary of the scene.",
+            ):
                 result = asyncio.run(build_project(project, config, expected_language="de"))
 
         assert result.scenes is not None
@@ -793,25 +788,18 @@ class TestBuildLanguageGuard:
         assert project.style is not None
         assert project.style.language == "en"
 
-        mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="English content.")
-
-        summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
-
-        with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
-            mock_agent = AsyncMock()
-            mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
-            mock_create.return_value = mock_agent
-
-            with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
-                mock_guard.return_value = (
-                    SceneProseOutput(content="English content."),
-                    type("Result", (), {"passed": True, "skipped": True})(),
-                )
-                asyncio.run(
-                    build_project(project, config, expected_language=project.style.language)
-                )
+        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+            mock_guard.return_value = (
+                SceneProseOutput(content="English content."),
+                type("Result", (), {"passed": True, "skipped": True})(),
+            )
+            # Also mock generate_continuity_summary since it's called after scene building
+            with patch(
+                "fabulae.features.build.service.generate_continuity_summary",
+                new_callable=AsyncMock,
+                return_value="Summary of the scene.",
+            ):
+                asyncio.run(build_project(project, config, expected_language=project.style.language))
 
         # Verify language guard was called with expected language
         assert mock_guard.call_count > 0
@@ -843,9 +831,7 @@ class TestBuildLanguageGuard:
                 SceneProseOutput(content="German content."),
                 type("Result", (), {"passed": True, "skipped": False})(),
             )
-            result = asyncio.run(
-                build_scene(scene, project, "", config, expected_language="de")
-            )
+            result = asyncio.run(build_scene(scene, project, "", config, expected_language="de"))
 
         assert result.content == "German content."
         # Verify expected_language was passed
