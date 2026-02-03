@@ -175,6 +175,7 @@ def test_run_stage_correction_language_guard(monkeypatch: pytest.MonkeyPatch) ->
         config: object | None = None,
         reprompt: Callable[[int], None] | None = None,
         correct: Callable[[int, Any], Any] | None = None,
+        on_correction: Callable[[str, str, int], None] | None = None,
     ) -> tuple[Any, LanguageGuardResult]:
         output = await runner()
         if correct is not None:

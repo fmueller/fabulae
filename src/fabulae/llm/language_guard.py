@@ -129,6 +129,7 @@ async def run_with_language_guard(
     config: LanguageGuardConfig | None = None,
     reprompt: Callable[[int], None] | None = None,
     correct: Callable[[int, T], T | Awaitable[T]] | None = None,
+    on_correction: Callable[[str, str, int], None] | None = None,
 ) -> tuple[T, LanguageGuardResult]:
     """Run an LLM call and enforce project language, retrying if needed.
 
@@ -140,6 +141,8 @@ async def run_with_language_guard(
         reprompt: Legacy callback that modifies the system prompt for re-generation.
         correct: Correction callback that receives the wrong-language output and
             returns a corrected version. Takes precedence over ``reprompt``.
+        on_correction: Optional callback invoked before each correction attempt
+            with ``(expected_code, detected_code, attempt)``.
     """
     resolved_config = config or LanguageGuardConfig()
     if expected_language is None or not expected_language.strip():
@@ -176,6 +179,8 @@ async def run_with_language_guard(
         if result.passed or result.skipped or attempt >= resolved_config.max_retries:
             return output, result
         attempt += 1
+        if on_correction is not None and result.detected is not None:
+            on_correction(expected_code, result.detected, attempt)
         if correct is not None:
             output = await _maybe_await(correct(attempt, output))
             text = extract_text(output)
