@@ -2,9 +2,59 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+# Pipeline mode type
+BuildPipelineMode = Literal["sequential", "batch"]
+
+
+@dataclass
+class BuildOptions:
+    """Configuration options for build command."""
+
+    pipeline: BuildPipelineMode = "sequential"
+    enhanced: bool = True  # Enable hooks and beat-level tracking
+    sliding_window_size: int = 5  # Only used in sequential mode
+
+
+class SceneHook(BaseModel):
+    """Opening hook for a scene, fragment, or stanza."""
+
+    hook_type: str = Field(description="Type: question, action, dialog, image, tension")
+    content: str = Field(description="The hook text")
+
+
+class BeatProseOutput(BaseModel):
+    """Generated prose for a single beat within a scene."""
+
+    beat_id: str
+    prose: str = Field(description="The generated prose for this beat")
+    word_count: int = Field(ge=0)
+
+
+class EnhancedSceneProseOutput(BaseModel):
+    """LLM output schema for enhanced scene generation."""
+
+    hook: SceneHook | None = None
+    beats: list[BeatProseOutput] = Field(default_factory=list)
+
+
+class EnhancedFragmentProseOutput(BaseModel):
+    """LLM output schema for enhanced fragment generation."""
+
+    hook: SceneHook | None = None
+    content: str = Field(description="The generated prose content")
+
+
+class EnhancedStanzaProseOutput(BaseModel):
+    """LLM output schema for enhanced stanza generation."""
+
+    hook: SceneHook | None = None  # Opening line that hooks
+    lines: list[str] = Field(description="The lines of the stanza")
 
 
 class BuildMetadata(BaseModel):
@@ -25,6 +75,8 @@ class SceneOutput(BaseModel):
     scene_id: str
     chapter_id: str | None = None
     title: str | None = None
+    hook: SceneHook | None = None
+    beats: list[BeatProseOutput] = Field(default_factory=list)
     content: str = Field(description="The generated prose content for this scene")
     word_count: int = Field(ge=0)
 
@@ -34,6 +86,7 @@ class ChapterOutput(BaseModel):
 
     chapter_id: str
     title: str | None = None
+    hook: SceneHook | None = None  # Chapter-level hook (from first scene)
     scenes: list[SceneOutput] = Field(default_factory=list)
     word_count: int = Field(ge=0)
 
@@ -42,6 +95,7 @@ class FragmentOutput(BaseModel):
     """Generated content for a micro-prose fragment."""
 
     fragment_id: str
+    hook: SceneHook | None = None
     content: str = Field(description="The generated prose content for this fragment")
     word_count: int = Field(ge=0)
 
@@ -50,6 +104,7 @@ class StanzaOutput(BaseModel):
     """Generated content for a poem stanza."""
 
     stanza_id: str
+    hook: SceneHook | None = None  # Opening line hook
     lines: list[str] = Field(default_factory=list)
     word_count: int = Field(ge=0)
 
@@ -98,13 +153,20 @@ class PoemProseOutput(BaseModel):
 
 
 __all__ = [
+    "BeatProseOutput",
     "BuildMetadata",
+    "BuildOptions",
     "BuildOutput",
+    "BuildPipelineMode",
     "ChapterOutput",
     "ContinuitySummary",
+    "EnhancedFragmentProseOutput",
+    "EnhancedSceneProseOutput",
+    "EnhancedStanzaProseOutput",
     "FragmentOutput",
     "FragmentProseOutput",
     "PoemProseOutput",
+    "SceneHook",
     "SceneOutput",
     "SceneProseOutput",
     "StanzaOutput",

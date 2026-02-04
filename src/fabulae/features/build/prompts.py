@@ -26,8 +26,13 @@ def _format_style(style: Style | None) -> str:
     return "\n".join(parts) if parts else "No specific style guidance."
 
 
-def _format_characters(characters: list[Character]) -> str:
-    """Format character information for prompts."""
+def _format_characters(characters: list[Character], detailed: bool = False) -> str:
+    """Format character information for prompts.
+
+    Args:
+        characters: List of characters to format.
+        detailed: If True, include desire, need, flaw for dialog/inner monologue guidance.
+    """
     if not characters:
         return "No characters specified."
 
@@ -38,31 +43,53 @@ def _format_characters(characters: list[Character]) -> str:
             info.append(f"  Role: {char.role}")
         if char.traits:
             info.append(f"  Traits: {', '.join(char.traits)}")
+        if detailed:
+            if char.desire:
+                info.append(f"  Desire: {char.desire}")
+            if char.need:
+                info.append(f"  Need: {char.need}")
+            if char.flaw:
+                info.append(f"  Flaw: {char.flaw}")
         parts.append("\n".join(info))
 
     return "\n".join(parts)
 
 
-def _format_location(location: WorldFact | None) -> str:
-    """Format location information for prompts."""
+def _format_location(location: WorldFact | None, detailed: bool = False) -> str:
+    """Format location information for prompts.
+
+    Args:
+        location: The location world fact.
+        detailed: If True, format facts as sensory details for environment descriptions.
+    """
     if not location:
         return "No specific location."
 
     parts = [f"Name: {location.name}"]
     if location.facts:
-        parts.append(f"Details: {', '.join(location.facts)}")
+        if detailed:
+            parts.append("Sensory details for environment description:")
+            for fact in location.facts:
+                parts.append(f"  - {fact}")
+        else:
+            parts.append(f"Details: {', '.join(location.facts)}")
 
     return "\n".join(parts)
 
 
-def _format_beats(beats: list[Beat]) -> str:
-    """Format beat sequence for scene generation."""
+def _format_beats(beats: list[Beat], enhanced: bool = False) -> str:
+    """Format beat sequence for scene generation.
+
+    Args:
+        beats: List of beats to format.
+        enhanced: If True, include beat IDs and additional guidance for structured output.
+    """
     if not beats:
         return "No specific beats defined. Write a cohesive scene."
 
     parts: list[str] = []
     for i, beat in enumerate(beats, 1):
-        info = [f"{i}. {beat.kind}"]
+        info = [f"{i}. [{beat.id}] {beat.kind}"] if enhanced else [f"{i}. {beat.kind}"]
         if beat.summary:
             info.append(f"   Summary: {beat.summary}")
         if beat.goal:
@@ -75,6 +102,8 @@ def _format_beats(beats: list[Beat]) -> str:
             info.append(f"   Pace: {beat.pace}")
         if beat.target_words:
             info.append(f"   Target words: ~{beat.target_words}")
+        if enhanced and beat.constraints:
+            info.append(f"   Constraints: {', '.join(beat.constraints)}")
         parts.append("\n".join(info))
 
     return "\n\n".join(parts)
@@ -334,9 +363,322 @@ def build_poem_prompt(
     return format_sections(sections)
 
 
+# --- Enhanced prompt builders for hooks and beat-level tracking ---
+
+
+HOOK_TYPES = ["question", "action", "dialog", "image", "tension"]
+
+
+def _format_prior_hooks(prior_hooks: list[str], limit: int = 3) -> str:
+    """Format previous hooks to encourage diversity."""
+    if not prior_hooks:
+        return "No previous hooks."
+    recent = prior_hooks[-limit:]
+    return "\n".join(f"- {hook}" for hook in recent)
+
+
+def build_enhanced_scene_system_prompt(style: Style | None) -> str:
+    """Build system prompt for enhanced scene generation with hooks and beat tracking."""
+    guidelines = [
+        "Write vivid, engaging prose that brings the scene to life",
+        "Expand each beat into fully-realized narrative",
+        "Show character emotions through action, dialogue, and inner thought",
+        "Use sensory details to ground the reader (visual, auditory, tactile, olfactory)",
+        "Maintain consistent POV and tense throughout",
+        "Create natural transitions between beats",
+        # Enhanced narrative elements
+        "Start with a compelling hook that draws the reader in immediately",
+        "Vary hook types (action, dialogue, image, question, tension) from previous scenes",
+        "Include meaningful dialogue that reveals character and advances plot",
+        "Show character inner thoughts and reactions when POV allows",
+        "Describe the environment to establish mood and atmosphere",
+        # Output format
+        "Return JSON with 'hook' object and 'beats' array as specified",
+    ]
+
+    if style and style.language:
+        guidelines.append(build_language_guard_prompt(style.language))
+
+    return build_system_prompt(
+        purpose="Generate enhanced prose for a narrative scene with opening hook and beat-level tracking.",
+        guidelines=guidelines,
+    )
+
+
+def build_enhanced_scene_prompt(
+    scene: Scene,
+    characters: list[Character],
+    location: WorldFact | None,
+    world_facts: list[WorldFact],
+    style: Style | None,
+    prior_context: str,
+    premise: str,
+    prior_hooks: list[str] | None = None,
+) -> str:
+    """Build user prompt for enhanced scene generation with hooks and beat tracking.
+
+    Args:
+        scene: The scene to generate prose for.
+        characters: Characters present in the scene.
+        location: The scene's location.
+        world_facts: Relevant world facts.
+        style: Style guidance.
+        prior_context: Summary of previous scenes.
+        premise: Story premise.
+        prior_hooks: Previous scene hooks for diversity.
+
+    Returns:
+        User prompt string.
+    """
+    sections: dict[str, str] = {}
+
+    sections["Story Premise"] = premise
+
+    if prior_context:
+        sections["Previous Context"] = prior_context
+
+    sections["Scene Overview"] = serialize_for_prompt(
+        {
+            "id": scene.id,
+            "summary": scene.summary or "Not specified",
+            "goal": scene.goal or "Not specified",
+            "conflict": scene.conflict or "Not specified",
+            "outcome": scene.outcome or "Not specified",
+            "time": scene.time or "Not specified",
+        }
+    )
+
+    # Use detailed character formatting for enhanced prompts
+    sections["Characters Present"] = _format_characters(characters, detailed=True)
+    sections["Location"] = _format_location(location, detailed=True)
+
+    if world_facts:
+        facts_text = "\n".join(f"- {fact.name}: {', '.join(fact.facts)}" for fact in world_facts)
+        sections["Relevant World Facts"] = facts_text
+
+    # Include beat IDs for tracking
+    sections["Beat Sequence"] = _format_beats(scene.beats, enhanced=True)
+    sections["Style Guidelines"] = _format_style(style)
+
+    # Hook diversity guidance
+    if prior_hooks:
+        sections["Previous Hooks (for diversity)"] = _format_prior_hooks(prior_hooks)
+
+    hook_types_str = ", ".join(HOOK_TYPES)
+    instructions = f"""Generate an enhanced scene with:
+
+1. An opening HOOK that immediately engages the reader
+   - Choose a hook_type from: {hook_types_str}
+   - Vary from previous hooks if possible
+   - Make it compelling and draw the reader in
+
+2. Each BEAT expanded into vivid prose
+   - Use the exact beat IDs provided (e.g., "{scene.beats[0].id if scene.beats else "beat-01"}")
+   - Include natural dialogue when characters interact
+   - Show inner thoughts when POV allows
+   - Use sensory environment details
+   - Calculate word_count for each beat's prose
+
+Return JSON in this exact format:
+{{
+  "hook": {{"hook_type": "action|dialog|image|question|tension", "content": "The hook text..."}},
+  "beats": [
+    {{"beat_id": "beat-id", "prose": "The expanded prose...", "word_count": 150}},
+    ...
+  ]
+}}"""
+
+    sections["Instructions"] = instructions
+
+    return format_sections(sections)
+
+
+def build_enhanced_fragment_system_prompt(style: Style | None) -> str:
+    """Build system prompt for enhanced micro-prose fragment generation."""
+    guidelines = [
+        "Write polished, evocative prose for this flash fiction fragment",
+        "Create a complete micro-narrative with emotional resonance",
+        "Use precise, carefully chosen language",
+        "Maintain the style and tone specified",
+        # Enhanced elements
+        "Start with a compelling hook that draws the reader in",
+        "Vary hook types from previous fragments",
+        # Output format
+        "Return JSON with 'hook' object and 'content' field",
+    ]
+
+    if style and style.language:
+        guidelines.append(build_language_guard_prompt(style.language))
+
+    return build_system_prompt(
+        purpose="Generate enhanced prose for a micro-prose fragment with opening hook.",
+        guidelines=guidelines,
+    )
+
+
+def build_enhanced_fragment_prompt(
+    fragment: Fragment,
+    style: Style | None,
+    prior_fragments: list[str],
+    premise: str,
+    prior_hooks: list[str] | None = None,
+) -> str:
+    """Build user prompt for enhanced fragment generation.
+
+    Args:
+        fragment: The fragment to generate.
+        style: Style guidance.
+        prior_fragments: Previous fragment contents.
+        premise: Story premise.
+        prior_hooks: Previous hooks for diversity.
+
+    Returns:
+        User prompt string.
+    """
+    sections: dict[str, str] = {}
+
+    sections["Story Premise"] = premise
+
+    if prior_fragments:
+        sections["Previous Fragments"] = "\n\n---\n\n".join(prior_fragments[-3:])
+
+    sections["Fragment Details"] = serialize_for_prompt(
+        {
+            "id": fragment.id,
+            "content_seed": fragment.content,
+            "target_words": fragment.target_words or "Not specified",
+            "notes": fragment.notes or "Not specified",
+        }
+    )
+
+    sections["Style Guidelines"] = _format_style(style)
+
+    if prior_hooks:
+        sections["Previous Hooks (for diversity)"] = _format_prior_hooks(prior_hooks)
+
+    hook_types_str = ", ".join(HOOK_TYPES)
+    instructions = f"""Generate an enhanced fragment with:
+
+1. An opening HOOK that immediately engages
+   - Choose a hook_type from: {hook_types_str}
+   - Vary from previous hooks if possible
+
+2. The complete prose CONTENT expanding on the content seed
+
+Return JSON in this exact format:
+{{
+  "hook": {{"hook_type": "action|dialog|image|question|tension", "content": "The hook text..."}},
+  "content": "The complete fragment prose..."
+}}"""
+
+    sections["Instructions"] = instructions
+
+    return format_sections(sections)
+
+
+def build_enhanced_stanza_system_prompt(style: Style | None) -> str:
+    """Build system prompt for enhanced poem stanza generation."""
+    guidelines = [
+        "Write poetry following the specified meter and rhyme scheme if provided",
+        "Create lines with appropriate rhythm and flow",
+        "Maintain thematic consistency with previous stanzas",
+        "Use imagery and language appropriate to the style",
+        # Enhanced elements
+        "Consider including an opening hook line that captures attention",
+        # Output format
+        "Return JSON with optional 'hook' object and 'lines' array",
+    ]
+
+    if style and style.language:
+        guidelines.append(build_language_guard_prompt(style.language))
+
+    return build_system_prompt(
+        purpose="Generate enhanced lines for a poem stanza with optional opening hook.",
+        guidelines=guidelines,
+    )
+
+
+def build_enhanced_stanza_prompt(
+    stanza: Stanza,
+    style: Style | None,
+    prior_stanzas: list[list[str]],
+    premise: str,
+    poem_form: str | None,
+    poem_meter: str | None,
+    poem_rhyme_scheme: str | None,
+    prior_hooks: list[str] | None = None,
+) -> str:
+    """Build user prompt for enhanced stanza generation.
+
+    Args:
+        stanza: The stanza to generate.
+        style: Style guidance.
+        prior_stanzas: Lines from previous stanzas.
+        premise: Poem theme/premise.
+        poem_form: Poem form (sonnet, haiku, etc.).
+        poem_meter: Poem meter.
+        poem_rhyme_scheme: Poem rhyme scheme.
+        prior_hooks: Previous hooks for diversity.
+
+    Returns:
+        User prompt string.
+    """
+    sections: dict[str, str] = {}
+
+    sections["Poem Theme"] = premise
+
+    if prior_stanzas:
+        prior_text = "\n\n".join("\n".join(lines) for lines in prior_stanzas[-3:])
+        sections["Previous Stanzas"] = prior_text
+
+    stanza_info: dict[str, str | None] = {
+        "id": stanza.id,
+        "meter": stanza.meter or poem_meter or "Not specified",
+        "rhyme_scheme": stanza.rhyme_scheme or poem_rhyme_scheme or "Not specified",
+    }
+    if poem_form:
+        stanza_info["poem_form"] = poem_form
+
+    sections["Stanza Details"] = serialize_for_prompt(stanza_info)
+
+    if stanza.lines:
+        sections["Existing Lines"] = "\n".join(stanza.lines)
+
+    sections["Style Guidelines"] = _format_style(style)
+
+    if prior_hooks:
+        sections["Previous Hooks (for diversity)"] = _format_prior_hooks(prior_hooks)
+
+    hook_types_str = ", ".join(HOOK_TYPES)
+    instructions = f"""Generate an enhanced stanza with:
+
+1. An optional opening HOOK (for the first line that captures attention)
+   - Only include if the stanza is meant to start strongly
+   - Choose a hook_type from: {hook_types_str}
+
+2. The stanza LINES following the specified form
+
+Return JSON in this exact format:
+{{
+  "hook": {{"hook_type": "image|tension|question", "content": "The hook opening line..."}} or null,
+  "lines": ["Line 1", "Line 2", ...]
+}}"""
+
+    sections["Instructions"] = instructions
+
+    return format_sections(sections)
+
+
 __all__ = [
+    "HOOK_TYPES",
     "build_continuity_prompt",
     "build_continuity_system_prompt",
+    "build_enhanced_fragment_prompt",
+    "build_enhanced_fragment_system_prompt",
+    "build_enhanced_scene_prompt",
+    "build_enhanced_scene_system_prompt",
+    "build_enhanced_stanza_prompt",
+    "build_enhanced_stanza_system_prompt",
     "build_fragment_prompt",
     "build_fragment_system_prompt",
     "build_poem_prompt",
