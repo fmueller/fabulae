@@ -95,6 +95,13 @@ def _wrap_html(content: str, title: str) -> str:
         h2 {{ margin-top: 1.5rem; }}
         p {{ margin-bottom: 1rem; }}
         hr {{ margin: 2rem 0; }}
+        .hook {{
+            font-style: italic;
+            font-size: 1.1em;
+            margin-bottom: 1.5rem;
+            padding-left: 1rem;
+            border-left: 3px solid #666;
+        }}
     </style>
 </head>
 <body>

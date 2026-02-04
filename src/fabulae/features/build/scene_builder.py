@@ -8,6 +8,12 @@ from typing import cast
 from fabulae.features.build.prompts import (
     build_continuity_prompt,
     build_continuity_system_prompt,
+    build_enhanced_fragment_prompt,
+    build_enhanced_fragment_system_prompt,
+    build_enhanced_scene_prompt,
+    build_enhanced_scene_system_prompt,
+    build_enhanced_stanza_prompt,
+    build_enhanced_stanza_system_prompt,
     build_fragment_prompt,
     build_fragment_system_prompt,
     build_poem_prompt,
@@ -19,6 +25,9 @@ from fabulae.features.build.prompts import (
 )
 from fabulae.features.build.schemas import (
     ContinuitySummary,
+    EnhancedFragmentProseOutput,
+    EnhancedSceneProseOutput,
+    EnhancedStanzaProseOutput,
     FragmentOutput,
     FragmentProseOutput,
     PoemProseOutput,
@@ -346,10 +355,278 @@ async def build_poem_from_lines(
     return prose_output.content
 
 
+# --- Text extraction functions for language guard ---
+
+
+def extract_enhanced_scene_text(output: EnhancedSceneProseOutput) -> str:
+    """Extract all prose text from enhanced scene output for language detection."""
+    parts: list[str] = []
+    if output.hook:
+        parts.append(output.hook.content)
+    for beat in output.beats:
+        parts.append(beat.prose)
+    return "\n\n".join(parts)
+
+
+def extract_enhanced_fragment_text(output: EnhancedFragmentProseOutput) -> str:
+    """Extract all prose text from enhanced fragment output for language detection."""
+    parts: list[str] = []
+    if output.hook:
+        parts.append(output.hook.content)
+    parts.append(output.content)
+    return "\n\n".join(parts)
+
+
+def extract_enhanced_stanza_text(output: EnhancedStanzaProseOutput) -> str:
+    """Extract all text from enhanced stanza output for language detection."""
+    parts: list[str] = []
+    if output.hook:
+        parts.append(output.hook.content)
+    parts.extend(output.lines)
+    return "\n".join(parts)
+
+
+# --- Enhanced build functions ---
+
+
+async def build_enhanced_scene(
+    scene: Scene,
+    project: Project,
+    prior_context: str,
+    config: LLMConfig,
+    chapter_id: str | None = None,
+    prior_hooks: list[str] | None = None,
+    expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
+) -> SceneOutput:
+    """Generate enhanced prose for a single scene with hooks and beat-level tracking.
+
+    Args:
+        scene: The scene to generate prose for.
+        project: The full project context.
+        prior_context: Summary of previous scenes for continuity.
+        config: LLM configuration.
+        chapter_id: Optional chapter ID this scene belongs to.
+        prior_hooks: Previous scene hooks for diversity.
+        expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+
+    Returns:
+        SceneOutput with hook, beat-level prose, and assembled content.
+    """
+    characters = _get_characters_in_scene(scene, project)
+    location = _get_location(scene, project)
+    world_facts = _get_world_facts(scene, project)
+
+    system_prompt = build_enhanced_scene_system_prompt(project.style)
+    user_prompt = build_enhanced_scene_prompt(
+        scene=scene,
+        characters=characters,
+        location=location,
+        world_facts=world_facts,
+        style=project.style,
+        prior_context=prior_context,
+        premise=project.plot.premise,
+        prior_hooks=prior_hooks,
+    )
+
+    async def runner() -> EnhancedSceneProseOutput:
+        agent = create_agent(EnhancedSceneProseOutput, system_prompt, config)
+        result = await agent.run(user_prompt)
+        return cast(EnhancedSceneProseOutput, result.output)
+
+    correct_cb: Callable[[int, EnhancedSceneProseOutput], Awaitable[EnhancedSceneProseOutput]] | None = None
+    if expected_language:
+
+        async def _correct(attempt: int, previous_output: EnhancedSceneProseOutput) -> EnhancedSceneProseOutput:
+            original_json = previous_output.model_dump_json(indent=2)
+            correction_prompt = build_language_correction_prompt(expected_language, original_json)
+            guard_prompt = build_language_guard_prompt(expected_language)
+            correction_system = f"{system_prompt}\n\n{guard_prompt}"
+            agent = create_agent(EnhancedSceneProseOutput, correction_system, config)
+            result = await agent.run(correction_prompt)
+            return cast(EnhancedSceneProseOutput, result.output)
+
+        correct_cb = _correct
+
+    prose_output: EnhancedSceneProseOutput
+    prose_output, _ = await run_with_language_guard(
+        runner=runner,
+        extract_text=extract_enhanced_scene_text,
+        expected_language=expected_language,
+        correct=correct_cb,
+        on_correction=on_language_correction,
+    )
+
+    # Assemble content from beats
+    content_parts: list[str] = []
+    if prose_output.hook:
+        content_parts.append(prose_output.hook.content)
+    for beat in prose_output.beats:
+        content_parts.append(beat.prose)
+    content = "\n\n".join(content_parts)
+
+    return SceneOutput(
+        scene_id=scene.id,
+        chapter_id=chapter_id,
+        title=scene.summary,
+        hook=prose_output.hook,
+        beats=prose_output.beats,
+        content=content,
+        word_count=_count_words(content),
+    )
+
+
+async def build_enhanced_fragment(
+    fragment: Fragment,
+    project: Project,
+    prior_fragments: list[str],
+    config: LLMConfig,
+    prior_hooks: list[str] | None = None,
+    expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
+) -> FragmentOutput:
+    """Generate enhanced prose for a micro-prose fragment with opening hook.
+
+    Args:
+        fragment: The fragment to generate prose for.
+        project: The full project context.
+        prior_fragments: Content of previous fragments for context.
+        config: LLM configuration.
+        prior_hooks: Previous fragment hooks for diversity.
+        expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+
+    Returns:
+        FragmentOutput with hook and generated prose content.
+    """
+    system_prompt = build_enhanced_fragment_system_prompt(project.style)
+    user_prompt = build_enhanced_fragment_prompt(
+        fragment=fragment,
+        style=project.style,
+        prior_fragments=prior_fragments,
+        premise=project.plot.premise,
+        prior_hooks=prior_hooks,
+    )
+
+    async def runner() -> EnhancedFragmentProseOutput:
+        agent = create_agent(EnhancedFragmentProseOutput, system_prompt, config)
+        result = await agent.run(user_prompt)
+        return cast(EnhancedFragmentProseOutput, result.output)
+
+    correct_cb: Callable[[int, EnhancedFragmentProseOutput], Awaitable[EnhancedFragmentProseOutput]] | None = None
+    if expected_language:
+
+        async def _correct(attempt: int, previous_output: EnhancedFragmentProseOutput) -> EnhancedFragmentProseOutput:
+            original_json = previous_output.model_dump_json(indent=2)
+            correction_prompt = build_language_correction_prompt(expected_language, original_json)
+            guard_prompt = build_language_guard_prompt(expected_language)
+            correction_system = f"{system_prompt}\n\n{guard_prompt}"
+            agent = create_agent(EnhancedFragmentProseOutput, correction_system, config)
+            result = await agent.run(correction_prompt)
+            return cast(EnhancedFragmentProseOutput, result.output)
+
+        correct_cb = _correct
+
+    prose_output: EnhancedFragmentProseOutput
+    prose_output, _ = await run_with_language_guard(
+        runner=runner,
+        extract_text=extract_enhanced_fragment_text,
+        expected_language=expected_language,
+        correct=correct_cb,
+        on_correction=on_language_correction,
+    )
+
+    return FragmentOutput(
+        fragment_id=fragment.id,
+        hook=prose_output.hook,
+        content=prose_output.content,
+        word_count=_count_words(prose_output.content),
+    )
+
+
+async def build_enhanced_stanza(
+    stanza: Stanza,
+    project: Project,
+    prior_stanzas: list[list[str]],
+    config: LLMConfig,
+    prior_hooks: list[str] | None = None,
+    expected_language: str | None = None,
+    on_language_correction: Callable[[str, str, int], None] | None = None,
+) -> StanzaOutput:
+    """Generate enhanced lines for a poem stanza with optional opening hook.
+
+    Args:
+        stanza: The stanza to generate lines for.
+        project: The full project context.
+        prior_stanzas: Lines of previous stanzas for context.
+        config: LLM configuration.
+        prior_hooks: Previous stanza hooks for diversity.
+        expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+
+    Returns:
+        StanzaOutput with optional hook and generated lines.
+    """
+    system_prompt = build_enhanced_stanza_system_prompt(project.style)
+    user_prompt = build_enhanced_stanza_prompt(
+        stanza=stanza,
+        style=project.style,
+        prior_stanzas=prior_stanzas,
+        premise=project.plot.premise,
+        poem_form=project.plot.poem_form,
+        poem_meter=project.plot.poem_meter,
+        poem_rhyme_scheme=project.plot.poem_rhyme_scheme,
+        prior_hooks=prior_hooks,
+    )
+
+    async def runner() -> EnhancedStanzaProseOutput:
+        agent = create_agent(EnhancedStanzaProseOutput, system_prompt, config)
+        result = await agent.run(user_prompt)
+        return cast(EnhancedStanzaProseOutput, result.output)
+
+    correct_cb: Callable[[int, EnhancedStanzaProseOutput], Awaitable[EnhancedStanzaProseOutput]] | None = None
+    if expected_language:
+
+        async def _correct(attempt: int, previous_output: EnhancedStanzaProseOutput) -> EnhancedStanzaProseOutput:
+            original_json = previous_output.model_dump_json(indent=2)
+            correction_prompt = build_language_correction_prompt(expected_language, original_json)
+            guard_prompt = build_language_guard_prompt(expected_language)
+            correction_system = f"{system_prompt}\n\n{guard_prompt}"
+            agent = create_agent(EnhancedStanzaProseOutput, correction_system, config)
+            result = await agent.run(correction_prompt)
+            return cast(EnhancedStanzaProseOutput, result.output)
+
+        correct_cb = _correct
+
+    prose_output: EnhancedStanzaProseOutput
+    prose_output, _ = await run_with_language_guard(
+        runner=runner,
+        extract_text=extract_enhanced_stanza_text,
+        expected_language=expected_language,
+        correct=correct_cb,
+        on_correction=on_language_correction,
+    )
+
+    content = "\n".join(prose_output.lines)
+    return StanzaOutput(
+        stanza_id=stanza.id,
+        hook=prose_output.hook,
+        lines=prose_output.lines,
+        word_count=_count_words(content),
+    )
+
+
 __all__ = [
+    "build_enhanced_fragment",
+    "build_enhanced_scene",
+    "build_enhanced_stanza",
     "build_fragment",
     "build_poem_from_lines",
     "build_scene",
     "build_stanza",
+    "extract_enhanced_fragment_text",
+    "extract_enhanced_scene_text",
+    "extract_enhanced_stanza_text",
     "generate_continuity_summary",
 ]

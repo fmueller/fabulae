@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from fabulae.features.build.schemas import (
     BuildMetadata,
+    BuildOptions,
     BuildOutput,
     ChapterOutput,
     FragmentOutput,
@@ -531,7 +532,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
             mock_create.return_value = mock_agent
 
-            result = asyncio.run(build_project(project, config, seed=42))
+            # Use non-enhanced mode for simpler mocking
+            options = BuildOptions(enhanced=False)
+            result = asyncio.run(build_project(project, config, seed=42, options=options))
 
         assert result.chapters is not None
         assert len(result.chapters) == 2
@@ -558,7 +561,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(return_value=mock_result)
             mock_create.return_value = mock_agent
 
-            result = asyncio.run(build_project(project, config))
+            # Use non-enhanced mode for simpler mocking
+            options = BuildOptions(enhanced=False)
+            result = asyncio.run(build_project(project, config, options=options))
 
         assert result.fragments is not None
         assert len(result.fragments) == 2
@@ -584,7 +589,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(return_value=mock_result)
             mock_create.return_value = mock_agent
 
-            result = asyncio.run(build_project(project, config))
+            # Use non-enhanced mode for simpler mocking
+            options = BuildOptions(enhanced=False)
+            result = asyncio.run(build_project(project, config, options=options))
 
         assert result.stanzas is not None
         assert len(result.stanzas) == 2
@@ -639,8 +646,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock])
             mock_create.return_value = mock_agent
 
-            # Run with seed
-            result = asyncio.run(build_project(project, config, seed=12345))
+            # Run with seed (use non-enhanced mode for simpler mocking)
+            options = BuildOptions(enhanced=False)
+            result = asyncio.run(build_project(project, config, seed=12345, options=options))
 
         assert result.metadata.seed == 12345
 
@@ -668,7 +676,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
             mock_create.return_value = mock_agent
 
-            result = asyncio.run(build_project(project, config))
+            # Use non-enhanced mode for simpler mocking
+            options = BuildOptions(enhanced=False)
+            result = asyncio.run(build_project(project, config, options=options))
 
         assert result.scenes is not None
         assert len(result.scenes) == 2
@@ -703,7 +713,9 @@ class TestBuildService:
             mock_agent.run = AsyncMock(side_effect=[mock_result, summary_mock] * 10)
             mock_create.return_value = mock_agent
 
-            asyncio.run(build_project(project, config, progress=progress))
+            # Use non-enhanced mode for simpler mocking
+            options = BuildOptions(enhanced=False)
+            asyncio.run(build_project(project, config, progress=progress, options=options))
 
         progress.warn.assert_called_once()
         assert "No chapters found" in progress.warn.call_args[0][0]
@@ -763,11 +775,13 @@ class TestBuildLanguageGuard:
             )
             # Also mock generate_continuity_summary since it's called after scene building
             with patch(
-                "fabulae.features.build.service.generate_continuity_summary",
+                "fabulae.features.build.pipelines.sequential.generate_continuity_summary",
                 new_callable=AsyncMock,
                 return_value="Summary of the scene.",
             ):
-                result = asyncio.run(build_project(project, config, expected_language="de"))
+                # Use non-enhanced mode for simpler mocking
+                options = BuildOptions(enhanced=False)
+                result = asyncio.run(build_project(project, config, expected_language="de", options=options))
 
         assert result.scenes is not None
 
@@ -795,11 +809,13 @@ class TestBuildLanguageGuard:
             )
             # Also mock generate_continuity_summary since it's called after scene building
             with patch(
-                "fabulae.features.build.service.generate_continuity_summary",
+                "fabulae.features.build.pipelines.sequential.generate_continuity_summary",
                 new_callable=AsyncMock,
                 return_value="Summary of the scene.",
             ):
-                asyncio.run(build_project(project, config, expected_language=project.style.language))
+                # Use non-enhanced mode for simpler mocking
+                options = BuildOptions(enhanced=False)
+                asyncio.run(build_project(project, config, expected_language=project.style.language, options=options))
 
         # Verify language guard was called with expected language
         assert mock_guard.call_count > 0
@@ -839,3 +855,178 @@ class TestBuildLanguageGuard:
         assert call_kwargs["expected_language"] == "de"
         # Verify correct callback was provided
         assert call_kwargs["correct"] is not None
+
+
+class TestEnhancedBuild:
+    """Tests for enhanced build features (hooks, beat tracking)."""
+
+    def test_enhanced_scene_prose_output_schema(self) -> None:
+        """EnhancedSceneProseOutput validates correctly."""
+        from fabulae.features.build.schemas import (
+            BeatProseOutput,
+            EnhancedSceneProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedSceneProseOutput(
+            hook=SceneHook(hook_type="action", content="The door burst open."),
+            beats=[
+                BeatProseOutput(beat_id="beat-01", prose="First beat content.", word_count=3),
+                BeatProseOutput(beat_id="beat-02", prose="Second beat content.", word_count=3),
+            ],
+        )
+        assert output.hook is not None
+        assert output.hook.hook_type == "action"
+        assert len(output.beats) == 2
+
+    def test_enhanced_fragment_prose_output_schema(self) -> None:
+        """EnhancedFragmentProseOutput validates correctly."""
+        from fabulae.features.build.schemas import (
+            EnhancedFragmentProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedFragmentProseOutput(
+            hook=SceneHook(hook_type="image", content="Snow fell silently."),
+            content="The full fragment content here.",
+        )
+        assert output.hook is not None
+        assert output.hook.hook_type == "image"
+        assert "full fragment" in output.content
+
+    def test_enhanced_stanza_prose_output_schema(self) -> None:
+        """EnhancedStanzaProseOutput validates correctly."""
+        from fabulae.features.build.schemas import (
+            EnhancedStanzaProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedStanzaProseOutput(
+            hook=SceneHook(hook_type="question", content="What dreams may come?"),
+            lines=["First line of poetry", "Second line of poetry"],
+        )
+        assert output.hook is not None
+        assert output.hook.hook_type == "question"
+        assert len(output.lines) == 2
+
+    def test_scene_output_with_hook_and_beats(self) -> None:
+        """SceneOutput accepts hook and beats."""
+        from fabulae.features.build.schemas import (
+            BeatProseOutput,
+            SceneHook,
+            SceneOutput,
+        )
+
+        output = SceneOutput(
+            scene_id="scene-01",
+            hook=SceneHook(hook_type="dialog", content='"We need to leave now."'),
+            beats=[
+                BeatProseOutput(beat_id="beat-01", prose="Action scene.", word_count=2),
+            ],
+            content="Full scene content.",
+            word_count=3,
+        )
+        assert output.hook is not None
+        assert output.hook.hook_type == "dialog"
+        assert len(output.beats) == 1
+
+    def test_extract_enhanced_scene_text(self) -> None:
+        """extract_enhanced_scene_text extracts all prose for language detection."""
+        from fabulae.features.build.scene_builder import extract_enhanced_scene_text
+        from fabulae.features.build.schemas import (
+            BeatProseOutput,
+            EnhancedSceneProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedSceneProseOutput(
+            hook=SceneHook(hook_type="action", content="Hook text here."),
+            beats=[
+                BeatProseOutput(beat_id="beat-01", prose="Beat one prose.", word_count=3),
+                BeatProseOutput(beat_id="beat-02", prose="Beat two prose.", word_count=3),
+            ],
+        )
+
+        extracted = extract_enhanced_scene_text(output)
+        assert "Hook text here." in extracted
+        assert "Beat one prose." in extracted
+        assert "Beat two prose." in extracted
+
+    def test_extract_enhanced_fragment_text(self) -> None:
+        """extract_enhanced_fragment_text extracts all prose for language detection."""
+        from fabulae.features.build.scene_builder import extract_enhanced_fragment_text
+        from fabulae.features.build.schemas import (
+            EnhancedFragmentProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedFragmentProseOutput(
+            hook=SceneHook(hook_type="image", content="Opening image."),
+            content="Main fragment content.",
+        )
+
+        extracted = extract_enhanced_fragment_text(output)
+        assert "Opening image." in extracted
+        assert "Main fragment content." in extracted
+
+    def test_extract_enhanced_stanza_text(self) -> None:
+        """extract_enhanced_stanza_text extracts all text for language detection."""
+        from fabulae.features.build.scene_builder import extract_enhanced_stanza_text
+        from fabulae.features.build.schemas import (
+            EnhancedStanzaProseOutput,
+            SceneHook,
+        )
+
+        output = EnhancedStanzaProseOutput(
+            hook=SceneHook(hook_type="question", content="Shall I compare thee?"),
+            lines=["Line one", "Line two"],
+        )
+
+        extracted = extract_enhanced_stanza_text(output)
+        assert "Shall I compare thee?" in extracted
+        assert "Line one" in extracted
+        assert "Line two" in extracted
+
+    def test_build_options_defaults(self) -> None:
+        """BuildOptions has correct defaults."""
+        from fabulae.features.build.schemas import BuildOptions
+
+        options = BuildOptions()
+        assert options.pipeline == "sequential"
+        assert options.enhanced is True
+        assert options.sliding_window_size == 5
+
+    def test_enhanced_scene_prompt_includes_prior_hooks(self) -> None:
+        """Enhanced scene prompt includes prior hooks for diversity."""
+        from fabulae.features.build.prompts import build_enhanced_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_enhanced_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A story about testing.",
+            prior_hooks=["The door slammed shut.", "She ran into the night."],
+        )
+
+        assert "Previous Hooks" in prompt
+        assert "The door slammed shut." in prompt
+        assert "She ran into the night." in prompt
+        assert "beat-01" in prompt
+
+    def test_cli_shows_pipeline_and_enhanced_options(self) -> None:
+        """Build CLI shows --pipeline and --enhanced options."""
+        result = runner.invoke(app, ["build", "--help"])
+        output = strip_ansi(result.output)
+        assert "--pipeline" in output
+        assert "--enhanced" in output
+        assert "sequential" in output.lower() or "batch" in output.lower()
