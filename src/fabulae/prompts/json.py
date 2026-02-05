@@ -10,6 +10,8 @@ class JsonErrorType(Enum):
 
     TRUNCATED = auto()  # Output cut off
     MARKDOWN_WRAPPED = auto()  # ```json blocks
+    PREAMBLE_TEXT = auto()  # Text/chars before JSON object
+    UNESCAPED_CHARS = auto()  # Unescaped chars in strings
     INVALID_SYNTAX = auto()  # Malformed JSON
     SCHEMA_MISMATCH = auto()  # Wrong structure
     VALIDATION_ERROR = auto()  # Pydantic validation failed
@@ -40,6 +42,31 @@ Your output:
 {original_output}
 
 Return raw JSON (no ``` markers):
+""",
+    JsonErrorType.PREAMBLE_TEXT: """
+Your response started with text instead of JSON.
+
+CRITICAL: Return ONLY a JSON object.
+- Start with {{ immediately (no explanations, no text before)
+- End with }} (no text after)
+- No "Here's the JSON:" or similar preamble
+
+Error: {error_message}
+
+Return ONLY the raw JSON object:
+""",
+    JsonErrorType.UNESCAPED_CHARS: """
+Your JSON contains unescaped special characters in strings.
+
+In JSON strings, you MUST escape:
+- Newlines as \\n (not literal line breaks)
+- Tabs as \\t
+- Quotes as \\"
+- Backslashes as \\\\
+
+Error: {error_message}
+
+Return valid JSON with properly escaped strings:
 """,
     JsonErrorType.INVALID_SYNTAX: """
 Fix JSON syntax error: {error_message}
