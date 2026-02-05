@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal
@@ -20,38 +19,13 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
+from fabulae.llm.json_guard import JsonGuardConfig
+from fabulae.llm.models import is_small_model
 from fabulae.models import load_project
 
-# Patterns that indicate a small model that may struggle with structured output
-_SMALL_MODEL_PATTERNS = [
-    r"[:\-](\d+(?:\.\d+)?)b\b",  # Matches :1.7b, :3b, :10b, -7b, etc.
-    r"mini",
-    r"tiny",
-    r"small",
-]
-
-# Threshold for "small" model in billions of parameters
-_SMALL_MODEL_THRESHOLD_B = 13
-
-
-def _is_small_model(model_name: str) -> bool:
-    """Check if a model name suggests it's a small model (<13B parameters)."""
-    model_lower = model_name.lower()
-    for pattern in _SMALL_MODEL_PATTERNS:
-        match = re.search(pattern, model_lower)
-        if match:
-            # For numeric patterns, check if < threshold
-            if match.lastindex and match.lastindex >= 1:
-                try:
-                    size = float(match.group(1))
-                    if size < _SMALL_MODEL_THRESHOLD_B:
-                        return True
-                except ValueError:
-                    pass
-            else:
-                # Non-numeric patterns like "mini", "tiny", "small"
-                return True
-    return False
+# Retry counts for JSON guard
+_DEFAULT_RETRIES = 2
+_SMALL_MODEL_RETRIES = 4
 
 
 def register_build_command(app: typer.Typer) -> None:
@@ -147,7 +121,7 @@ def register_build_command(app: typer.Typer) -> None:
         format_type = project.plot.format or "novel"
 
         # Determine pipeline mode (auto-detect for small models)
-        is_small = _is_small_model(config.model)
+        is_small = is_small_model(config.model)
         actual_pipeline: BuildPipelineMode = pipeline or ("sequential" if is_small else "sequential")
         actual_enhanced = enhanced
 
@@ -156,6 +130,10 @@ def register_build_command(app: typer.Typer) -> None:
             pipeline=actual_pipeline,
             enhanced=actual_enhanced,
         )
+
+        # Configure JSON guard with more retries for small models
+        max_retries = _SMALL_MODEL_RETRIES if is_small else _DEFAULT_RETRIES
+        json_guard_config = JsonGuardConfig(max_retries=max_retries)
 
         progress.info(f"Building {format_type}: {project_title}")
         progress.info(f"Model: {config.model}, Temperature: {config.temperature}")
@@ -166,7 +144,7 @@ def register_build_command(app: typer.Typer) -> None:
         if is_small and pipeline is None:
             progress.warn(
                 f"Small model detected ({config.model}). "
-                "Using sequential pipeline. Override with --pipeline batch if desired."
+                f"Using sequential pipeline with {max_retries} retries. Override with --pipeline batch if desired."
             )
 
         # Set up history tracking
@@ -196,7 +174,9 @@ def register_build_command(app: typer.Typer) -> None:
             ):
                 with progress.stage("Generating narrative..."):
                     result = asyncio.run(
-                        build_project(project, config, seed, progress, expected_language, build_options)
+                        build_project(
+                            project, config, seed, progress, expected_language, build_options, json_guard_config
+                        )
                     )
 
                 with progress.stage("Writing output files..."):

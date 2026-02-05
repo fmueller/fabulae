@@ -77,6 +77,15 @@ _VALIDATION_PATTERNS = [
     r"validationerror",
 ]
 
+_EMPTY_RESPONSE_PATTERNS = [
+    r"content type.*nil",
+    r"content.*<nil>",
+    r"empty.*response",
+    r"no.*content",
+    r"message content.*nil",
+    r"content is empty",
+]
+
 
 def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
     """Classify a JSON-related exception into error type and message.
@@ -90,7 +99,12 @@ def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
     error_str = str(exc).lower()
     error_message = str(exc)
 
-    # Check for validation errors first (most specific)
+    # Check for empty response first (most specific for API errors)
+    for pattern in _EMPTY_RESPONSE_PATTERNS:
+        if re.search(pattern, error_str):
+            return JsonErrorType.EMPTY_RESPONSE, error_message
+
+    # Check for validation errors (most specific for JSON errors)
     for pattern in _VALIDATION_PATTERNS:
         if re.search(pattern, error_str):
             return JsonErrorType.VALIDATION_ERROR, error_message

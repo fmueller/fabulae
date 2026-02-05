@@ -15,6 +15,7 @@ class JsonErrorType(Enum):
     INVALID_SYNTAX = auto()  # Malformed JSON
     SCHEMA_MISMATCH = auto()  # Wrong structure
     VALIDATION_ERROR = auto()  # Pydantic validation failed
+    EMPTY_RESPONSE = auto()  # Model returned empty/nil content
 
 
 JSON_GUARD_TEMPLATE = """
@@ -91,6 +92,16 @@ Original:
 {original_output}
 
 Return valid JSON matching the required schema:
+""",
+    JsonErrorType.EMPTY_RESPONSE: """
+Your previous response was empty or contained no content.
+
+You MUST return a valid JSON object.
+- Do not return an empty response
+- Start with {{ and end with }}
+- Include all required fields
+
+Return a complete, valid JSON object:
 """,
 }
 
