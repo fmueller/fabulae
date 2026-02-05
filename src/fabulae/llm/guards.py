@@ -13,6 +13,7 @@ from fabulae.llm.json_guard import (
     JsonGuardConfig,
     JsonGuardResult,
     classify_json_error,
+    is_non_retryable_error,
 )
 from fabulae.llm.language_guard import (
     LanguageGuardConfig,
@@ -137,6 +138,10 @@ async def run_with_guards(
                 json_last_error_type = error_type
                 json_last_error_message = error_message
                 json_passed = False
+
+                # Non-retryable errors exit immediately
+                if is_non_retryable_error(error_type):
+                    raise last_error from last_error
 
                 # Notify callback
                 if on_json_error is not None:

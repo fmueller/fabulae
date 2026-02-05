@@ -14,6 +14,7 @@ from fabulae.llm.json_guard import (
     JsonGuardConfig,
     JsonGuardResult,
     classify_json_error,
+    is_non_retryable_error,
     run_with_json_guard,
 )
 
@@ -183,6 +184,44 @@ class TestClassifyJsonError:
         exc = ValueError("Something went wrong")
         _, error_msg = classify_json_error(exc)
         assert "Something went wrong" in error_msg
+
+    def test_http_client_error_404(self) -> None:
+        """HTTP 404 errors are classified as HTTP_CLIENT_ERROR."""
+        exc = ValueError("API error: status_code: 404, model not found")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.HTTP_CLIENT_ERROR
+
+    def test_http_client_error_422(self) -> None:
+        """HTTP 422 errors are classified as HTTP_CLIENT_ERROR."""
+        exc = ValueError("Request failed: status_code: 422, unprocessable entity")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.HTTP_CLIENT_ERROR
+
+
+# --- is_non_retryable_error tests ---
+
+
+class TestIsNonRetryableError:
+    """Tests for is_non_retryable_error function."""
+
+    def test_http_client_error_is_non_retryable(self) -> None:
+        """HTTP_CLIENT_ERROR is non-retryable."""
+        assert is_non_retryable_error(JsonErrorType.HTTP_CLIENT_ERROR) is True
+
+    def test_other_errors_are_retryable(self) -> None:
+        """Other error types are retryable."""
+        retryable_types = [
+            JsonErrorType.TRUNCATED,
+            JsonErrorType.MARKDOWN_WRAPPED,
+            JsonErrorType.PREAMBLE_TEXT,
+            JsonErrorType.UNESCAPED_CHARS,
+            JsonErrorType.INVALID_SYNTAX,
+            JsonErrorType.SCHEMA_MISMATCH,
+            JsonErrorType.VALIDATION_ERROR,
+            JsonErrorType.EMPTY_RESPONSE,
+        ]
+        for error_type in retryable_types:
+            assert is_non_retryable_error(error_type) is False
 
 
 # --- run_with_json_guard tests ---
@@ -424,3 +463,51 @@ class TestRunWithJsonGuard:
         assert guard_result.passed is True
         assert len(tracker.error_callbacks) == 1
         assert tracker.error_callbacks[0][0] == JsonErrorType.EMPTY_RESPONSE
+
+    def test_no_retry_on_http_404(self) -> None:
+        """HTTP 404 error is not retried - raises immediately."""
+        http_error = ValueError("API error: status_code: 404")
+        success_output = SimpleOutput(content="Never reached")
+
+        with pytest.raises(ValueError, match="status_code: 404"):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[http_error, success_output],  # Second never called
+                config=JsonGuardConfig(max_retries=3),
+            )
+
+    def test_no_retry_on_http_422(self) -> None:
+        """HTTP 422 error is not retried - raises immediately."""
+        http_error = ValueError("Request failed: status_code: 422")
+        success_output = SimpleOutput(content="Never reached")
+
+        with pytest.raises(ValueError, match="status_code: 422"):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[http_error, success_output],  # Second never called
+                config=JsonGuardConfig(max_retries=3),
+            )
+
+    def test_callback_not_invoked_for_non_retryable(self) -> None:
+        """on_error callback is not invoked for non-retryable errors."""
+        http_error = ValueError("status_code: 404")
+        callback_called: list[tuple[JsonErrorType, str, int]] = []
+
+        def on_error(error_type: JsonErrorType, error_msg: str, attempt: int) -> None:
+            callback_called.append((error_type, error_msg, attempt))
+
+        with pytest.raises(ValueError):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[http_error],
+                config=JsonGuardConfig(max_retries=3),
+                on_error=on_error,
+            )
+
+        assert len(callback_called) == 0  # Callback not invoked
