@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from fabulae.features.build.progress import BuildProgress
 from fabulae.features.build.scene_builder import (
     build_enhanced_fragment,
     build_enhanced_scene,
@@ -19,7 +20,6 @@ from fabulae.features.build.schemas import (
     SceneOutput,
     StanzaOutput,
 )
-from fabulae.features.create.progress import CreateProgress
 from fabulae.llm import LLMConfig
 from fabulae.llm.json_guard import JsonGuardConfig
 from fabulae.llm.models import make_json_error_callback, make_language_correction_callback
@@ -38,7 +38,7 @@ async def build_chaptered_sequential(
     project: Project,
     config: LLMConfig,
     options: BuildOptions,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None = None,
     json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[ChapterOutput], list[str]]:
@@ -80,7 +80,8 @@ async def build_chaptered_sequential(
             scene_count += 1
 
             if progress:
-                progress.console.print(f"  [dim]Building scene {scene_count}/{total_scenes}: {scene_id}[/dim]")
+                progress.start_unit()  # Reset unit timer for this scene
+                progress.print_status(f"Building scene {scene_count}/{total_scenes}: {scene_id}")
 
             # Use sliding window for prior context
             prior_context = "\n\n".join(prior_summaries[-window_size:])
@@ -137,7 +138,7 @@ async def build_scenes_sequential(
     project: Project,
     config: LLMConfig,
     options: BuildOptions,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None = None,
     json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[SceneOutput], list[str]]:
@@ -170,7 +171,8 @@ async def build_scenes_sequential(
         scene = _get_scene_by_id(scene_id, project)
 
         if progress:
-            progress.console.print(f"  [dim]Building scene {i}/{total_scenes}: {scene_id}[/dim]")
+            progress.start_unit()  # Reset unit timer for this scene
+            progress.print_status(f"Building scene {i}/{total_scenes}: {scene_id}")
 
         # Use sliding window for prior context
         prior_context = "\n\n".join(prior_summaries[-window_size:])
@@ -212,7 +214,7 @@ async def build_micro_prose_sequential(
     project: Project,
     config: LLMConfig,
     options: BuildOptions,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None = None,
     json_guard_config: JsonGuardConfig | None = None,
 ) -> list[FragmentOutput]:
@@ -240,7 +242,8 @@ async def build_micro_prose_sequential(
 
     for i, fragment in enumerate(project.plot.fragments, 1):
         if progress:
-            progress.console.print(f"  [dim]Building fragment {i}/{total_fragments}: {fragment.id}[/dim]")
+            progress.start_unit()  # Reset unit timer for this fragment
+            progress.print_status(f"Building fragment {i}/{total_fragments}: {fragment.id}")
 
         if options.enhanced:
             fragment_output = await build_enhanced_fragment(
@@ -276,7 +279,7 @@ async def build_poem_sequential(
     project: Project,
     config: LLMConfig,
     options: BuildOptions,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None = None,
     json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[StanzaOutput] | None, str | None]:
@@ -307,7 +310,8 @@ async def build_poem_sequential(
 
         for i, stanza in enumerate(project.plot.stanzas, 1):
             if progress:
-                progress.console.print(f"  [dim]Building stanza {i}/{total_stanzas}: {stanza.id}[/dim]")
+                progress.start_unit()  # Reset unit timer for this stanza
+                progress.print_status(f"Building stanza {i}/{total_stanzas}: {stanza.id}")
 
             if options.enhanced:
                 stanza_output = await build_enhanced_stanza(
@@ -340,7 +344,8 @@ async def build_poem_sequential(
 
     # If we only have lines, generate the complete poem
     if progress:
-        progress.console.print("  [dim]Building poem...[/dim]")
+        progress.start_unit()  # Reset unit timer for the poem
+        progress.print_status("Building poem...")
 
     poem_text = await build_poem_from_lines(
         project,
