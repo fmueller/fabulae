@@ -197,6 +197,22 @@ class TestClassifyJsonError:
         error_type, _ = classify_json_error(exc)
         assert error_type == JsonErrorType.HTTP_CLIENT_ERROR
 
+    def test_http_client_error_400(self) -> None:
+        """HTTP 400 errors are classified as HTTP_CLIENT_ERROR."""
+        exc = ValueError("status_code: 400, body: {'message': 'invalid message content type: <nil>'}")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.HTTP_CLIENT_ERROR
+
+    def test_http_400_takes_precedence_over_empty_response(self) -> None:
+        """HTTP 400 with nil content is HTTP_CLIENT_ERROR, not EMPTY_RESPONSE.
+
+        The error message contains both "status_code: 400" AND "content type.*nil".
+        HTTP patterns are checked first, so it should be HTTP_CLIENT_ERROR.
+        """
+        exc = ValueError("status_code: 400, invalid message content type: <nil>")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.HTTP_CLIENT_ERROR
+
 
 # --- is_non_retryable_error tests ---
 
@@ -511,3 +527,37 @@ class TestRunWithJsonGuard:
             )
 
         assert len(callback_called) == 0  # Callback not invoked
+
+    def test_no_retry_on_http_400(self) -> None:
+        """HTTP 400 error is not retried - raises immediately."""
+        http_error = ValueError("status_code: 400, invalid request")
+        success_output = SimpleOutput(content="Never reached")
+
+        with pytest.raises(ValueError, match="status_code: 400"):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[http_error, success_output],  # Second never called
+                config=JsonGuardConfig(max_retries=3),
+            )
+
+    def test_http_400_callback_not_invoked(self) -> None:
+        """on_error callback is not invoked for HTTP 400 (non-retryable)."""
+        http_error = ValueError("status_code: 400, bad request")
+        callback_invocations: list[tuple[JsonErrorType, str, int]] = []
+
+        def on_error(error_type: JsonErrorType, error_msg: str, attempt: int) -> None:
+            callback_invocations.append((error_type, error_msg, attempt))
+
+        with pytest.raises(ValueError):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[http_error],
+                config=JsonGuardConfig(max_retries=3),
+                on_error=on_error,
+            )
+
+        assert len(callback_invocations) == 0  # Callback not invoked for non-retryable

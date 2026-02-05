@@ -16,7 +16,7 @@ class JsonErrorType(Enum):
     SCHEMA_MISMATCH = auto()  # Wrong structure
     VALIDATION_ERROR = auto()  # Pydantic validation failed
     EMPTY_RESPONSE = auto()  # Model returned empty/nil content
-    HTTP_CLIENT_ERROR = auto()  # 404, 422 - non-retryable API errors
+    HTTP_CLIENT_ERROR = auto()  # 400, 404, 422 - non-retryable API errors
 
 
 JSON_GUARD_TEMPLATE = """

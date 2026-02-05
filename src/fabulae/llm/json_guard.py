@@ -79,14 +79,13 @@ _VALIDATION_PATTERNS = [
 
 _EMPTY_RESPONSE_PATTERNS = [
     r"content type.*nil",
-    r"content.*<nil>",
     r"empty.*response",
-    r"no.*content",
-    r"message content.*nil",
+    r"\bno content\b",
     r"content is empty",
 ]
 
 _HTTP_CLIENT_ERROR_PATTERNS = [
+    r"status_code: 400",
     r"status_code: 404",
     r"status_code: 422",
 ]
