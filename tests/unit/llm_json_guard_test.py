@@ -100,6 +100,30 @@ class TestClassifyJsonError:
         error_type, _ = classify_json_error(exc)
         assert error_type == JsonErrorType.MARKDOWN_WRAPPED
 
+    def test_preamble_text_looking_for_beginning(self) -> None:
+        """Preamble text before JSON - looking for beginning of value."""
+        exc = ValueError("invalid character 'â' looking for beginning of value")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.PREAMBLE_TEXT
+
+    def test_preamble_text_expected_at_start(self) -> None:
+        """Preamble text before JSON - expected at start."""
+        exc = ValueError("expected '{' at start of JSON")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.PREAMBLE_TEXT
+
+    def test_unescaped_newline_in_string(self) -> None:
+        """Unescaped newline character in string literal."""
+        exc = ValueError("invalid character '\\n' in string literal")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.UNESCAPED_CHARS
+
+    def test_unescaped_control_character(self) -> None:
+        """Unescaped control character in string."""
+        exc = ValueError("control character in string at position 42")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.UNESCAPED_CHARS
+
     def test_invalid_syntax_trailing_comma(self) -> None:
         """Invalid JSON with trailing comma."""
         exc = ValueError("Trailing comma before closing brace")
@@ -202,6 +226,42 @@ class TestRunWithJsonGuard:
         assert guard_result.passed is True
         assert len(tracker.error_callbacks) == 1
         assert tracker.error_callbacks[0][0] == JsonErrorType.MARKDOWN_WRAPPED
+
+    def test_retry_on_preamble_text(self) -> None:
+        """Retries on preamble text before JSON."""
+        preamble_error = ValueError("invalid character 'â' looking for beginning of value")
+        success_output = SimpleOutput(content="Fixed")
+
+        result, guard_result, tracker = _run_guard(
+            result_type=SimpleOutput,
+            system_prompt="test system",
+            user_prompt="test user",
+            runner_results=[preamble_error, success_output],
+            config=JsonGuardConfig(max_retries=2),
+        )
+
+        assert result == success_output
+        assert guard_result.passed is True
+        assert len(tracker.error_callbacks) == 1
+        assert tracker.error_callbacks[0][0] == JsonErrorType.PREAMBLE_TEXT
+
+    def test_retry_on_unescaped_chars(self) -> None:
+        """Retries on unescaped characters in JSON strings."""
+        unescaped_error = ValueError("invalid character '\\n' in string literal")
+        success_output = SimpleOutput(content="Fixed")
+
+        result, guard_result, tracker = _run_guard(
+            result_type=SimpleOutput,
+            system_prompt="test system",
+            user_prompt="test user",
+            runner_results=[unescaped_error, success_output],
+            config=JsonGuardConfig(max_retries=2),
+        )
+
+        assert result == success_output
+        assert guard_result.passed is True
+        assert len(tracker.error_callbacks) == 1
+        assert tracker.error_callbacks[0][0] == JsonErrorType.UNESCAPED_CHARS
 
     def test_retry_on_invalid_syntax(self) -> None:
         """Retries on invalid JSON syntax."""

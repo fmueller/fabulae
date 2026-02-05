@@ -48,6 +48,21 @@ _MARKDOWN_PATTERNS = [
     r"unexpected token [`'\"]`",
 ]
 
+_PREAMBLE_PATTERNS = [
+    r"looking for beginning of value",
+    r"invalid character.*looking for",
+    r"expected.*at start",
+    r"json must start with",
+]
+
+_UNESCAPED_CHAR_PATTERNS = [
+    r"invalid character.*in.*string",
+    r"invalid.*\\n.*string",
+    r"unexpected.*character.*string literal",
+    r"unescaped.*character",
+    r"control character.*string",
+]
+
 _SCHEMA_PATTERNS = [
     r"field required",
     r"missing required",
@@ -94,6 +109,16 @@ def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
     for pattern in _MARKDOWN_PATTERNS:
         if re.search(pattern, error_str):
             return JsonErrorType.MARKDOWN_WRAPPED, error_message
+
+    # Check for preamble text before JSON
+    for pattern in _PREAMBLE_PATTERNS:
+        if re.search(pattern, error_str):
+            return JsonErrorType.PREAMBLE_TEXT, error_message
+
+    # Check for unescaped characters in strings
+    for pattern in _UNESCAPED_CHAR_PATTERNS:
+        if re.search(pattern, error_str):
+            return JsonErrorType.UNESCAPED_CHARS, error_message
 
     # Default to invalid syntax
     return JsonErrorType.INVALID_SYNTAX, error_message
