@@ -11,10 +11,10 @@ import typer
 import yaml
 
 from fabulae.cli_options import api_key_option, base_url_option, model_option, seed_option, temperature_option
+from fabulae.features.build.progress import BuildProgress
 from fabulae.features.build.schemas import BuildOptions, BuildPipelineMode
 from fabulae.features.build.service import build_project
 from fabulae.features.build.writer import write_build_output
-from fabulae.features.create.progress import CreateProgress
 from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
@@ -83,11 +83,11 @@ def register_build_command(app: typer.Typer) -> None:
             fabulae build ./my-poem --format html
             fabulae build ./my-novel --pipeline batch --enhanced
         """
-        progress = CreateProgress()
+        progress = BuildProgress()
         progress.start()
 
         # Load and validate project
-        with progress.stage("Loading project..."):
+        with progress.task("Loading project..."):
             try:
                 project = load_project(project_dir)
             except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
@@ -167,14 +167,14 @@ def register_build_command(app: typer.Typer) -> None:
                 command=f"fabulae build {project_dir}",
                 parameters=history_params,
             ):
-                with progress.stage("Generating narrative..."):
+                with progress.task("Generating narrative..."):
                     result = asyncio.run(
                         build_project(
                             project, config, seed, progress, expected_language, build_options, json_guard_config
                         )
                     )
 
-                with progress.stage("Writing output files..."):
+                with progress.task("Writing output files..."):
                     write_build_output(result, build_dir, output_format)
 
         except Exception as exc:

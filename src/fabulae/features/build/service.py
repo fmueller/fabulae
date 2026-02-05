@@ -18,6 +18,7 @@ from fabulae.features.build.pipelines.sequential import (
     build_poem_sequential,
     build_scenes_sequential,
 )
+from fabulae.features.build.progress import BuildProgress
 from fabulae.features.build.schemas import (
     BuildMetadata,
     BuildOptions,
@@ -25,7 +26,6 @@ from fabulae.features.build.schemas import (
     ChapterOutput,
     SceneOutput,
 )
-from fabulae.features.create.progress import CreateProgress
 from fabulae.llm import LLMConfig
 from fabulae.llm.json_guard import JsonGuardConfig
 from fabulae.models import Project
@@ -78,7 +78,7 @@ async def _build_chaptered(
     project: Project,
     config: LLMConfig,
     seed: int | None,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
     json_guard_config: JsonGuardConfig | None = None,
@@ -115,7 +115,7 @@ async def _build_short_story(
     project: Project,
     config: LLMConfig,
     seed: int | None,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
     json_guard_config: JsonGuardConfig | None = None,
@@ -142,7 +142,7 @@ async def _build_micro_prose(
     project: Project,
     config: LLMConfig,
     seed: int | None,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
     json_guard_config: JsonGuardConfig | None = None,
@@ -171,7 +171,7 @@ async def _build_poem(
     project: Project,
     config: LLMConfig,
     seed: int | None,
-    progress: CreateProgress | None,
+    progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
     json_guard_config: JsonGuardConfig | None = None,
@@ -209,7 +209,7 @@ async def build_project(
     project: Project,
     config: LLMConfig,
     seed: int | None = None,
-    progress: CreateProgress | None = None,
+    progress: BuildProgress | None = None,
     expected_language: str | None = None,
     options: BuildOptions | None = None,
     json_guard_config: JsonGuardConfig | None = None,
