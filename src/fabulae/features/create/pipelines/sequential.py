@@ -76,6 +76,7 @@ from fabulae.features.create.variation import (
 )
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     Beat,
     Chapter,
@@ -166,9 +167,7 @@ async def generate_prose_sequential(
 
         # Generate the plot graph with variation points
         # The graph will assign variation points to scenes and create beats for them
-        graph = generate_plot_graph(
-            format_name, shape, options.variation, options.seed, selected_variation_points
-        )
+        graph = generate_plot_graph(format_name, shape, options.variation, options.seed, selected_variation_points)
 
     progress.success(
         f"Structure planned: {len(graph.chapters)} chapters, {len(graph.scenes)} scenes, {graph.total_beats()} beats"
@@ -230,6 +229,12 @@ async def _generate_prose_sequential_inner(
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
     # =========================================================================
+    # Guard Configuration
+    # =========================================================================
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
+    # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
 
@@ -246,6 +251,8 @@ async def _generate_prose_sequential_inner(
             expected_language=expected_language,
             extract_text=_extract_text_from_style,
             error_mode=ErrorMode.WARN,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -280,6 +287,8 @@ async def _generate_prose_sequential_inner(
             expected_language=expected_language,
             extract_text=lambda p: p.premise,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         premise = premise_result.output.premise
         title = premise_result.output.title
@@ -321,6 +330,8 @@ async def _generate_prose_sequential_inner(
                 normalize=_normalize_character_output,
                 validate=validate_char,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             # Convert to domain model and add to state
@@ -369,6 +380,8 @@ async def _generate_prose_sequential_inner(
                 normalize=_normalize_world_fact_output,
                 validate=validate_loc,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             # Convert to domain model and add to state
@@ -438,6 +451,8 @@ async def _generate_prose_sequential_inner(
                         extract_text=lambda c: f"{c.title or ''}\n{c.summary or ''}",
                         validate=validate_chapter,
                         error_mode=ErrorMode.WARN,
+                        on_json_error=on_json_error,
+                        json_guard_config=json_guard_config,
                     )
                     final_chapter_result = chapter_result
 
@@ -534,6 +549,8 @@ async def _generate_prose_sequential_inner(
                 normalize=_normalize_scene_output,
                 validate=validate_scene,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             # Convert to domain model

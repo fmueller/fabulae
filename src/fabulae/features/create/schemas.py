@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -18,8 +18,16 @@ from fabulae.features.entities.generation.schemas import (
     StanzaOutput,
     WorldFactOutput,
 )
+from fabulae.llm.json_guard import JsonGuardConfig
+from fabulae.llm.models import DEFAULT_JSON_RETRIES, SMALL_MODEL_JSON_RETRIES
 
 PipelineMode = Literal["batch", "sequential"]
+
+
+def _compute_json_guard_config(is_small: bool) -> JsonGuardConfig:
+    """Compute JSON guard config based on model size."""
+    retries = SMALL_MODEL_JSON_RETRIES if is_small else DEFAULT_JSON_RETRIES
+    return JsonGuardConfig(max_retries=retries)
 
 
 @dataclass
@@ -41,6 +49,15 @@ class CreateOptions:
     pipeline: PipelineMode = "batch"  # "batch" (current) or "sequential" (new)
     # Full mode: when False, generates outline only; when True, generates complete project
     full: bool = False
+    # JSON guard config (computed from is_small_model if not provided)
+    _json_guard_config: JsonGuardConfig | None = field(default=None, repr=False)
+
+    @property
+    def json_guard_config(self) -> JsonGuardConfig:
+        """Get JSON guard config, computing from is_small_model if not set."""
+        if self._json_guard_config is not None:
+            return self._json_guard_config
+        return _compute_json_guard_config(self.is_small_model)
 
 
 class CharacterBatchOutput(BaseModel):

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from fabulae.features.build.scene_builder import (
     build_enhanced_fragment,
     build_enhanced_scene,
@@ -23,7 +21,8 @@ from fabulae.features.build.schemas import (
 )
 from fabulae.features.create.progress import CreateProgress
 from fabulae.llm import LLMConfig
-from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig
+from fabulae.llm.json_guard import JsonGuardConfig
+from fabulae.llm.models import make_json_error_callback, make_language_correction_callback
 from fabulae.models import Project, Scene
 
 
@@ -33,33 +32,6 @@ def _get_scene_by_id(scene_id: str, project: Project) -> Scene:
         if scene.id == scene_id:
             return scene
     raise ValueError(f"Scene not found: {scene_id}")
-
-
-def _make_language_correction_callback(
-    progress: CreateProgress | None,
-) -> Callable[[str, str, int], None] | None:
-    """Create a callback to notify user of language correction attempts."""
-    if progress is None:
-        return None
-
-    def notify(expected: str, detected: str, attempt: int) -> None:
-        progress.info(f"Language mismatch (expected: {expected}, got: {detected}), correcting (attempt {attempt})...")
-
-    return notify
-
-
-def _make_json_error_callback(
-    progress: CreateProgress | None,
-    max_retries: int = 2,
-) -> Callable[[JsonErrorType, str, int], None] | None:
-    """Create a callback to notify user of JSON error retries."""
-    if progress is None:
-        return None
-
-    def notify(error_type: JsonErrorType, _error_msg: str, attempt: int) -> None:
-        progress.info(f"JSON error ({error_type.name}), retrying (attempt {attempt}/{max_retries})...")
-
-    return notify
 
 
 async def build_chaptered_sequential(
@@ -92,8 +64,8 @@ async def build_chaptered_sequential(
     total_scenes = sum(len(ch.scene_ids or []) for ch in project.plot.chapters)
     scene_count = 0
     resolved_json_config = json_guard_config or JsonGuardConfig()
-    on_language_correction = _make_language_correction_callback(progress)
-    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_language_correction = make_language_correction_callback(progress)
+    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     for chapter in project.plot.chapters:
@@ -187,8 +159,8 @@ async def build_scenes_sequential(
     prior_hooks: list[str] = []
     total_scenes = len(project.plot.scenes)
     resolved_json_config = json_guard_config or JsonGuardConfig()
-    on_language_correction = _make_language_correction_callback(progress)
-    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_language_correction = make_language_correction_callback(progress)
+    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     # Determine scene order
@@ -262,8 +234,8 @@ async def build_micro_prose_sequential(
     prior_hooks: list[str] = []
     total_fragments = len(project.plot.fragments)
     resolved_json_config = json_guard_config or JsonGuardConfig()
-    on_language_correction = _make_language_correction_callback(progress)
-    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_language_correction = make_language_correction_callback(progress)
+    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     for i, fragment in enumerate(project.plot.fragments, 1):
@@ -322,8 +294,8 @@ async def build_poem_sequential(
         Tuple of (stanza outputs or None, poem text or None).
     """
     resolved_json_config = json_guard_config or JsonGuardConfig()
-    on_language_correction = _make_language_correction_callback(progress)
-    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_language_correction = make_language_correction_callback(progress)
+    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     # If we have stanzas, generate them individually

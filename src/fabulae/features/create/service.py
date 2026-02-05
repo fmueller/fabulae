@@ -40,8 +40,8 @@ from fabulae.features.create.schemas import (
     WorldPlanOutput,
 )
 from fabulae.llm import LLMConfig, create_agent
-from fabulae.llm.guards import run_with_guards
-from fabulae.llm.json_guard import JsonErrorType
+from fabulae.llm.guards import GuardsConfig, run_with_guards
+from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig
 from fabulae.llm.language_guard import LanguageGuardConfig, detect_language
 from fabulae.models import (
     AVAILABLE_FORMATS,
@@ -236,6 +236,7 @@ async def run_stage(
     error_mode: ErrorMode = ErrorMode.STRICT,
     stage_name: str | None = None,
     on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
 ) -> StageResult[T]:
     warnings: list[str] = []
 
@@ -260,6 +261,7 @@ async def run_stage(
             llm_config=config,
             extract_text=extract_text,
             expected_language=expected_language,
+            config=GuardsConfig(json=json_guard_config) if json_guard_config else None,
             on_language_correction=_on_correction,
             on_json_error=on_json_error,
         )

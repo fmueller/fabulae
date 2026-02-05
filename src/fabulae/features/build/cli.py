@@ -19,13 +19,8 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
-from fabulae.llm.json_guard import JsonGuardConfig
-from fabulae.llm.models import is_small_model
+from fabulae.llm.models import get_json_guard_config, is_small_model
 from fabulae.models import load_project
-
-# Retry counts for JSON guard
-_DEFAULT_RETRIES = 2
-_SMALL_MODEL_RETRIES = 4
 
 
 def register_build_command(app: typer.Typer) -> None:
@@ -132,8 +127,8 @@ def register_build_command(app: typer.Typer) -> None:
         )
 
         # Configure JSON guard with more retries for small models
-        max_retries = _SMALL_MODEL_RETRIES if is_small else _DEFAULT_RETRIES
-        json_guard_config = JsonGuardConfig(max_retries=max_retries)
+        json_guard_config = get_json_guard_config(config.model)
+        max_retries = json_guard_config.max_retries
 
         progress.info(f"Building {format_type}: {project_title}")
         progress.info(f"Model: {config.model}, Temperature: {config.temperature}")
