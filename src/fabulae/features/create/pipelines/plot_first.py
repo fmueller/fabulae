@@ -7,6 +7,7 @@ determined before content generation.
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,7 @@ from fabulae.features.create.service import (
     run_stage,
 )
 from fabulae.llm import LLMConfig
+from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig
 from fabulae.models import Character, LiteratureFormat, StoryShape, WorldFact
 from fabulae.prompts import build_system_prompt, format_sections
 
@@ -218,6 +220,8 @@ async def generate_world_from_slots(
     llm_config: LLMConfig,
     style: StyleOutput | None = None,
     extra_world_fact_ids: list[str] | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> list[WorldFact]:
     """Generate world elements to fill story shape setting slots.
 
@@ -286,6 +290,8 @@ async def generate_world_from_slots(
             extract_text=extract_text,
             validate=validate,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
 
         # Convert to WorldFact model
@@ -331,6 +337,8 @@ async def generate_world_from_slots(
                 extract_text=extract_text,
                 validate=validate,
                 error_mode=ErrorMode.STRICT,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             # Convert to WorldFact model
@@ -459,6 +467,8 @@ async def generate_outline_content(
     chapter_ids: list[str],
     scene_ids: list[str],
     expected_language: str | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> OutlineContent:
     """Generate chapter and scene content for pre-allocated IDs.
 
@@ -624,6 +634,8 @@ Generate compelling titles and summaries that:
         extract_text=extract_text,
         validate=validate_output,
         max_retries=3,
+        on_json_error=on_json_error,
+        json_guard_config=json_guard_config,
     )
 
     # Convert to domain dataclasses
@@ -651,6 +663,8 @@ async def generate_characters_from_slots(
     slot_mapping: dict[str, str],
     llm_config: LLMConfig,
     style: StyleOutput | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> list[Character]:
     """Generate characters to fill story shape character slots.
 
@@ -726,6 +740,8 @@ async def generate_characters_from_slots(
             extract_text=extract_text,
             validate=validate,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
 
         # Convert to Character model

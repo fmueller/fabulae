@@ -110,6 +110,7 @@ from fabulae.features.create.variation import (
 )
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     Beat,
     Chapter,
@@ -169,6 +170,10 @@ async def generate_prose(
     # Phase 1: Setup
     # =========================================================================
 
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, options.idea_language, language_config)
@@ -184,6 +189,8 @@ async def generate_prose(
             extract_text=_extract_text_from_style,
             validate=_validate_style_output(expected_language),
             error_mode=ErrorMode.WARN,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -241,6 +248,10 @@ async def _generate_prose_inner(
     gen_state: GenerationState,
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     rng = random.Random(options.seed)
 
     # Generate premise expansion
@@ -253,6 +264,8 @@ async def _generate_prose_inner(
             expected_language=expected_language,
             extract_text=lambda p: p.premise,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         premise = premise_result.output.premise
         story_title = premise_result.output.title
@@ -359,6 +372,8 @@ async def _generate_prose_inner(
             chapter_ids=project_ids.chapters,
             scene_ids=project_ids.scenes,
             expected_language=expected_language,
+            json_guard_config=json_guard_config,
+            on_json_error=on_json_error,
         )
 
     # Write outline content artifact
@@ -400,6 +415,8 @@ async def _generate_prose_inner(
                 slot_mapping=project_ids.character_slot_mapping,
                 llm_config=llm_config,
                 style=style_output,
+                json_guard_config=json_guard_config,
+                on_json_error=on_json_error,
             )
         else:
             # Generate characters using existing prompts (plan then expand)
@@ -416,6 +433,8 @@ async def _generate_prose_inner(
                 normalize=_normalize_character_plan_output,
                 validate=_validate_character_plan_output,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
             char_plan = char_plan_result.output
 
@@ -443,6 +462,8 @@ async def _generate_prose_inner(
                     normalize=_normalize_character_output,
                     validate=validate_char,
                     error_mode=ErrorMode.WARN,
+                    on_json_error=on_json_error,
+                    json_guard_config=json_guard_config,
                 )
 
                 char_output = char_result.output
@@ -494,6 +515,8 @@ async def _generate_prose_inner(
                 llm_config=llm_config,
                 style=style_output,
                 extra_world_fact_ids=project_ids.world_facts,
+                json_guard_config=json_guard_config,
+                on_json_error=on_json_error,
             )
 
             # Use shape's tone/themes as world metadata
@@ -516,6 +539,8 @@ async def _generate_prose_inner(
                 normalize=_normalize_world_plan_output,
                 validate=_validate_world_plan_output,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
             world_plan = world_plan_result.output
 
@@ -549,6 +574,8 @@ async def _generate_prose_inner(
                     normalize=_normalize_world_fact_output,
                     validate=validate_fact,
                     error_mode=ErrorMode.WARN,
+                    on_json_error=on_json_error,
+                    json_guard_config=json_guard_config,
                 )
 
                 fact_output = fact_result.output
@@ -905,6 +932,8 @@ async def _generate_prose_inner(
                 validate=validate_scene,
                 warn_validate=validate_template,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             scene_output = scene_result.output

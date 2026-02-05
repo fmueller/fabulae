@@ -43,6 +43,7 @@ from fabulae.features.create.state import GenerationState
 from fabulae.features.create.structure import generate_micro_prose_graph
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     Fragment,
     GenerationMetadata,
@@ -131,6 +132,10 @@ async def _generate_micro_prose_sequential_inner(
     gen_state: GenerationState,
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # =========================================================================
     # Phase 2: Style Generation
     # =========================================================================
@@ -148,6 +153,8 @@ async def _generate_micro_prose_sequential_inner(
             expected_language=expected_language,
             extract_text=_extract_text_from_style,
             error_mode=ErrorMode.WARN,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -182,6 +189,8 @@ async def _generate_micro_prose_sequential_inner(
             expected_language=expected_language,
             extract_text=lambda p: p.premise,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         premise = premise_result.output.premise
         title = premise_result.output.title
@@ -228,6 +237,8 @@ async def _generate_micro_prose_sequential_inner(
                 extract_text=lambda f: f.content,
                 validate=validate_fragment,
                 error_mode=ErrorMode.WARN,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
 
             # Convert to domain model and add to state
