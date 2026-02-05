@@ -7,6 +7,13 @@ from typing import Any
 
 import yaml
 
+from fabulae.prompts.json import (
+    JSON_CORRECTION_TEMPLATES,
+    JSON_GUARD_TEMPLATE,
+    JsonErrorType,
+    build_json_correction_prompt,
+    build_json_guard_prompt,
+)
 from fabulae.prompts.language import (
     LANGUAGE_CORRECTION_TEMPLATE,
     LANGUAGE_GUARD_TEMPLATE,
@@ -15,8 +22,7 @@ from fabulae.prompts.language import (
 )
 
 BASE_SYSTEM_PROMPT = (
-    "You are Fabulae, a narrative design assistant. "
-    "Return structured data only and follow the provided schema."
+    "You are Fabulae, a narrative design assistant. Return structured data only and follow the provided schema."
 )
 
 
@@ -62,8 +68,13 @@ def format_project_context(sections: Mapping[str, Any]) -> str:
 
 __all__ = [
     "BASE_SYSTEM_PROMPT",
+    "JSON_CORRECTION_TEMPLATES",
+    "JSON_GUARD_TEMPLATE",
+    "JsonErrorType",
     "LANGUAGE_CORRECTION_TEMPLATE",
     "LANGUAGE_GUARD_TEMPLATE",
+    "build_json_correction_prompt",
+    "build_json_guard_prompt",
     "build_language_correction_prompt",
     "build_language_guard_prompt",
     "build_system_prompt",
