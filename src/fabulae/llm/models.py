@@ -34,21 +34,21 @@ def is_small_model(model_name: str) -> bool:
         True if the model appears to be small (<13B parameters), False otherwise.
     """
     model_lower = model_name.lower()
-    for pattern in SMALL_MODEL_PATTERNS:
-        match = re.search(pattern, model_lower)
-        if match:
-            # For numeric patterns, check if < threshold
-            if match.lastindex and match.lastindex >= 1:
-                try:
-                    size = float(match.group(1))
-                    if size < SMALL_MODEL_THRESHOLD_B:
-                        return True
-                except ValueError:
-                    pass
-            else:
-                # Non-numeric patterns like "mini", "tiny", "small"
-                return True
-    return False
+
+    # First, check for explicit size pattern (e.g., :7b, -7b, :1.7b)
+    # This is definitive - if we find an explicit size, use it
+    size_pattern = SMALL_MODEL_PATTERNS[0]  # r"[:\-](\d+(?:\.\d+)?)b\b"
+    match = re.search(size_pattern, model_lower)
+    if match and match.lastindex and match.lastindex >= 1:
+        try:
+            size = float(match.group(1))
+            # Explicit size is definitive - return based on threshold
+            return size < SMALL_MODEL_THRESHOLD_B
+        except ValueError:
+            pass
+
+    # No explicit size found - check keyword patterns
+    return any(re.search(pattern, model_lower) for pattern in SMALL_MODEL_PATTERNS[1:])
 
 
 def get_json_retries(model_name: str) -> int:

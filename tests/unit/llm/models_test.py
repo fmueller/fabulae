@@ -35,6 +35,7 @@ class TestIsSmallModel:
             # At or above threshold (should not be small)
             ("llama:13b", False),
             ("model:14b", False),
+            ("ministral-3:14b", False),  # Bug fix: explicit 14b >= 13B, ignore "mini" in name
             ("llama:70b", False),
             ("model:405b", False),
             # Keyword-based detection
