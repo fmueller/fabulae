@@ -40,11 +40,9 @@ from fabulae.features.create.schemas import (
     WorldPlanOutput,
 )
 from fabulae.llm import LLMConfig, create_agent
-from fabulae.llm.language_guard import (
-    LanguageGuardConfig,
-    detect_language,
-    run_with_language_guard,
-)
+from fabulae.llm.guards import run_with_guards
+from fabulae.llm.json_guard import JsonErrorType
+from fabulae.llm.language_guard import LanguageGuardConfig, detect_language
 from fabulae.models import (
     AVAILABLE_FORMATS,
     Character,
@@ -63,7 +61,7 @@ from fabulae.models import (
     _dump_plot,
     save_yaml_file,
 )
-from fabulae.prompts import build_language_correction_prompt, build_language_guard_prompt, format_project_context
+from fabulae.prompts import format_project_context
 
 T = TypeVar("T")
 
@@ -237,8 +235,8 @@ async def run_stage(
     max_retries: int = 2,
     error_mode: ErrorMode = ErrorMode.STRICT,
     stage_name: str | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> StageResult[T]:
-    prompt_state = {"system": system_prompt}
     warnings: list[str] = []
 
     def _on_correction(expected_code: str, detected_code: str, attempt: int) -> None:
@@ -250,30 +248,20 @@ async def run_stage(
 
     async def _invoke_stage(current_prompt: str) -> T:
         async def runner() -> T:
-            agent = create_agent(result_type, prompt_state["system"], config)
+            agent = create_agent(result_type, system_prompt, config)
             result = await agent.run(current_prompt)
             return cast(T, result.output)
 
-        async def correct(attempt: int, previous_output: T) -> T:
-            if not expected_language:
-                return previous_output
-            if hasattr(previous_output, "model_dump_json"):
-                original_json = previous_output.model_dump_json(indent=2)
-            else:
-                original_json = str(previous_output)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(result_type, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(T, result.output)
-
-        output, _ = await run_with_language_guard(
+        output, _ = await run_with_guards(
             runner=runner,
+            result_type=result_type,
+            system_prompt=system_prompt,
+            user_prompt=current_prompt,
+            llm_config=config,
             extract_text=extract_text,
             expected_language=expected_language,
-            correct=correct,
-            on_correction=_on_correction,
+            on_language_correction=_on_correction,
+            on_json_error=on_json_error,
         )
         return output
 

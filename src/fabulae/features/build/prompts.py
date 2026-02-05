@@ -119,6 +119,7 @@ def build_scene_system_prompt(style: Style | None) -> str:
         "Create natural transitions between beats",
         "Use sensory details to ground the reader in the setting",
         "Return only the content field with the complete scene prose",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -169,8 +170,7 @@ def build_scene_prompt(
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
-        "Write the complete scene prose, expanding each beat into vivid narrative. "
-        "Return your response as a JSON object with a 'content' field containing the prose."
+        'Write the complete scene prose, expanding each beat into vivid narrative. Return ONLY: {"content": "..."}'
     )
 
     return format_sections(sections)
@@ -186,6 +186,7 @@ def build_continuity_system_prompt() -> str:
             "Highlight any plot points that might be referenced later",
             "Keep the summary concise (2-3 sentences)",
             "Return only the summary field",
+            "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
         ],
     )
 
@@ -208,6 +209,7 @@ def build_fragment_system_prompt(style: Style | None) -> str:
         "Use precise, carefully chosen language",
         "Maintain the style and tone specified",
         "Return only the content field with the prose",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -245,8 +247,7 @@ def build_fragment_prompt(
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
-        "Write the complete prose for this fragment, expanding on the content seed. "
-        "Return your response as a JSON object with a 'content' field containing the prose."
+        'Write the complete prose for this fragment, expanding on the content seed. Return ONLY: {"content": "..."}'
     )
 
     return format_sections(sections)
@@ -260,6 +261,7 @@ def build_stanza_system_prompt(style: Style | None) -> str:
         "Maintain thematic consistency with previous stanzas",
         "Use imagery and language appropriate to the style",
         "Return the lines field as a list of strings",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -305,8 +307,7 @@ def build_stanza_prompt(
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
-        "Write the lines for this stanza following the specified form. "
-        "Return your response as a JSON object with a 'lines' field containing a list of strings."
+        'Write the lines for this stanza following the specified form. Return ONLY: {"lines": ["..."]}'
     )
 
     return format_sections(sections)
@@ -319,6 +320,7 @@ def build_poem_system_prompt(style: Style | None) -> str:
         "Maintain consistent meter and rhyme scheme if specified",
         "Create imagery that supports the theme",
         "Return the content field with the complete poem text",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -356,8 +358,7 @@ def build_poem_prompt(
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
-        "Write the complete poem, using the line seeds as inspiration if provided. "
-        "Return your response as a JSON object with a 'content' field containing the poem."
+        'Write the complete poem, using the line seeds as inspiration if provided. Return ONLY: {"content": "..."}'
     )
 
     return format_sections(sections)
@@ -394,6 +395,7 @@ def build_enhanced_scene_system_prompt(style: Style | None) -> str:
         "Describe the environment to establish mood and atmosphere",
         # Output format
         "Return JSON with 'hook' object and 'beats' array as specified",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -505,6 +507,7 @@ def build_enhanced_fragment_system_prompt(style: Style | None) -> str:
         "Vary hook types from previous fragments",
         # Output format
         "Return JSON with 'hook' object and 'content' field",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:
@@ -587,6 +590,7 @@ def build_enhanced_stanza_system_prompt(style: Style | None) -> str:
         "Consider including an opening hook line that captures attention",
         # Output format
         "Return JSON with optional 'hook' object and 'lines' array",
+        "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
 
     if style and style.language:

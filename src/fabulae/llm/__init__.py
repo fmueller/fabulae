@@ -13,6 +13,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig, JsonGuardResult
+
 T = TypeVar("T")
 
 DEFAULT_MODEL = "ministral-3:3b"
@@ -258,6 +260,16 @@ async def test_llm_connection(
     )
 
 
+def __getattr__(name: str) -> Any:
+    """Lazy import for guards to avoid circular imports."""
+    if name in ("GuardsConfig", "GuardsResult", "run_with_guards"):
+        from fabulae.llm import guards
+
+        return getattr(guards, name)
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
+
+
 __all__ = [
     "DEFAULT_API_KEY",
     "DEFAULT_BASE_URL",
@@ -266,6 +278,11 @@ __all__ = [
     "DEFAULT_TEMPERATURE",
     "FAKE_LLM_ENV",
     "FakeAgent",
+    "GuardsConfig",
+    "GuardsResult",
+    "JsonErrorType",
+    "JsonGuardConfig",
+    "JsonGuardResult",
     "LLMConfig",
     "LLMConnectionResult",
     "LLMTestPromptResult",
@@ -273,5 +290,6 @@ __all__ = [
     "create_agent",
     "resolve_config",
     "run_test_prompt",
+    "run_with_guards",
     "test_llm_connection",
 ]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import cast
 
 from fabulae.features.build.prompts import (
@@ -37,9 +37,9 @@ from fabulae.features.build.schemas import (
     StanzaProseOutput,
 )
 from fabulae.llm import LLMConfig, create_agent
-from fabulae.llm.language_guard import run_with_language_guard
+from fabulae.llm.guards import run_with_guards
+from fabulae.llm.json_guard import JsonErrorType
 from fabulae.models import Character, Fragment, Project, Scene, Stanza, WorldFact
-from fabulae.prompts import build_language_correction_prompt, build_language_guard_prompt
 
 
 def _get_characters_in_scene(scene: Scene, project: Project) -> list[Character]:
@@ -79,6 +79,7 @@ async def build_scene(
     chapter_id: str | None = None,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> SceneOutput:
     """Generate prose for a single scene.
 
@@ -89,6 +90,8 @@ async def build_scene(
         config: LLM configuration.
         chapter_id: Optional chapter ID this scene belongs to.
         expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         SceneOutput with generated prose content.
@@ -113,27 +116,16 @@ async def build_scene(
         result = await agent.run(user_prompt)
         return cast(SceneProseOutput, result.output)
 
-    correct_cb: Callable[[int, SceneProseOutput], Awaitable[SceneProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: SceneProseOutput) -> SceneProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(SceneProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(SceneProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: SceneProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=SceneProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=lambda o: o.content,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     return SceneOutput(
@@ -148,12 +140,14 @@ async def build_scene(
 async def generate_continuity_summary(
     scene_content: str,
     config: LLMConfig,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> str:
     """Generate a continuity summary for a scene.
 
     Args:
         scene_content: The prose content of the scene.
         config: LLM configuration.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         A brief summary for continuity threading.
@@ -161,9 +155,20 @@ async def generate_continuity_summary(
     system_prompt = build_continuity_system_prompt()
     user_prompt = build_continuity_prompt(scene_content)
 
-    agent = create_agent(ContinuitySummary, system_prompt, config)
-    result = await agent.run(user_prompt)
-    summary_output: ContinuitySummary = result.output
+    async def runner() -> ContinuitySummary:
+        agent = create_agent(ContinuitySummary, system_prompt, config)
+        result = await agent.run(user_prompt)
+        return cast(ContinuitySummary, result.output)
+
+    summary_output, _ = await run_with_guards(
+        runner=runner,
+        result_type=ContinuitySummary,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
+        extract_text=lambda o: o.summary,
+        on_json_error=on_json_error,
+    )
 
     return summary_output.summary
 
@@ -175,6 +180,7 @@ async def build_fragment(
     config: LLMConfig,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> FragmentOutput:
     """Generate prose for a micro-prose fragment.
 
@@ -184,6 +190,8 @@ async def build_fragment(
         prior_fragments: Content of previous fragments for context.
         config: LLM configuration.
         expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         FragmentOutput with generated prose content.
@@ -201,27 +209,16 @@ async def build_fragment(
         result = await agent.run(user_prompt)
         return cast(FragmentProseOutput, result.output)
 
-    correct_cb: Callable[[int, FragmentProseOutput], Awaitable[FragmentProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: FragmentProseOutput) -> FragmentProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(FragmentProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(FragmentProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: FragmentProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=FragmentProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=lambda o: o.content,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     return FragmentOutput(
@@ -238,6 +235,7 @@ async def build_stanza(
     config: LLMConfig,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> StanzaOutput:
     """Generate lines for a poem stanza.
 
@@ -247,6 +245,8 @@ async def build_stanza(
         prior_stanzas: Lines of previous stanzas for context.
         config: LLM configuration.
         expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         StanzaOutput with generated lines.
@@ -267,27 +267,16 @@ async def build_stanza(
         result = await agent.run(user_prompt)
         return cast(StanzaProseOutput, result.output)
 
-    correct_cb: Callable[[int, StanzaProseOutput], Awaitable[StanzaProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: StanzaProseOutput) -> StanzaProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(StanzaProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(StanzaProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: StanzaProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=StanzaProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=lambda o: "\n".join(o.lines),
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     content = "\n".join(prose_output.lines)
@@ -303,6 +292,7 @@ async def build_poem_from_lines(
     config: LLMConfig,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> str:
     """Generate a complete poem from line seeds.
 
@@ -310,6 +300,8 @@ async def build_poem_from_lines(
         project: The full project context.
         config: LLM configuration.
         expected_language: ISO 639-1 code for language enforcement.
+        on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         Complete poem text.
@@ -329,27 +321,16 @@ async def build_poem_from_lines(
         result = await agent.run(user_prompt)
         return cast(PoemProseOutput, result.output)
 
-    correct_cb: Callable[[int, PoemProseOutput], Awaitable[PoemProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: PoemProseOutput) -> PoemProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(PoemProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(PoemProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: PoemProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=PoemProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=lambda o: o.content,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     return prose_output.content
@@ -398,6 +379,7 @@ async def build_enhanced_scene(
     prior_hooks: list[str] | None = None,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> SceneOutput:
     """Generate enhanced prose for a single scene with hooks and beat-level tracking.
 
@@ -410,6 +392,7 @@ async def build_enhanced_scene(
         prior_hooks: Previous scene hooks for diversity.
         expected_language: ISO 639-1 code for language enforcement.
         on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         SceneOutput with hook, beat-level prose, and assembled content.
@@ -435,27 +418,16 @@ async def build_enhanced_scene(
         result = await agent.run(user_prompt)
         return cast(EnhancedSceneProseOutput, result.output)
 
-    correct_cb: Callable[[int, EnhancedSceneProseOutput], Awaitable[EnhancedSceneProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: EnhancedSceneProseOutput) -> EnhancedSceneProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(EnhancedSceneProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(EnhancedSceneProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: EnhancedSceneProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=EnhancedSceneProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=extract_enhanced_scene_text,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     # Assemble content from beats
@@ -485,6 +457,7 @@ async def build_enhanced_fragment(
     prior_hooks: list[str] | None = None,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> FragmentOutput:
     """Generate enhanced prose for a micro-prose fragment with opening hook.
 
@@ -496,6 +469,7 @@ async def build_enhanced_fragment(
         prior_hooks: Previous fragment hooks for diversity.
         expected_language: ISO 639-1 code for language enforcement.
         on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         FragmentOutput with hook and generated prose content.
@@ -514,27 +488,16 @@ async def build_enhanced_fragment(
         result = await agent.run(user_prompt)
         return cast(EnhancedFragmentProseOutput, result.output)
 
-    correct_cb: Callable[[int, EnhancedFragmentProseOutput], Awaitable[EnhancedFragmentProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: EnhancedFragmentProseOutput) -> EnhancedFragmentProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(EnhancedFragmentProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(EnhancedFragmentProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: EnhancedFragmentProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=EnhancedFragmentProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=extract_enhanced_fragment_text,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     return FragmentOutput(
@@ -553,6 +516,7 @@ async def build_enhanced_stanza(
     prior_hooks: list[str] | None = None,
     expected_language: str | None = None,
     on_language_correction: Callable[[str, str, int], None] | None = None,
+    on_json_error: Callable[[JsonErrorType, str, int], None] | None = None,
 ) -> StanzaOutput:
     """Generate enhanced lines for a poem stanza with optional opening hook.
 
@@ -564,6 +528,7 @@ async def build_enhanced_stanza(
         prior_hooks: Previous stanza hooks for diversity.
         expected_language: ISO 639-1 code for language enforcement.
         on_language_correction: Callback for language correction notifications.
+        on_json_error: Callback for JSON error notifications.
 
     Returns:
         StanzaOutput with optional hook and generated lines.
@@ -585,27 +550,16 @@ async def build_enhanced_stanza(
         result = await agent.run(user_prompt)
         return cast(EnhancedStanzaProseOutput, result.output)
 
-    correct_cb: Callable[[int, EnhancedStanzaProseOutput], Awaitable[EnhancedStanzaProseOutput]] | None = None
-    if expected_language:
-
-        async def _correct(attempt: int, previous_output: EnhancedStanzaProseOutput) -> EnhancedStanzaProseOutput:
-            original_json = previous_output.model_dump_json(indent=2)
-            correction_prompt = build_language_correction_prompt(expected_language, original_json)
-            guard_prompt = build_language_guard_prompt(expected_language)
-            correction_system = f"{system_prompt}\n\n{guard_prompt}"
-            agent = create_agent(EnhancedStanzaProseOutput, correction_system, config)
-            result = await agent.run(correction_prompt)
-            return cast(EnhancedStanzaProseOutput, result.output)
-
-        correct_cb = _correct
-
-    prose_output: EnhancedStanzaProseOutput
-    prose_output, _ = await run_with_language_guard(
+    prose_output, _ = await run_with_guards(
         runner=runner,
+        result_type=EnhancedStanzaProseOutput,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        llm_config=config,
         extract_text=extract_enhanced_stanza_text,
         expected_language=expected_language,
-        correct=correct_cb,
-        on_correction=on_language_correction,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
 
     content = "\n".join(prose_output.lines)
