@@ -86,6 +86,11 @@ _EMPTY_RESPONSE_PATTERNS = [
     r"content is empty",
 ]
 
+_HTTP_CLIENT_ERROR_PATTERNS = [
+    r"status_code: 404",
+    r"status_code: 422",
+]
+
 
 def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
     """Classify a JSON-related exception into error type and message.
@@ -98,6 +103,11 @@ def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
     """
     error_str = str(exc).lower()
     error_message = str(exc)
+
+    # Check for HTTP client errors first (non-retryable)
+    for pattern in _HTTP_CLIENT_ERROR_PATTERNS:
+        if re.search(pattern, error_str):
+            return JsonErrorType.HTTP_CLIENT_ERROR, error_message
 
     # Check for empty response first (most specific for API errors)
     for pattern in _EMPTY_RESPONSE_PATTERNS:
@@ -136,6 +146,18 @@ def classify_json_error(exc: Exception) -> tuple[JsonErrorType, str]:
 
     # Default to invalid syntax
     return JsonErrorType.INVALID_SYNTAX, error_message
+
+
+def is_non_retryable_error(error_type: JsonErrorType) -> bool:
+    """Check if an error type should not be retried.
+
+    Args:
+        error_type: The classified error type.
+
+    Returns:
+        True if the error should not be retried (exit immediately).
+    """
+    return error_type == JsonErrorType.HTTP_CLIENT_ERROR
 
 
 async def _maybe_await(value: T | Awaitable[T]) -> T:
@@ -197,6 +219,10 @@ async def run_with_json_guard(
             last_error = exc
             last_error_type, last_error_message = classify_json_error(exc)
 
+            # Non-retryable errors exit immediately
+            if is_non_retryable_error(last_error_type):
+                raise last_error from last_error
+
             # Notify callback if provided
             if on_error is not None:
                 on_error(last_error_type, last_error_message, attempt + 1)
@@ -222,5 +248,6 @@ __all__ = [
     "JsonGuardConfig",
     "JsonGuardResult",
     "classify_json_error",
+    "is_non_retryable_error",
     "run_with_json_guard",
 ]
