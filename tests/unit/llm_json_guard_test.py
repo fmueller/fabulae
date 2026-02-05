@@ -160,6 +160,24 @@ class TestClassifyJsonError:
         error_type, _ = classify_json_error(exc)
         assert error_type == JsonErrorType.INVALID_SYNTAX
 
+    def test_empty_response_nil_content_type(self) -> None:
+        """Empty response with nil content type."""
+        exc = ValueError("invalid message content type: <nil>")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.EMPTY_RESPONSE
+
+    def test_empty_response_no_content(self) -> None:
+        """Empty response with no content message."""
+        exc = ValueError("no content in response")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.EMPTY_RESPONSE
+
+    def test_empty_response_empty_message(self) -> None:
+        """Empty response with empty message content."""
+        exc = ValueError("message content is empty")
+        error_type, _ = classify_json_error(exc)
+        assert error_type == JsonErrorType.EMPTY_RESPONSE
+
     def test_extracts_error_message(self) -> None:
         """Error message is extracted from exception."""
         exc = ValueError("Something went wrong")
@@ -388,3 +406,21 @@ class TestRunWithJsonGuard:
 
         assert result == success_output
         assert guard_result.passed is True
+
+    def test_retry_on_empty_response(self) -> None:
+        """Retries on empty response error."""
+        empty_error = ValueError("invalid message content type: <nil>")
+        success_output = SimpleOutput(content="Fixed")
+
+        result, guard_result, tracker = _run_guard(
+            result_type=SimpleOutput,
+            system_prompt="test system",
+            user_prompt="test user",
+            runner_results=[empty_error, success_output],
+            config=JsonGuardConfig(max_retries=2),
+        )
+
+        assert result == success_output
+        assert guard_result.passed is True
+        assert len(tracker.error_callbacks) == 1
+        assert tracker.error_callbacks[0][0] == JsonErrorType.EMPTY_RESPONSE

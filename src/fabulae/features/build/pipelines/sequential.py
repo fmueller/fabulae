@@ -23,6 +23,7 @@ from fabulae.features.build.schemas import (
 )
 from fabulae.features.create.progress import CreateProgress
 from fabulae.llm import LLMConfig
+from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig
 from fabulae.models import Project, Scene
 
 
@@ -47,12 +48,27 @@ def _make_language_correction_callback(
     return notify
 
 
+def _make_json_error_callback(
+    progress: CreateProgress | None,
+    max_retries: int = 2,
+) -> Callable[[JsonErrorType, str, int], None] | None:
+    """Create a callback to notify user of JSON error retries."""
+    if progress is None:
+        return None
+
+    def notify(error_type: JsonErrorType, _error_msg: str, attempt: int) -> None:
+        progress.info(f"JSON error ({error_type.name}), retrying (attempt {attempt}/{max_retries})...")
+
+    return notify
+
+
 async def build_chaptered_sequential(
     project: Project,
     config: LLMConfig,
     options: BuildOptions,
     progress: CreateProgress | None,
     expected_language: str | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[ChapterOutput], list[str]]:
     """Build chaptered format (novel/novella) with sliding window context.
 
@@ -62,6 +78,7 @@ async def build_chaptered_sequential(
         options: Build options including enhanced mode and window size.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
+        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (chapter outputs, prior summaries for full context).
@@ -74,7 +91,9 @@ async def build_chaptered_sequential(
     prior_hooks: list[str] = []
     total_scenes = sum(len(ch.scene_ids or []) for ch in project.plot.chapters)
     scene_count = 0
+    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = _make_language_correction_callback(progress)
+    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     for chapter in project.plot.chapters:
@@ -104,6 +123,7 @@ async def build_chaptered_sequential(
                     prior_hooks=prior_hooks[-window_size:],
                     expected_language=expected_language,
                     on_language_correction=on_language_correction,
+                    on_json_error=on_json_error,
                 )
                 # Track hook for diversity
                 if scene_output.hook:
@@ -120,12 +140,13 @@ async def build_chaptered_sequential(
                     chapter_id=chapter.id,
                     expected_language=expected_language,
                     on_language_correction=on_language_correction,
+                    on_json_error=on_json_error,
                 )
 
             chapter_scenes.append(scene_output)
 
             # Generate continuity summary
-            summary = await generate_continuity_summary(scene_output.content, config)
+            summary = await generate_continuity_summary(scene_output.content, config, on_json_error=on_json_error)
             prior_summaries.append(summary)
 
         chapter_output = ChapterOutput(
@@ -146,6 +167,7 @@ async def build_scenes_sequential(
     options: BuildOptions,
     progress: CreateProgress | None,
     expected_language: str | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[SceneOutput], list[str]]:
     """Build short-story format (scenes without chapters) with sliding window context.
 
@@ -155,6 +177,7 @@ async def build_scenes_sequential(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
+        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (scene outputs, prior summaries).
@@ -163,7 +186,9 @@ async def build_scenes_sequential(
     prior_summaries: list[str] = []
     prior_hooks: list[str] = []
     total_scenes = len(project.plot.scenes)
+    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = _make_language_correction_callback(progress)
+    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     # Determine scene order
@@ -187,6 +212,7 @@ async def build_scenes_sequential(
                 prior_hooks=prior_hooks[-window_size:],
                 expected_language=expected_language,
                 on_language_correction=on_language_correction,
+                on_json_error=on_json_error,
             )
             if scene_output.hook:
                 prior_hooks.append(scene_output.hook.content)
@@ -198,12 +224,13 @@ async def build_scenes_sequential(
                 config=config,
                 expected_language=expected_language,
                 on_language_correction=on_language_correction,
+                on_json_error=on_json_error,
             )
 
         scenes.append(scene_output)
 
         # Generate continuity summary
-        summary = await generate_continuity_summary(scene_output.content, config)
+        summary = await generate_continuity_summary(scene_output.content, config, on_json_error=on_json_error)
         prior_summaries.append(summary)
 
     return scenes, prior_summaries
@@ -215,6 +242,7 @@ async def build_micro_prose_sequential(
     options: BuildOptions,
     progress: CreateProgress | None,
     expected_language: str | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
 ) -> list[FragmentOutput]:
     """Build micro-prose format (fragments) with sliding window context.
 
@@ -224,6 +252,7 @@ async def build_micro_prose_sequential(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
+        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         List of fragment outputs.
@@ -232,7 +261,9 @@ async def build_micro_prose_sequential(
     prior_contents: list[str] = []
     prior_hooks: list[str] = []
     total_fragments = len(project.plot.fragments)
+    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = _make_language_correction_callback(progress)
+    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     for i, fragment in enumerate(project.plot.fragments, 1):
@@ -248,6 +279,7 @@ async def build_micro_prose_sequential(
                 prior_hooks=prior_hooks[-window_size:],
                 expected_language=expected_language,
                 on_language_correction=on_language_correction,
+                on_json_error=on_json_error,
             )
             if fragment_output.hook:
                 prior_hooks.append(fragment_output.hook.content)
@@ -259,6 +291,7 @@ async def build_micro_prose_sequential(
                 config=config,
                 expected_language=expected_language,
                 on_language_correction=on_language_correction,
+                on_json_error=on_json_error,
             )
 
         fragments.append(fragment_output)
@@ -273,6 +306,7 @@ async def build_poem_sequential(
     options: BuildOptions,
     progress: CreateProgress | None,
     expected_language: str | None = None,
+    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[StanzaOutput] | None, str | None]:
     """Build poem format (stanzas or lines) with sliding window context.
 
@@ -282,11 +316,14 @@ async def build_poem_sequential(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
+        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (stanza outputs or None, poem text or None).
     """
+    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = _make_language_correction_callback(progress)
+    on_json_error = _make_json_error_callback(progress, resolved_json_config.max_retries)
     window_size = options.sliding_window_size
 
     # If we have stanzas, generate them individually
@@ -309,6 +346,7 @@ async def build_poem_sequential(
                     prior_hooks=prior_hooks[-window_size:],
                     expected_language=expected_language,
                     on_language_correction=on_language_correction,
+                    on_json_error=on_json_error,
                 )
                 if stanza_output.hook:
                     prior_hooks.append(stanza_output.hook.content)
@@ -320,6 +358,7 @@ async def build_poem_sequential(
                     config=config,
                     expected_language=expected_language,
                     on_language_correction=on_language_correction,
+                    on_json_error=on_json_error,
                 )
 
             stanzas.append(stanza_output)
@@ -332,7 +371,11 @@ async def build_poem_sequential(
         progress.console.print("  [dim]Building poem...[/dim]")
 
     poem_text = await build_poem_from_lines(
-        project, config, expected_language=expected_language, on_language_correction=on_language_correction
+        project,
+        config,
+        expected_language=expected_language,
+        on_language_correction=on_language_correction,
+        on_json_error=on_json_error,
     )
     return None, poem_text
 

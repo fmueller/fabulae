@@ -1,12 +1,12 @@
-"""Tests for create CLI functions."""
+"""Tests for model detection utilities."""
 
 import pytest
 
-from fabulae.features.create.cli import _SMALL_MODEL_THRESHOLD_B, _is_small_model
+from fabulae.llm.models import SMALL_MODEL_THRESHOLD_B, is_small_model
 
 
 class TestIsSmallModel:
-    """Tests for _is_small_model function."""
+    """Tests for is_small_model function."""
 
     @pytest.mark.parametrize(
         "model_name,expected",
@@ -45,8 +45,8 @@ class TestIsSmallModel:
     )
     def test_is_small_model(self, model_name: str, expected: bool) -> None:
         """Test small model detection for various model names."""
-        assert _is_small_model(model_name) == expected, f"Expected {expected} for {model_name}"
+        assert is_small_model(model_name) == expected, f"Expected {expected} for {model_name}"
 
     def test_threshold_is_13b(self) -> None:
         """Test that the threshold is set to 13B."""
-        assert _SMALL_MODEL_THRESHOLD_B == 13
+        assert SMALL_MODEL_THRESHOLD_B == 13

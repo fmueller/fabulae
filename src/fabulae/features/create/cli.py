@@ -22,38 +22,8 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
+from fabulae.llm.models import SMALL_MODEL_THRESHOLD_B, is_small_model
 from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, sanitize_project, save_project
-
-# Patterns that indicate a small model that may struggle with structured output
-_SMALL_MODEL_PATTERNS = [
-    r"[:\-](\d+(?:\.\d+)?)b\b",  # Matches :1.7b, :3b, :10b, -7b, etc.
-    r"mini",
-    r"tiny",
-    r"small",
-]
-
-# Threshold for "small" model in billions of parameters
-_SMALL_MODEL_THRESHOLD_B = 13
-
-
-def _is_small_model(model_name: str) -> bool:
-    """Check if a model name suggests it's a small model (<13B parameters)."""
-    model_lower = model_name.lower()
-    for pattern in _SMALL_MODEL_PATTERNS:
-        match = re.search(pattern, model_lower)
-        if match:
-            # For numeric patterns, check if < threshold
-            if match.lastindex and match.lastindex >= 1:
-                try:
-                    size = float(match.group(1))
-                    if size < _SMALL_MODEL_THRESHOLD_B:
-                        return True
-                except ValueError:
-                    pass
-            else:
-                # Non-numeric patterns like "mini", "tiny", "small"
-                return True
-    return False
 
 
 def _format_generation_error(exc: CreateProjectError, model_name: str) -> str:
@@ -67,7 +37,7 @@ def _format_generation_error(exc: CreateProjectError, model_name: str) -> str:
     lines = [f"Generation failed: {guidance}"]
 
     # Add model-specific hints
-    if error_type in {ErrorType.JSON_TRUNCATED, ErrorType.JSON_PARSE_ERROR} and _is_small_model(model_name):
+    if error_type in {ErrorType.JSON_TRUNCATED, ErrorType.JSON_PARSE_ERROR} and is_small_model(model_name):
         lines.append(f"Note: The model '{model_name}' may be too small for complex structured output.")
         lines.append("Consider using a larger model (e.g., 13B+ parameters).")
 
@@ -261,7 +231,7 @@ def register_create_command(app: typer.Typer) -> None:
         config = resolve_config(model, None, None, temperature, seed)
 
         progress = CreateProgress()
-        is_small = _is_small_model(config.model)
+        is_small = is_small_model(config.model)
 
         # Determine effective settings based on model size
         # Auto: disable enrichment for small models to reduce context pressure
@@ -297,7 +267,7 @@ def register_create_command(app: typer.Typer) -> None:
                 optimizations.append("sequential pipeline")
                 overrides.append("--pipeline batch")
             if optimizations:
-                msg = f"Small model detected (<{_SMALL_MODEL_THRESHOLD_B}B): using {', '.join(optimizations)}."
+                msg = f"Small model detected (<{SMALL_MODEL_THRESHOLD_B}B): using {', '.join(optimizations)}."
                 if overrides:
                     msg += f" Override with {'/'.join(overrides)}."
                 progress.info(msg)
