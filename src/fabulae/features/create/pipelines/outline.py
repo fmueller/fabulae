@@ -56,6 +56,7 @@ from fabulae.features.create.shapes.loader import load_shape, load_shape_from_fi
 from fabulae.features.create.shapes.selector import select_shape_for_idea
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     Chapter,
     Character,
@@ -185,6 +186,10 @@ async def generate_outline_only(
 
     format_name = cast(LiteratureFormat, format)
 
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # =========================================================================
     # Phase 1: Style Determination
     # =========================================================================
@@ -203,6 +208,8 @@ async def generate_outline_only(
             extract_text=_extract_text_from_style,
             validate=_validate_style_output(expected_language),
             error_mode=ErrorMode.WARN,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -270,6 +277,8 @@ async def generate_outline_only(
             extract_text=_extract_text_from_outline,
             validate=_validate_outline_output,
             error_mode=ErrorMode.WARN,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         outline = outline_result.output
 

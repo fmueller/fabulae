@@ -31,6 +31,7 @@ from fabulae.features.create.state import GenerationState
 from fabulae.features.create.validation import validate_id_unchanged
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     GenerationMetadata,
     LiteratureFormat,
@@ -77,6 +78,10 @@ async def generate_poem(
     stanza_range = count_ranges["stanzas"]
     line_range = count_ranges["lines"]
 
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, options.idea_language, language_config)
@@ -94,6 +99,8 @@ async def generate_poem(
             expected_language=expected_language,
             extract_text=lambda s: s.language or "",
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -158,6 +165,10 @@ async def _generate_poem_inner(
     gen_state: GenerationState,
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # Step 2: Generate Poem Plan (structure, stanza count, form)
     with maybe_stage(progress, "Planning poem structure..."):
         system_prompt_plan = build_poem_plan_prompt(
@@ -176,6 +187,8 @@ async def _generate_poem_inner(
             expected_language=expected_language,
             extract_text=lambda p: p.premise,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         poem_plan = poem_plan_result.output
 
@@ -260,6 +273,8 @@ async def _generate_poem_inner(
                 extract_text=lambda s: "\n".join(s.lines),
                 validate=validate_stanza,
                 error_mode=ErrorMode.STRICT,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
             stanza_output = stanza_result.output
 

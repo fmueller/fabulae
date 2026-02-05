@@ -53,6 +53,7 @@ from fabulae.features.create.shutdown import graceful_shutdown
 from fabulae.features.create.state import GenerationState
 from fabulae.llm import LLMConfig
 from fabulae.llm.language_guard import LanguageGuardConfig
+from fabulae.llm.models import make_json_error_callback
 from fabulae.models import (
     Fragment,
     GenerationMetadata,
@@ -85,6 +86,10 @@ async def generate_micro_prose(
     """
     format_name: LiteratureFormat = "micro-prose"
 
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # Resolve language from CLI override or detect from idea
     language_config = LanguageGuardConfig()
     expected_language = _resolve_language(idea, options.idea_language, language_config)
@@ -114,6 +119,8 @@ async def generate_micro_prose(
             normalize=None,
             validate=_validate_style_output(expected_language),
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         style_output = style_result.output
 
@@ -177,6 +184,10 @@ async def _generate_micro_prose_inner(
     gen_state: GenerationState,
 ) -> Project:
     """Inner generation logic wrapped by graceful shutdown handler."""
+    # Configure JSON guard with more retries for small models
+    json_guard_config = options.json_guard_config
+    on_json_error = make_json_error_callback(progress, json_guard_config.max_retries)
+
     # Step 2: Generate Fragment Plan
     with maybe_stage(progress, "Planning fragments..."):
         fragment_count_range = _count_range(format_name, "fragments")
@@ -200,6 +211,8 @@ async def _generate_micro_prose_inner(
             normalize=None,
             validate=_validate_fragment_plan_output,
             error_mode=ErrorMode.STRICT,
+            on_json_error=on_json_error,
+            json_guard_config=json_guard_config,
         )
         fragment_plan_output = fragment_plan_result.output
 
@@ -254,6 +267,8 @@ async def _generate_micro_prose_inner(
                 normalize=None,
                 validate=validate_fragment,
                 error_mode=ErrorMode.STRICT,
+                on_json_error=on_json_error,
+                json_guard_config=json_guard_config,
             )
             fragment_output = fragment_result.output
             fragment = Fragment.model_validate(fragment_output.model_dump(exclude_none=True))
