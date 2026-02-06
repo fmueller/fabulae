@@ -229,7 +229,7 @@ class TestCreateProgress:
         progress.warn("Something might be wrong")
 
         result = output.getvalue()
-        assert "Warning:" in result
+        assert "⚠" in result
         assert "Something might be wrong" in result
 
     def test_error_message(self) -> None:

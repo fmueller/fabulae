@@ -174,7 +174,7 @@ class CreateProgress:
 
     def warn(self, message: str) -> None:
         """Display a warning message in yellow."""
-        self.console.print(f"[yellow]Warning:[/yellow] {message}")
+        self.console.print(f"[yellow]⚠[/yellow] {message}")
 
     def error(self, message: str) -> None:
         """Display an error message with red X."""

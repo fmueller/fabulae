@@ -40,7 +40,7 @@ def test_create_progress_warn() -> None:
     progress.warn("Count outside expected range")
 
     output = buffer.getvalue()
-    assert "Warning:" in output
+    assert "⚠" in output
     assert "Count outside expected range" in output
 
 

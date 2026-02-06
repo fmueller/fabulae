@@ -74,18 +74,22 @@ class TestMakeJsonErrorCallback:
         class MockProgress:
             def __init__(self) -> None:
                 self.messages: list[str] = []
+                self.warnings: list[str] = []
 
             def info(self, message: str) -> None:
                 self.messages.append(message)
+
+            def warn(self, message: str) -> None:
+                self.warnings.append(message)
 
         progress = MockProgress()
         callback = make_json_error_callback(progress, 2)
         assert callback is not None
 
         callback(JsonErrorType.PREAMBLE_TEXT, "error", 2)
-        assert len(progress.messages) == 1
-        assert "PREAMBLE_TEXT" in progress.messages[0]
-        assert "2/2" in progress.messages[0]
+        assert len(progress.warnings) == 1
+        assert "PREAMBLE_TEXT" in progress.warnings[0]
+        assert "2/2" in progress.warnings[0]
 
 
 class TestSmallModelMessage:
@@ -124,15 +128,19 @@ class TestMakeLanguageCorrectionCallback:
         class MockProgress:
             def __init__(self) -> None:
                 self.messages: list[str] = []
+                self.warnings: list[str] = []
 
             def info(self, message: str) -> None:
                 self.messages.append(message)
+
+            def warn(self, message: str) -> None:
+                self.warnings.append(message)
 
         progress = MockProgress()
         callback = make_language_correction_callback(progress)
         assert callback is not None
 
         callback("en", "de", 1)
-        assert len(progress.messages) == 1
-        assert "en" in progress.messages[0]
-        assert "de" in progress.messages[0]
+        assert len(progress.warnings) == 1
+        assert "en" in progress.warnings[0]
+        assert "de" in progress.warnings[0]
