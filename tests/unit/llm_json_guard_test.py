@@ -446,6 +446,30 @@ class TestRunWithJsonGuard:
         assert tracker.error_callbacks[1][2] == 2  # second attempt
         assert guard_result.attempts == 3
 
+    def test_callback_not_invoked_on_final_exhausted_attempt(self) -> None:
+        """on_error callback is NOT invoked when retries are exhausted (no retry follows)."""
+        error = ValueError("Unexpected end of JSON input")
+
+        callback_data: list[tuple[JsonErrorType, str, int]] = []
+
+        def on_error(error_type: JsonErrorType, error_msg: str, attempt: int) -> None:
+            callback_data.append((error_type, error_msg, attempt))
+
+        with pytest.raises(ValueError, match="Unexpected end"):
+            _run_guard(
+                result_type=SimpleOutput,
+                system_prompt="test system",
+                user_prompt="test user",
+                runner_results=[error, error, error],  # 3 failures, max_retries=2
+                config=JsonGuardConfig(max_retries=2),
+                on_error=on_error,
+            )
+
+        # Only 2 callbacks (attempt 1 and 2), NOT 3 — the final failure raises without callback
+        assert len(callback_data) == 2
+        assert callback_data[0][2] == 1
+        assert callback_data[1][2] == 2
+
     def test_default_config_used_when_none(self) -> None:
         """Default config is used when config is None."""
         error = ValueError("Unexpected end")

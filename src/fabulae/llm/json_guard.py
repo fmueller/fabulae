@@ -222,14 +222,14 @@ async def run_with_json_guard(
             if is_non_retryable_error(last_error_type):
                 raise last_error from last_error
 
-            # Notify callback if provided
-            if on_error is not None:
-                on_error(last_error_type, last_error_message, attempt + 1)
-
             attempt += 1
             if attempt > resolved_config.max_retries:
                 # Re-raise the original exception
                 raise last_error from last_error
+
+            # Notify callback if provided (only when an actual retry will follow)
+            if on_error is not None:
+                on_error(last_error_type, last_error_message, attempt)
 
             # Build correction prompt for next attempt
             # Note: For the test implementation, we don't actually modify

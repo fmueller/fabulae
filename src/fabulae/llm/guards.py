@@ -143,14 +143,14 @@ async def run_with_guards(
                 if is_non_retryable_error(error_type):
                     raise last_error from last_error
 
-                # Notify callback
-                if on_json_error is not None:
-                    on_json_error(error_type, error_message, local_attempt + 1)
-
                 local_attempt += 1
                 if local_attempt > max_retries:
                     json_attempts = local_attempt
                     raise last_error from last_error
+
+                # Notify callback (only when an actual retry will follow)
+                if on_json_error is not None:
+                    on_json_error(error_type, error_message, local_attempt)
 
         # Should not reach here
         raise last_error if last_error else RuntimeError("Unexpected state")
