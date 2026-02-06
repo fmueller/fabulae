@@ -633,7 +633,7 @@ Generate compelling titles and summaries that:
         expected_language=expected_language,
         extract_text=extract_text,
         validate=validate_output,
-        max_retries=3,
+        max_retries=2,
         on_json_error=on_json_error,
         json_guard_config=json_guard_config,
     )
