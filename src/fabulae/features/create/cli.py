@@ -22,7 +22,7 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
-from fabulae.llm.models import SMALL_MODEL_THRESHOLD_B, is_small_model
+from fabulae.llm.models import is_small_model, small_model_message
 from fabulae.models import AVAILABLE_FORMATS, LiteratureFormat, sanitize_project, save_project
 
 
@@ -258,19 +258,13 @@ def register_create_command(app: typer.Typer) -> None:
 
         # Show small model optimizations info
         if is_small:
-            optimizations = []
-            overrides = []
-            if enrich is None:
-                optimizations.append("enrichment disabled")
-                overrides.append("--enrich")
+            optimizations: list[tuple[str, str]] = []
             if pipeline is None:
-                optimizations.append("sequential pipeline")
-                overrides.append("--pipeline batch")
+                optimizations.append(("sequential pipeline", "--pipeline batch"))
+            if enrich is None:
+                optimizations.append(("enrichment disabled", "--enrich"))
             if optimizations:
-                msg = f"Small model detected (<{SMALL_MODEL_THRESHOLD_B}B): using {', '.join(optimizations)}."
-                if overrides:
-                    msg += f" Override with {'/'.join(overrides)}."
-                progress.info(msg)
+                progress.info(small_model_message(optimizations))
             # Only warn about JSON issues if user explicitly chose batch pipeline or enrichment
             if pipeline == "batch" or enrich is True:
                 progress.warn(

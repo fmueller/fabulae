@@ -19,7 +19,7 @@ from fabulae.history.manager import HistoryManager
 from fabulae.history.models import ActionType
 from fabulae.history.state import get_history_enabled
 from fabulae.llm import resolve_config
-from fabulae.llm.models import get_json_guard_config, is_small_model
+from fabulae.llm.models import is_small_model, small_model_message
 from fabulae.models import load_project
 
 
@@ -126,10 +126,6 @@ def register_build_command(app: typer.Typer) -> None:
             enhanced=actual_enhanced,
         )
 
-        # Configure JSON guard with more retries for small models
-        json_guard_config = get_json_guard_config(config.model)
-        max_retries = json_guard_config.max_retries
-
         progress.info(f"Building {format_type}: {project_title}")
         progress.info(f"Model: {config.model}, Temperature: {config.temperature}")
         progress.info(f"Pipeline: {actual_pipeline}, Enhanced: {actual_enhanced}")
@@ -137,10 +133,7 @@ def register_build_command(app: typer.Typer) -> None:
             progress.info(f"Seed: {seed}")
 
         if is_small and pipeline is None:
-            progress.warn(
-                f"Small model detected ({config.model}). "
-                f"Using sequential pipeline with {max_retries} retries. Override with --pipeline batch if desired."
-            )
+            progress.info(small_model_message([("sequential pipeline", "--pipeline batch")]))
 
         # Set up history tracking
         history_manager = HistoryManager(project_dir, enabled=get_history_enabled())
@@ -169,9 +162,7 @@ def register_build_command(app: typer.Typer) -> None:
             ):
                 with progress.task("Generating narrative..."):
                     result = asyncio.run(
-                        build_project(
-                            project, config, seed, progress, expected_language, build_options, json_guard_config
-                        )
+                        build_project(project, config, seed, progress, expected_language, build_options)
                     )
 
                 with progress.task("Writing output files..."):
