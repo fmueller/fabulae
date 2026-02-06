@@ -21,8 +21,7 @@ from fabulae.features.build.schemas import (
     StanzaOutput,
 )
 from fabulae.llm import LLMConfig
-from fabulae.llm.json_guard import JsonGuardConfig
-from fabulae.llm.models import make_json_error_callback, make_language_correction_callback
+from fabulae.llm.models import DEFAULT_JSON_RETRIES, make_json_error_callback, make_language_correction_callback
 from fabulae.models import Project, Scene
 
 
@@ -40,7 +39,6 @@ async def build_chaptered_batch(
     options: BuildOptions,
     progress: BuildProgress | None,
     expected_language: str | None = None,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[ChapterOutput], list[str]]:
     """Build chaptered format (novel/novella) with full context.
 
@@ -53,7 +51,6 @@ async def build_chaptered_batch(
         options: Build options including enhanced mode.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
-        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (chapter outputs, all prior summaries).
@@ -66,9 +63,8 @@ async def build_chaptered_batch(
     prior_hooks: list[str] = []
     total_scenes = sum(len(ch.scene_ids or []) for ch in project.plot.chapters)
     scene_count = 0
-    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = make_language_correction_callback(progress)
-    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_json_error = make_json_error_callback(progress, DEFAULT_JSON_RETRIES)
 
     for chapter in project.plot.chapters:
         if not chapter.scene_ids:
@@ -140,7 +136,6 @@ async def build_scenes_batch(
     options: BuildOptions,
     progress: BuildProgress | None,
     expected_language: str | None = None,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[SceneOutput], list[str]]:
     """Build short-story format (scenes without chapters) with full context.
 
@@ -150,7 +145,6 @@ async def build_scenes_batch(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
-        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (scene outputs, all prior summaries).
@@ -159,9 +153,8 @@ async def build_scenes_batch(
     prior_summaries: list[str] = []
     prior_hooks: list[str] = []
     total_scenes = len(project.plot.scenes)
-    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = make_language_correction_callback(progress)
-    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_json_error = make_json_error_callback(progress, DEFAULT_JSON_RETRIES)
 
     # Determine scene order
     scene_order = project.plot.scene_ids or [s.id for s in project.plot.scenes]
@@ -215,7 +208,6 @@ async def build_micro_prose_batch(
     options: BuildOptions,
     progress: BuildProgress | None,
     expected_language: str | None = None,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> list[FragmentOutput]:
     """Build micro-prose format (fragments) with full context.
 
@@ -225,7 +217,6 @@ async def build_micro_prose_batch(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
-        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         List of fragment outputs.
@@ -234,9 +225,8 @@ async def build_micro_prose_batch(
     prior_contents: list[str] = []
     prior_hooks: list[str] = []
     total_fragments = len(project.plot.fragments)
-    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = make_language_correction_callback(progress)
-    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_json_error = make_json_error_callback(progress, DEFAULT_JSON_RETRIES)
 
     for i, fragment in enumerate(project.plot.fragments, 1):
         if progress:
@@ -279,7 +269,6 @@ async def build_poem_batch(
     options: BuildOptions,
     progress: BuildProgress | None,
     expected_language: str | None = None,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> tuple[list[StanzaOutput] | None, str | None]:
     """Build poem format (stanzas or lines) with full context.
 
@@ -289,14 +278,12 @@ async def build_poem_batch(
         options: Build options.
         progress: Progress display.
         expected_language: ISO 639-1 code for language enforcement.
-        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         Tuple of (stanza outputs or None, poem text or None).
     """
-    resolved_json_config = json_guard_config or JsonGuardConfig()
     on_language_correction = make_language_correction_callback(progress)
-    on_json_error = make_json_error_callback(progress, resolved_json_config.max_retries)
+    on_json_error = make_json_error_callback(progress, DEFAULT_JSON_RETRIES)
 
     # If we have stanzas, generate them individually
     if project.plot.stanzas:

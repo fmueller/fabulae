@@ -27,7 +27,6 @@ from fabulae.features.build.schemas import (
     SceneOutput,
 )
 from fabulae.llm import LLMConfig
-from fabulae.llm.json_guard import JsonGuardConfig
 from fabulae.models import Project
 
 
@@ -81,7 +80,6 @@ async def _build_chaptered(
     progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> BuildOutput:
     """Build prose for chaptered formats (novel, novella)."""
     if not project.plot.chapters:
@@ -90,17 +88,13 @@ async def _build_chaptered(
                 "No chapters found — building scenes without chapter structure. "
                 "Add chapters to plot.yml for chaptered output."
             )
-        return await _build_short_story(project, config, seed, progress, expected_language, options, json_guard_config)
+        return await _build_short_story(project, config, seed, progress, expected_language, options)
 
     # Choose pipeline based on options
     if options.pipeline == "batch":
-        chapters, _ = await build_chaptered_batch(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        chapters, _ = await build_chaptered_batch(project, config, options, progress, expected_language)
     else:
-        chapters, _ = await build_chaptered_sequential(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        chapters, _ = await build_chaptered_sequential(project, config, options, progress, expected_language)
 
     full_text = _combine_chapters(chapters)
     return BuildOutput(
@@ -118,16 +112,13 @@ async def _build_short_story(
     progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> BuildOutput:
     """Build prose for short-story format (scenes without chapters)."""
     # Choose pipeline based on options
     if options.pipeline == "batch":
-        scenes, _ = await build_scenes_batch(project, config, options, progress, expected_language, json_guard_config)
+        scenes, _ = await build_scenes_batch(project, config, options, progress, expected_language)
     else:
-        scenes, _ = await build_scenes_sequential(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        scenes, _ = await build_scenes_sequential(project, config, options, progress, expected_language)
 
     full_text = _combine_scenes(scenes)
     return BuildOutput(
@@ -145,18 +136,13 @@ async def _build_micro_prose(
     progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> BuildOutput:
     """Build prose for micro-prose format (fragments)."""
     # Choose pipeline based on options
     if options.pipeline == "batch":
-        fragments = await build_micro_prose_batch(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        fragments = await build_micro_prose_batch(project, config, options, progress, expected_language)
     else:
-        fragments = await build_micro_prose_sequential(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        fragments = await build_micro_prose_sequential(project, config, options, progress, expected_language)
 
     full_text = "\n\n---\n\n".join(f.content for f in fragments)
     return BuildOutput(
@@ -174,18 +160,13 @@ async def _build_poem(
     progress: BuildProgress | None,
     expected_language: str | None,
     options: BuildOptions,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> BuildOutput:
     """Build prose for poem format (stanzas or lines)."""
     # Choose pipeline based on options
     if options.pipeline == "batch":
-        stanzas, poem_text = await build_poem_batch(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        stanzas, poem_text = await build_poem_batch(project, config, options, progress, expected_language)
     else:
-        stanzas, poem_text = await build_poem_sequential(
-            project, config, options, progress, expected_language, json_guard_config
-        )
+        stanzas, poem_text = await build_poem_sequential(project, config, options, progress, expected_language)
 
     if stanzas is not None:
         full_text = "\n\n".join("\n".join(s.lines) for s in stanzas)
@@ -212,7 +193,6 @@ async def build_project(
     progress: BuildProgress | None = None,
     expected_language: str | None = None,
     options: BuildOptions | None = None,
-    json_guard_config: JsonGuardConfig | None = None,
 ) -> BuildOutput:
     """Orchestrate the complete build process.
 
@@ -223,7 +203,6 @@ async def build_project(
         progress: Optional progress display.
         expected_language: ISO 639-1 code for language enforcement (e.g. 'de').
         options: Build options (pipeline mode, enhanced mode). Defaults to sequential with enhanced.
-        json_guard_config: Configuration for JSON guard (retries, etc.).
 
     Returns:
         BuildOutput with complete generated narrative.
@@ -240,13 +219,13 @@ async def build_project(
     format_type = project.plot.format or "novel"
 
     if format_type in ("novel", "novella"):
-        return await _build_chaptered(project, config, seed, progress, expected_language, options, json_guard_config)
+        return await _build_chaptered(project, config, seed, progress, expected_language, options)
     elif format_type == "short-story":
-        return await _build_short_story(project, config, seed, progress, expected_language, options, json_guard_config)
+        return await _build_short_story(project, config, seed, progress, expected_language, options)
     elif format_type == "micro-prose":
-        return await _build_micro_prose(project, config, seed, progress, expected_language, options, json_guard_config)
+        return await _build_micro_prose(project, config, seed, progress, expected_language, options)
     elif format_type == "poem":
-        return await _build_poem(project, config, seed, progress, expected_language, options, json_guard_config)
+        return await _build_poem(project, config, seed, progress, expected_language, options)
     else:
         raise ValueError(f"Unknown format: {format_type}")
 
