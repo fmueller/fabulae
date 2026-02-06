@@ -59,6 +59,10 @@ class ProgressCallback(Protocol):
         """Display an info message."""
         ...
 
+    def warn(self, message: str) -> None:
+        """Display a warning message."""
+        ...
+
 
 def make_json_error_callback(
     progress: ProgressCallback | None,
@@ -77,7 +81,7 @@ def make_json_error_callback(
         return None
 
     def notify(error_type: JsonErrorType, _error_msg: str, attempt: int) -> None:
-        progress.info(f"JSON error ({error_type.name}), retrying (attempt {attempt}/{max_retries})...")
+        progress.warn(f"JSON error ({error_type.name}), retrying (attempt {attempt}/{max_retries})...")
 
     return notify
 
@@ -97,7 +101,7 @@ def make_language_correction_callback(
         return None
 
     def notify(expected: str, detected: str, attempt: int) -> None:
-        progress.info(f"Language mismatch (expected: {expected}, got: {detected}), correcting (attempt {attempt})...")
+        progress.warn(f"Language mismatch (expected: {expected}, got: {detected}), correcting (attempt {attempt})...")
 
     return notify
 
