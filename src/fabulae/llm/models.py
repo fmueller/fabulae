@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
-from fabulae.llm.json_guard import JsonErrorType, JsonGuardConfig
+from fabulae.llm.json_guard import JsonErrorType
 
 # Patterns that indicate a small model that may struggle with structured output
 SMALL_MODEL_PATTERNS = [
@@ -19,9 +19,8 @@ SMALL_MODEL_PATTERNS = [
 # Threshold for "small" model in billions of parameters
 SMALL_MODEL_THRESHOLD_B = 13
 
-# Retry counts for JSON guard
+# Retry count for JSON guard
 DEFAULT_JSON_RETRIES = 2
-SMALL_MODEL_JSON_RETRIES = 4
 
 
 def is_small_model(model_name: str) -> bool:
@@ -49,30 +48,6 @@ def is_small_model(model_name: str) -> bool:
 
     # No explicit size found - check keyword patterns
     return any(re.search(pattern, model_lower) for pattern in SMALL_MODEL_PATTERNS[1:])
-
-
-def get_json_retries(model_name: str) -> int:
-    """Get the appropriate number of JSON retries for a model.
-
-    Args:
-        model_name: The model name to check.
-
-    Returns:
-        Number of retries (4 for small models, 2 for large models).
-    """
-    return SMALL_MODEL_JSON_RETRIES if is_small_model(model_name) else DEFAULT_JSON_RETRIES
-
-
-def get_json_guard_config(model_name: str) -> JsonGuardConfig:
-    """Get JSON guard configuration appropriate for the model size.
-
-    Args:
-        model_name: The model name to check.
-
-    Returns:
-        JsonGuardConfig with appropriate retry count.
-    """
-    return JsonGuardConfig(max_retries=get_json_retries(model_name))
 
 
 # Protocol for progress callbacks (avoids circular import with CreateProgress)
@@ -127,14 +102,30 @@ def make_language_correction_callback(
     return notify
 
 
+def small_model_message(optimizations: list[tuple[str, str]]) -> str:
+    """Build a small model detection info message.
+
+    Args:
+        optimizations: List of (description, override_flag) tuples.
+            Example: [("sequential pipeline", "--pipeline batch")]
+
+    Returns:
+        Formatted message like "Small model detected (<13B): using sequential pipeline. Override with --pipeline batch."
+    """
+    descriptions = [opt[0] for opt in optimizations]
+    overrides = [opt[1] for opt in optimizations]
+    msg = f"Small model detected (<{SMALL_MODEL_THRESHOLD_B}B): using {', '.join(descriptions)}."
+    if overrides:
+        msg += f" Override with {'/'.join(overrides)}."
+    return msg
+
+
 __all__ = [
     "DEFAULT_JSON_RETRIES",
-    "SMALL_MODEL_JSON_RETRIES",
     "SMALL_MODEL_PATTERNS",
     "SMALL_MODEL_THRESHOLD_B",
-    "get_json_guard_config",
-    "get_json_retries",
     "is_small_model",
     "make_json_error_callback",
     "make_language_correction_callback",
+    "small_model_message",
 ]
