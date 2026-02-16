@@ -58,6 +58,16 @@ This ensures `backlog board` always shows the full picture, even for spec-driven
 - CURRENT.md links to the top tasks and any active changes
 - Use `--ref` when creating backlog tasks to link specs or docs
 
+## Definition of Done
+
+Before considering a task complete:
+
+- [ ] `uv run ruff check --fix && uv run mypy && uv run pytest` passes
+- [ ] `CURRENT.md` updated ("Last"/"Next" reflect the latest state)
+- [ ] Backlog task status updated
+- [ ] `CHANGELOG.md` updated for user-facing changes
+- [ ] Commit message follows Conventional Commits
+
 ## Commits
 
 Conventional Commits format, enforced via pre-commit hook.
