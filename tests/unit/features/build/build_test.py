@@ -503,6 +503,111 @@ class TestBuildPrompts:
         assert "iambic pentameter" in prompt
         assert "ABAB" in prompt
 
+    def test_scene_system_prompt_includes_dialogue_guidelines(self) -> None:
+        """Standard scene system prompt includes dialogue craft guidelines."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+
+        assert "dialogue" in prompt.lower()
+        assert "new paragraph" in prompt.lower()
+        assert "attribution" in prompt.lower()
+
+    def test_scene_prompt_includes_character_desire_need_flaw(self) -> None:
+        """Standard scene prompt includes character desire/need/flaw (detailed=True)."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Character, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            characters=["char-01"],
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+        characters = [
+            Character(
+                id="char-01",
+                name="Alice",
+                role="protagonist",
+                desire="Find the truth",
+                need="Accept herself",
+                flaw="Stubbornness",
+            )
+        ]
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=characters,
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "Desire: Find the truth" in prompt
+        assert "Need: Accept herself" in prompt
+        assert "Flaw: Stubbornness" in prompt
+
+    def test_scene_prompt_includes_dialogue_instructions(self) -> None:
+        """Standard scene user prompt includes dialogue instructions."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "dialogue" in prompt.lower()
+        assert "new paragraph" in prompt.lower()
+
+    def test_enhanced_scene_system_prompt_includes_dialogue_guidelines(self) -> None:
+        """Enhanced scene system prompt includes dialogue craft guidelines."""
+        from fabulae.features.build.prompts import build_enhanced_scene_system_prompt
+
+        prompt = build_enhanced_scene_system_prompt(style=None)
+
+        assert "dialogue" in prompt.lower()
+        assert "new paragraph" in prompt.lower()
+        assert "attribution" in prompt.lower()
+        assert "desire" in prompt.lower()
+
+    def test_enhanced_scene_prompt_includes_dialogue_instructions(self) -> None:
+        """Enhanced scene user prompt includes dialogue formatting in beat instructions."""
+        from fabulae.features.build.prompts import build_enhanced_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_enhanced_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "new paragraph" in prompt.lower()
+        assert "attribution" in prompt.lower()
+
 
 class TestBuildService:
     """Tests for build service orchestration."""

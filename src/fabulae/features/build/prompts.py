@@ -118,6 +118,12 @@ def build_scene_system_prompt(style: Style | None) -> str:
         "Maintain consistent POV and tense throughout",
         "Create natural transitions between beats",
         "Use sensory details to ground the reader in the setting",
+        # Dialogue craft
+        "Write dialogue that reveals character personality, desire, and conflict — not just information",
+        "Start a new paragraph for each speaker change",
+        "Vary dialogue attribution: use action beats, untagged lines, and occasional said/asked",
+        "Aim for a healthy mix of dialogue, action, and interiority — avoid long stretches of pure narration",
+        # Output format
         "Return only the content field with the complete scene prose",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
@@ -159,7 +165,7 @@ def build_scene_prompt(
         }
     )
 
-    sections["Characters Present"] = _format_characters(characters)
+    sections["Characters Present"] = _format_characters(characters, detailed=True)
     sections["Location"] = _format_location(location)
 
     if world_facts:
@@ -171,6 +177,8 @@ def build_scene_prompt(
 
     sections["Instructions"] = (
         "Write the complete scene prose, expanding each beat into vivid narrative. "
+        "Include natural dialogue when characters interact — let their desires, flaws, and conflicts "
+        "drive what they say. Start a new paragraph for each speaker. "
         "Also provide a short scene title (2-5 words, evocative, not a full sentence). "
         'Return ONLY: {"title": "Short Title", "content": "..."}'
     )
@@ -392,9 +400,14 @@ def build_enhanced_scene_system_prompt(style: Style | None) -> str:
         # Enhanced narrative elements
         "Start with a compelling hook that draws the reader in immediately",
         "Vary hook types (action, dialogue, image, question, tension) from previous scenes",
-        "Include meaningful dialogue that reveals character and advances plot",
         "Show character inner thoughts and reactions when POV allows",
         "Describe the environment to establish mood and atmosphere",
+        # Dialogue craft
+        "Write dialogue that reveals character personality, desire, and conflict — not just information",
+        "Let each character's desire, need, and flaw shape what they say and how they say it",
+        "Start a new paragraph for each speaker change",
+        "Vary dialogue attribution: use action beats, untagged lines, and occasional said/asked",
+        "Balance dialogue with action and interiority — avoid long stretches of pure narration or pure dialogue",
         # Output format
         "Return JSON with 'hook' object and 'beats' array as specified",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
@@ -480,7 +493,9 @@ def build_enhanced_scene_prompt(
 
 3. Each BEAT expanded into vivid prose
    - Use the exact beat IDs provided (e.g., "{scene.beats[0].id if scene.beats else "beat-01"}")
-   - Include natural dialogue when characters interact
+   - Include natural dialogue when characters interact — let their desires, flaws, and conflicts drive what they say
+   - Start a new paragraph for each speaker change
+   - Vary dialogue attribution: action beats, untagged lines, occasional said/asked
    - Show inner thoughts when POV allows
    - Use sensory environment details
    - Calculate word_count for each beat's prose
