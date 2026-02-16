@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
+- Pipeline selection always defaulting to sequential regardless of model size
 - Retry callback firing on exhausted final attempt
 - Prioritize explicit size over keyword patterns in small model detection
 - Build language guard tests made self-contained

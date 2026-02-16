@@ -1,7 +1,7 @@
 ---
 id: TASK-5
 title: Fix pipeline selection bug — always defaults to sequential
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:
