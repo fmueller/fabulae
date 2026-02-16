@@ -14,8 +14,9 @@ Scratchpad for what's happening right now. Start here.
 ## Next
 
 - **TASK-5**: Fix pipeline selection bug — always defaults to sequential (`high`, `bug`)
-- **TASK-1**: Simple TUI for v0.1.0 release (`high`, `feature`)
 - **TASK-6 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
+- v0.1.0 release after build improvements and bug fixes are done
+- TUI, check, doctor commands moved to v0.2.0
 
 ## Don't Forget
 
