@@ -266,6 +266,17 @@ output/
     └── fragments/          # Individual fragments (for micro-prose)
 ```
 
+## How We Work
+
+- **Start here**: Read [CURRENT.md](CURRENT.md) for what's happening now
+- **Task board**: Tasks live in `backlog/` — run `backlog board` to view
+- **Specs**: Non-trivial changes get an [OpenSpec](openspec/) change folder
+- **ADRs & Learnings**: Architecture decisions in `docs/decisions/`, patterns and gotchas in `docs/learnings/`
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md) follows [Keep a Changelog](https://keepachangelog.com/)
+- **Roadmap**: [ROADMAP.md](ROADMAP.md) shows Now / Next / Later milestones
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) enforced via pre-commit hook
+- **Full agent instructions**: See [AGENTS.md](AGENTS.md)
+
 ## Development
 
 ### Setup
@@ -275,6 +286,7 @@ git clone https://github.com/fmueller/fabulae.git
 cd fabulae
 uv sync --locked --all-extras --dev
 uv run pre-commit install
+uv run pre-commit install --hook-type commit-msg
 ```
 
 ### Running from Source
