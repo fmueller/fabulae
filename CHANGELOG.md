@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- `openspec/WORKFLOW.md` documenting the full OpenSpec workflow for agents and humans
 - `BuildProgress` class with dual timer for build feature
 - HTTP 400 to non-retryable errors; clean up empty response patterns
 - Skip retries for HTTP 404/422 errors in JSON guard
@@ -20,10 +21,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
+- Replaced OpenSpec skills/commands with documentation-based workflow (`openspec/WORKFLOW.md`)
 - Unified warning indicator to `⚠` across codebase
 - Removed `JsonGuardConfig`, consolidated JSON retry logic across pipelines
 - Unified small model detection messages across create and build
 - Unified guard configuration between build and create commands
+
+### Removed
+
+- OpenSpec skills (10 SKILL.md files under `openspec/skills/`)
+- OpenSpec commands (10 .md files under `openspec/commands/opsx/`)
+- `.claude/skills/openspec-*` and `.claude/commands/opsx` symlinks
 
 ### Fixed
 

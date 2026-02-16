@@ -4,6 +4,9 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- Replaced OpenSpec skills/commands with `openspec/WORKFLOW.md` documentation
+- Removed `.claude/skills/openspec-*` and `.claude/commands/opsx/` (10 skills, 10 commands)
+- Updated AGENTS.md to reference WORKFLOW.md instead of slash commands
 - **TASK-5**: Fixed pipeline selection bug — large models now correctly default to batch mode
 - Unified warning indicator to `⚠` across codebase
 - Removed `JsonGuardConfig`, consolidated JSON retry logic across pipelines
@@ -20,6 +23,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Don't Forget
 
+- OpenSpec workflow is now in `openspec/WORKFLOW.md` — no more `/opsx:*` slash commands
 - Legacy tasks (01a–09) were removed along with `tasks/` folder; not migrated to backlog
 - Build improvement issues migrated to backlog (TASK-5 through TASK-14)
 - The `backlog board` command shows the full task board
