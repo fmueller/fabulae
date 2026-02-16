@@ -20,5 +20,5 @@ Scratchpad for what's happening right now. Start here.
 ## Don't Forget
 
 - All 11 completed legacy tasks (01a–09) are in `tasks/` for reference; not migrated to backlog
-- Build improvement issues originated from `docs/issues/build-improvements.md`
+- Build improvement issues migrated to backlog (TASK-5 through TASK-14)
 - The `backlog board` command shows the full task board

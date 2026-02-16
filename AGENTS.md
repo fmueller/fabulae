@@ -326,6 +326,5 @@ backlog/               # Task management (backlog.md)
 openspec/              # Spec-driven development (OpenSpec)
 docs/
 ├── decisions/         # Architecture Decision Records
-├── learnings/         # Patterns, runbooks, gotchas
-└── issues/            # Legacy issue tracking (archived)
+└── learnings/         # Patterns, runbooks, gotchas
 ```
