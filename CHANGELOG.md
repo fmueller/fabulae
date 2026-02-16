@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- Dialogue craft guidelines in build prompts — speaker paragraph breaks, varied attribution, proportion balance
+- Character desire/need/flaw now included in standard build prompts (was enhanced-only)
 - Scene title generation in build — LLM produces short 2-5 word titles instead of using summaries as headers
 - `title` field on Scene model with `--title` option in scene add/edit CLI
 - `openspec/WORKFLOW.md` documenting the full OpenSpec workflow for agents and humans

@@ -1,7 +1,7 @@
 ---
 id: TASK-7
 title: Build prompts produce insufficient dialogue
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

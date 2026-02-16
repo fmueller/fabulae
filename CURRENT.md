@@ -4,23 +4,16 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- **TASK-7**: Strengthened dialogue in build prompts — both standard and enhanced modes
+- Standard mode now includes character desire/need/flaw (was enhanced-only)
+- Added dialogue craft guidelines: paragraph breaks per speaker, varied attribution, proportion balance
+- Dialogue instructions added to both system prompts and user prompt instruction sections
 - **TASK-6**: Added scene title generation — LLM generates short 2-5 word titles instead of using bloated summaries as headers
-- Added `title` field to Scene model and `--title` option to scene add/edit CLI
-- Title fallback chain: scene.title (user) → LLM-generated title → scene.summary
-- Replaced OpenSpec skills/commands with `openspec/WORKFLOW.md` documentation
-- Removed `.claude/skills/openspec-*` and `.claude/commands/opsx/` (10 skills, 10 commands)
-- Updated AGENTS.md to reference WORKFLOW.md instead of slash commands
 - **TASK-5**: Fixed pipeline selection bug — large models now correctly default to batch mode
-- Unified warning indicator to `⚠` across codebase
-- Removed `JsonGuardConfig`, consolidated JSON retry logic across pipelines
-- Unified small model detection messages across create and build
-- Fixed retry callback firing on exhausted final attempt
-- Added `BuildProgress` class with dual timer for build feature
-- Documented build command improvement issues (10 items → backlog TASK-5 through TASK-14)
 
 ## Next
 
-- **TASK-7 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
+- **TASK-8 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
 - v0.1.0 release after build improvements and bug fixes are done
 - TUI, check, doctor commands moved to v0.2.0
 
