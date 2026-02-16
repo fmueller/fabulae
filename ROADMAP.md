@@ -2,29 +2,25 @@
 
 High-level milestones for Fabulae. Details live in `backlog/tasks/`.
 
-## Now
+## Now — v0.1.0
 
-Build output quality and reliability improvements.
+Build output quality, reliability, and bug fixes. Make the generated prose good enough to ship.
 
-- **TASK-5**: Fix pipeline selection bug — always defaults to sequential
-- **TASK-6**: Scene summaries used as titles — produces bloated headers
-- **TASK-7**: Build prompts produce insufficient dialogue
-- **TASK-8**: No word count targets in build scene prompts
-- **TASK-11**: No show-don't-tell or prose craft instructions
-- **TASK-14**: Standard scene prompts significantly weaker than enhanced
+- Fix pipeline selection and build prompt issues (TASK-5 – TASK-14)
+- Improve continuity, dialogue, prose craft, and format-specific output
 
-## Next — v0.1.0
+## Next — v0.2.0
 
 Interactive experience and project quality tools.
 
-- **TASK-1**: Simple TUI (create → view → edit → build workflow)
-- **TASK-2**: Check command (semantic & quality checks via LLM)
-- **TASK-3**: Doctor command (environment diagnostics)
+- Simple TUI for the create → view → edit → build workflow
+- Check command for semantic and quality validation
+- Doctor command for environment diagnostics
 
-## Later — v0.2.0
+## Later
 
 Advanced interactive features.
 
-- **TASK-4**: Advanced TUI workbench (check/doctor integration, split views, search, vim mode)
+- Full TUI workbench with check/doctor integration, split views, vim mode
 - Create full mode enhancements
 - Plugin/extension system
