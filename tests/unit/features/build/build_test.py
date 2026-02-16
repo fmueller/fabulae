@@ -1030,3 +1030,78 @@ class TestEnhancedBuild:
         assert "--pipeline" in output
         assert "--enhanced" in output
         assert "sequential" in output.lower() or "batch" in output.lower()
+
+
+class TestPipelineAutoSelection:
+    """Tests for automatic pipeline mode selection based on model size."""
+
+    def test_large_model_defaults_to_batch(self, tmp_path: Path) -> None:
+        """Large models default to batch pipeline when no --pipeline flag is given."""
+        create_short_story_project(tmp_path)
+
+        with patch("fabulae.features.build.cli.build_project", new_callable=AsyncMock) as mock_build:
+            mock_build.return_value = BuildOutput(
+                metadata=BuildMetadata(
+                    project_name="Test",
+                    format="short-story",
+                    model="gpt-4o",
+                    temperature=0.7,
+                    timestamp=datetime.now(),
+                    version="0.1.0",
+                ),
+                scenes=[SceneOutput(scene_id="s-01", content="Test", word_count=1)],
+                full_text="Test",
+                total_word_count=1,
+            )
+
+            result = runner.invoke(app, ["build", str(tmp_path), "--model", "gpt-4o", "--no-history"])
+            output = strip_ansi(result.output)
+            assert "Pipeline: batch" in output
+
+    def test_small_model_defaults_to_sequential(self, tmp_path: Path) -> None:
+        """Small models default to sequential pipeline when no --pipeline flag is given."""
+        create_short_story_project(tmp_path)
+
+        with patch("fabulae.features.build.cli.build_project", new_callable=AsyncMock) as mock_build:
+            mock_build.return_value = BuildOutput(
+                metadata=BuildMetadata(
+                    project_name="Test",
+                    format="short-story",
+                    model="llama:7b",
+                    temperature=0.7,
+                    timestamp=datetime.now(),
+                    version="0.1.0",
+                ),
+                scenes=[SceneOutput(scene_id="s-01", content="Test", word_count=1)],
+                full_text="Test",
+                total_word_count=1,
+            )
+
+            result = runner.invoke(app, ["build", str(tmp_path), "--model", "llama:7b", "--no-history"])
+            output = strip_ansi(result.output)
+            assert "Pipeline: sequential" in output
+
+    def test_explicit_pipeline_flag_overrides_auto(self, tmp_path: Path) -> None:
+        """Explicit --pipeline flag overrides auto-detection."""
+        create_short_story_project(tmp_path)
+
+        with patch("fabulae.features.build.cli.build_project", new_callable=AsyncMock) as mock_build:
+            mock_build.return_value = BuildOutput(
+                metadata=BuildMetadata(
+                    project_name="Test",
+                    format="short-story",
+                    model="gpt-4o",
+                    temperature=0.7,
+                    timestamp=datetime.now(),
+                    version="0.1.0",
+                ),
+                scenes=[SceneOutput(scene_id="s-01", content="Test", word_count=1)],
+                full_text="Test",
+                total_word_count=1,
+            )
+
+            result = runner.invoke(
+                app, ["build", str(tmp_path), "--model", "gpt-4o", "--pipeline", "sequential", "--no-history"]
+            )
+            output = strip_ansi(result.output)
+            assert "Pipeline: sequential" in output

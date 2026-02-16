@@ -4,6 +4,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- **TASK-5**: Fixed pipeline selection bug — large models now correctly default to batch mode
 - Unified warning indicator to `⚠` across codebase
 - Removed `JsonGuardConfig`, consolidated JSON retry logic across pipelines
 - Unified small model detection messages across create and build
@@ -13,7 +14,6 @@ Scratchpad for what's happening right now. Start here.
 
 ## Next
 
-- **TASK-5**: Fix pipeline selection bug — always defaults to sequential (`high`, `bug`)
 - **TASK-6 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
 - v0.1.0 release after build improvements and bug fixes are done
 - TUI, check, doctor commands moved to v0.2.0

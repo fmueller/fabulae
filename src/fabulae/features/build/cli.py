@@ -60,7 +60,8 @@ def register_build_command(app: typer.Typer) -> None:
                 "-p",
                 help=(
                     "Generation pipeline: 'sequential' (sliding window context, better for small models) "
-                    "or 'batch' (full context, better coherence). Default: sequential."
+                    "or 'batch' (full context, better coherence). "
+                    "Default: auto (batch for large models, sequential for small)."
                 ),
             ),
         ] = None,
@@ -117,7 +118,7 @@ def register_build_command(app: typer.Typer) -> None:
 
         # Determine pipeline mode (auto-detect for small models)
         is_small = is_small_model(config.model)
-        actual_pipeline: BuildPipelineMode = pipeline or ("sequential" if is_small else "sequential")
+        actual_pipeline: BuildPipelineMode = pipeline or ("sequential" if is_small else "batch")
         actual_enhanced = enhanced
 
         # Build options
