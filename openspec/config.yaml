@@ -8,6 +8,13 @@ schema: spec-driven
 #     Tech stack: TypeScript, React, Node.js
 #     We use conventional commits
 #     Domain: e-commerce platform
+#
+# Recommended starter context for agent-operable specs:
+#   context: |
+#     Workflow: backlog.md is source of truth for tasks and statuses.
+#     Specs: OpenSpec delta specs describe intent, not full file rewrites.
+#     Commits: Conventional Commits are required.
+#     Quality: Keep implementation tasks small and independently verifiable.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
@@ -18,3 +25,17 @@ schema: spec-driven
 #       - Always include a "Non-goals" section
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
+#
+# Recommended starter rules:
+#   rules:
+#     proposal:
+#       - Keep it concise (target <= 500 words).
+#       - Include explicit in-scope and out-of-scope boundaries.
+#     specs:
+#       - Write requirements with testable WHEN/THEN scenarios.
+#       - Prefer modifying existing capabilities over duplicating requirements.
+#     design:
+#       - Record key tradeoffs and rejected alternatives.
+#     tasks:
+#       - Keep each task small enough for one focused PR.
+#       - Include at least one explicit verification task.
