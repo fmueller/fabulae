@@ -85,7 +85,7 @@ After the hook is installed (`pre-commit install --hook-type commit-msg`), bad c
 ## Changelog & Roadmap Rules
 
 - **CHANGELOG.md**: [Keep a Changelog](https://keepachangelog.com/) format. `[Unreleased]` section at top. Categories: Added, Changed, Fixed, Removed. Update when merging to main.
-- **ROADMAP.md**: Now / Next / Later sections. Links to backlog tasks, not duplicating details. Update when milestones shift.
+- **ROADMAP.md**: Now / Next / Later sections. Describes direction and goals, not individual tasks — link to backlog task ranges instead of listing line-by-line. Update when milestones shift.
 
 ## Test Isolation
 
