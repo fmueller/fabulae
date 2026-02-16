@@ -36,6 +36,17 @@ If any check fails, fix the issues before considering the task complete.
 
 Use `/opsx:new` to start a new OpenSpec change, `/opsx:continue` for the next artifact.
 
+### Syncing OpenSpec Tasks to Backlog
+
+When `/opsx:continue` generates a `tasks.md` artifact for a change, **copy each task into the backlog** so all work is tracked in one place:
+
+1. After creating the `tasks.md` artifact, run `backlog task create` for each task
+2. Include `--ref openspec/changes/<name>/tasks.md` to link back to the change
+3. Add a label matching the change name (e.g., `--label add-auth`)
+4. The backlog task is the source of truth for status; the OpenSpec checkbox is kept in sync when applying
+
+This ensures `backlog board` always shows the full picture, even for spec-driven work.
+
 ## Linking Rules
 
 - Every backlog task should link to relevant openspec/docs when applicable
