@@ -170,7 +170,9 @@ def build_scene_prompt(
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
-        'Write the complete scene prose, expanding each beat into vivid narrative. Return ONLY: {"content": "..."}'
+        "Write the complete scene prose, expanding each beat into vivid narrative. "
+        "Also provide a short scene title (2-5 words, evocative, not a full sentence). "
+        'Return ONLY: {"title": "Short Title", "content": "..."}'
     )
 
     return format_sections(sections)
@@ -469,12 +471,14 @@ def build_enhanced_scene_prompt(
     hook_types_str = ", ".join(HOOK_TYPES)
     instructions = f"""Generate an enhanced scene with:
 
-1. An opening HOOK that immediately engages the reader
+1. A short scene TITLE (2-5 words, evocative, not a full sentence)
+
+2. An opening HOOK that immediately engages the reader
    - Choose a hook_type from: {hook_types_str}
    - Vary from previous hooks if possible
    - Make it compelling and draw the reader in
 
-2. Each BEAT expanded into vivid prose
+3. Each BEAT expanded into vivid prose
    - Use the exact beat IDs provided (e.g., "{scene.beats[0].id if scene.beats else "beat-01"}")
    - Include natural dialogue when characters interact
    - Show inner thoughts when POV allows
@@ -483,6 +487,7 @@ def build_enhanced_scene_prompt(
 
 Return JSON in this exact format:
 {{
+  "title": "Short Evocative Title",
   "hook": {{"hook_type": "action|dialog|image|question|tension", "content": "The hook text..."}},
   "beats": [
     {{"beat_id": "beat-id", "prose": "The expanded prose...", "word_count": 150}},

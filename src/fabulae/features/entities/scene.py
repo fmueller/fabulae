@@ -36,6 +36,7 @@ def add(
     project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
     id: Annotated[str, typer.Option("--id", help="Scene ID (lowercase-with-hyphens).")],
     chapter: Annotated[str | None, typer.Option("--chapter", "-c", help="Chapter ID to add scene to.")] = None,
+    title: Annotated[str | None, typer.Option("--title", help="Short scene title (2-5 words).")] = None,
     location: Annotated[str | None, typer.Option("--location", "-l", help="Location ID (world fact).")] = None,
     time: Annotated[str | None, typer.Option("--time", "-t", help="Time of day.")] = None,
     summary: Annotated[str | None, typer.Option("--summary", help="Scene summary.")] = None,
@@ -83,6 +84,7 @@ def add(
 
     scene = Scene(
         id=id,
+        title=title,
         location=location,
         time=time,
         summary=summary,
@@ -146,6 +148,8 @@ def suggest(
 
     console.print("\n[bold]Suggested scene:[/bold]")
     console.print(f"  ID: {scene.id}")
+    if scene.title:
+        console.print(f"  Title: {scene.title}")
     if scene.summary:
         console.print(f"  Summary: {scene.summary}")
     if scene.goal:
@@ -229,6 +233,7 @@ def list_scenes(
     if format == "table":
         table = Table(title="Scenes")
         table.add_column("ID", style="cyan")
+        table.add_column("Title", style="green")
         table.add_column("Location", style="yellow")
         table.add_column("Characters")
         table.add_column("Summary")
@@ -238,7 +243,7 @@ def list_scenes(
             if s.characters and len(s.characters) > 2:
                 chars_str += "..."
             summary = (s.summary[:35] + "...") if s.summary and len(s.summary) > 35 else (s.summary or "")
-            table.add_row(s.id, s.location or "", chars_str, summary)
+            table.add_row(s.id, s.title or "", s.location or "", chars_str, summary)
 
         console.print(table)
     elif format == "json":
@@ -329,6 +334,7 @@ def remove(
 def edit(
     project_dir: Annotated[Path, typer.Argument(help="Project directory.")],
     scene_id: Annotated[str, typer.Argument(help="Scene ID to edit.")],
+    title: Annotated[str | None, typer.Option("--title", help="New scene title (2-5 words).")] = None,
     location: Annotated[str | None, typer.Option("--location", "-l", help="New location ID.")] = None,
     time: Annotated[str | None, typer.Option("--time", "-t", help="New time.")] = None,
     summary: Annotated[str | None, typer.Option("--summary", help="New summary.")] = None,
@@ -356,6 +362,9 @@ def edit(
     if not scene:
         typer.echo(f"Error: Scene '{scene_id}' not found.", err=True)
         raise typer.Exit(code=1)
+
+    if title is not None:
+        scene.title = title if title else None
 
     if location is not None:
         if location:

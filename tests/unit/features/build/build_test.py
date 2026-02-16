@@ -522,7 +522,7 @@ class TestBuildService:
 
         # Mock the agent to return test content
         mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="Generated scene content.")
+        mock_result.output = SceneProseOutput(title="Test Title", content="Generated scene content.")
 
         summary_mock = AsyncMock()
         summary_mock.output = type("Summary", (), {"summary": "Scene summary."})()
@@ -636,7 +636,7 @@ class TestBuildService:
         config = LLMConfig(model="test")
 
         mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="Content.")
+        mock_result.output = SceneProseOutput(title="Test Title", content="Content.")
 
         summary_mock = AsyncMock()
         summary_mock.output = type("Summary", (), {"summary": "Summary."})()
@@ -666,7 +666,7 @@ class TestBuildService:
         config = LLMConfig(model="test")
 
         mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="Generated scene content.")
+        mock_result.output = SceneProseOutput(title="Test Title", content="Generated scene content.")
 
         summary_mock = AsyncMock()
         summary_mock.output = type("Summary", (), {"summary": "Scene summary."})()
@@ -701,7 +701,7 @@ class TestBuildService:
         config = LLMConfig(model="test")
 
         mock_result = AsyncMock()
-        mock_result.output = SceneProseOutput(content="Content.")
+        mock_result.output = SceneProseOutput(title="Test Title", content="Content.")
 
         summary_mock = AsyncMock()
         summary_mock.output = type("Summary", (), {"summary": "Summary."})()
@@ -770,7 +770,7 @@ class TestBuildLanguageGuard:
         # Patch language guard to skip detection (test just ensures no crash)
         with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
             mock_guard.return_value = (
-                SceneProseOutput(content="Inhalt auf Deutsch."),
+                SceneProseOutput(title="Test Title", content="Inhalt auf Deutsch."),
                 type("Result", (), {"passed": True, "skipped": True})(),
             )
             # Also mock generate_continuity_summary since it's called after scene building
@@ -804,7 +804,7 @@ class TestBuildLanguageGuard:
 
         with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
             mock_guard.return_value = (
-                SceneProseOutput(content="English content."),
+                SceneProseOutput(title="Test Title", content="English content."),
                 type("Result", (), {"passed": True, "skipped": True})(),
             )
             # Also mock generate_continuity_summary since it's called after scene building
@@ -844,7 +844,7 @@ class TestBuildLanguageGuard:
 
         with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
             mock_guard.return_value = (
-                SceneProseOutput(content="German content."),
+                SceneProseOutput(title="Test Title", content="German content."),
                 type("Result", (), {"passed": True, "skipped": False})(),
             )
             result = asyncio.run(build_scene(scene, project, "", config, expected_language="de"))
@@ -869,6 +869,7 @@ class TestEnhancedBuild:
         )
 
         output = EnhancedSceneProseOutput(
+            title="Door Opens",
             hook=SceneHook(hook_type="action", content="The door burst open."),
             beats=[
                 BeatProseOutput(beat_id="beat-01", prose="First beat content.", word_count=3),
@@ -940,6 +941,7 @@ class TestEnhancedBuild:
         )
 
         output = EnhancedSceneProseOutput(
+            title="Hook Scene",
             hook=SceneHook(hook_type="action", content="Hook text here."),
             beats=[
                 BeatProseOutput(beat_id="beat-01", prose="Beat one prose.", word_count=3),
