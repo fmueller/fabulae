@@ -32,18 +32,23 @@ If any check fails, fix the issues before considering the task complete.
 ## Task Types & When to Use OpenSpec
 
 - **Trivial fix** (typo, one-liner, config change) → backlog task only
-- **Non-trivial behavior change** (new feature, architectural change, prompt rewrite) → backlog task + `openspec/changes/` folder with spec artifacts
+- **Non-trivial behavior change** (new feature, architectural change, prompt rewrite) → backlog task + OpenSpec change
 
-Use `/opsx:new` to start a new OpenSpec change, `/opsx:continue` for the next artifact.
+The full workflow is documented in [openspec/WORKFLOW.md](openspec/WORKFLOW.md). Key points:
 
-### Syncing OpenSpec Tasks to Backlog
+1. Create a change directory: `mkdir -p openspec/changes/<name>/specs`
+2. Create artifacts in order: proposal → specs → design → tasks
+3. Implement tasks, checking them off in `tasks.md`
+4. Sync delta specs to main specs, then archive
 
-When `/opsx:continue` generates a `tasks.md` artifact for a change, **copy each task into the backlog** so all work is tracked in one place:
+### Backlog is the Source of Truth
 
-1. After creating the `tasks.md` artifact, run `backlog task create` for each task
-2. Include `--ref openspec/changes/<name>/tasks.md` to link back to the change
+The backlog (`backlog/` directory) tracks ALL work. When OpenSpec creates a `tasks.md`, **each task must also exist in the backlog**:
+
+1. Run `backlog task create` for each task in `tasks.md`
+2. Include `--ref openspec/changes/<name>/tasks.md` to link back
 3. Add a label matching the change name (e.g., `--label add-auth`)
-4. The backlog task is the source of truth for status; the OpenSpec checkbox is kept in sync when applying
+4. The backlog task is the source of truth for status; the OpenSpec checkbox is kept in sync
 
 This ensures `backlog board` always shows the full picture, even for spec-driven work.
 
@@ -154,8 +159,8 @@ src/fabulae/           # Main package
 templates/             # Project templates (novel, poem, etc.)
 tests/                 # Pytest suites
 ├── unit/              # Unit tests mirroring src/ structure
-backlog/               # Task management (backlog.md)
-openspec/              # Spec-driven development (OpenSpec)
+backlog/               # Task management (source of truth for all tasks)
+openspec/              # Spec-driven development (see openspec/WORKFLOW.md)
 docs/
 ├── decisions/         # Architecture Decision Records
 └── learnings/         # Patterns, runbooks, gotchas
