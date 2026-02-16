@@ -39,6 +39,7 @@ class BeatProseOutput(BaseModel):
 class EnhancedSceneProseOutput(BaseModel):
     """LLM output schema for enhanced scene generation."""
 
+    title: str = Field(description="Short scene title, 2-5 words")
     hook: SceneHook | None = None
     beats: list[BeatProseOutput] = Field(default_factory=list)
 
@@ -131,6 +132,7 @@ class ContinuitySummary(BaseModel):
 class SceneProseOutput(BaseModel):
     """LLM output schema for scene generation."""
 
+    title: str = Field(description="Short scene title, 2-5 words")
     content: str = Field(description="The generated prose content for this scene")
 
 

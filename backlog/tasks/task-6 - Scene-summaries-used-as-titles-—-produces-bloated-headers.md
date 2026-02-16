@@ -1,7 +1,7 @@
 ---
 id: TASK-6
 title: Scene summaries used as titles — produces bloated headers
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

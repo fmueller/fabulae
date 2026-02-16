@@ -109,6 +109,7 @@ class Scene(BaseModel):
     """A scene in the narrative."""
 
     id: EntityId
+    title: str | None = None
     location: EntityId | None = None
     time: str | None = None
     characters: list[EntityId] = Field(default_factory=list)

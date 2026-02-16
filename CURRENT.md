@@ -4,6 +4,9 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- **TASK-6**: Added scene title generation — LLM generates short 2-5 word titles instead of using bloated summaries as headers
+- Added `title` field to Scene model and `--title` option to scene add/edit CLI
+- Title fallback chain: scene.title (user) → LLM-generated title → scene.summary
 - Replaced OpenSpec skills/commands with `openspec/WORKFLOW.md` documentation
 - Removed `.claude/skills/openspec-*` and `.claude/commands/opsx/` (10 skills, 10 commands)
 - Updated AGENTS.md to reference WORKFLOW.md instead of slash commands
@@ -17,7 +20,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Next
 
-- **TASK-6 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
+- **TASK-7 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
 - v0.1.0 release after build improvements and bug fixes are done
 - TUI, check, doctor commands moved to v0.2.0
 

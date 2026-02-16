@@ -117,7 +117,7 @@ class TestBuildSceneGuardsIntegration:
 
     def test_build_scene_uses_run_with_guards(self, simple_project: Project, llm_config: LLMConfig) -> None:
         """build_scene should use run_with_guards instead of run_with_language_guard."""
-        mock_output = SceneProseOutput(content="Generated content.")
+        mock_output = SceneProseOutput(title="Test Title", content="Generated content.")
         mock_result = _make_guards_result()
 
         with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
@@ -137,7 +137,7 @@ class TestBuildSceneGuardsIntegration:
 
     def test_build_scene_passes_expected_language(self, simple_project: Project, llm_config: LLMConfig) -> None:
         """build_scene passes expected_language to run_with_guards."""
-        mock_output = SceneProseOutput(content="German content.")
+        mock_output = SceneProseOutput(title="Test Title", content="German content.")
         mock_result = _make_guards_result()
 
         with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
@@ -160,7 +160,7 @@ class TestBuildSceneGuardsIntegration:
         self, simple_project: Project, llm_config: LLMConfig
     ) -> None:
         """build_scene passes on_language_correction callback to run_with_guards."""
-        mock_output = SceneProseOutput(content="Content.")
+        mock_output = SceneProseOutput(title="Test Title", content="Content.")
         mock_result = _make_guards_result()
         callback = MagicMock()
 
@@ -182,7 +182,7 @@ class TestBuildSceneGuardsIntegration:
 
     def test_build_scene_passes_on_json_error_callback(self, simple_project: Project, llm_config: LLMConfig) -> None:
         """build_scene passes on_json_error callback to run_with_guards."""
-        mock_output = SceneProseOutput(content="Content.")
+        mock_output = SceneProseOutput(title="Test Title", content="Content.")
         mock_result = _make_guards_result()
         callback = MagicMock()
 
@@ -204,7 +204,7 @@ class TestBuildSceneGuardsIntegration:
 
     def test_build_scene_passes_extract_text(self, simple_project: Project, llm_config: LLMConfig) -> None:
         """build_scene passes correct extract_text function to run_with_guards."""
-        mock_output = SceneProseOutput(content="Test content here.")
+        mock_output = SceneProseOutput(title="Test Title", content="Test content here.")
         mock_result = _make_guards_result()
 
         with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
@@ -390,6 +390,7 @@ class TestEnhancedBuildSceneGuardsIntegration:
     def test_build_enhanced_scene_uses_run_with_guards(self, simple_project: Project, llm_config: LLMConfig) -> None:
         """build_enhanced_scene should use run_with_guards."""
         mock_output = EnhancedSceneProseOutput(
+            title="Hook Scene",
             hook=SceneHook(hook_type="action", content="Hook text."),
             beats=[BeatProseOutput(beat_id="beat-01", prose="Beat prose.", word_count=2)],
         )
@@ -416,6 +417,7 @@ class TestEnhancedBuildSceneGuardsIntegration:
     ) -> None:
         """build_enhanced_scene passes on_json_error callback."""
         mock_output = EnhancedSceneProseOutput(
+            title="Prose Scene",
             hook=None,
             beats=[BeatProseOutput(beat_id="beat-01", prose="Prose.", word_count=1)],
         )
@@ -589,3 +591,95 @@ class TestGenerateContinuitySummaryGuardsIntegration:
 
         call_kwargs = mock_guards.call_args[1]
         assert call_kwargs["on_json_error"] is callback
+
+
+class TestSceneTitleFallback:
+    """Tests for scene title fallback chain: scene.title > LLM title > scene.summary."""
+
+    def test_build_scene_uses_llm_title(self, simple_project: Project, llm_config: LLMConfig) -> None:
+        """build_scene uses LLM-generated title when scene has no explicit title."""
+        mock_output = SceneProseOutput(title="Arrival at Dawn", content="Scene content.")
+        mock_result = _make_guards_result()
+
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
+            mock_guards.return_value = (mock_output, mock_result)
+
+            result = asyncio.run(
+                build_scene(
+                    scene=simple_project.plot.scenes[0],
+                    project=simple_project,
+                    prior_context="",
+                    config=llm_config,
+                )
+            )
+
+        assert result.title == "Arrival at Dawn"
+
+    def test_build_scene_prefers_scene_model_title(self, simple_project: Project, llm_config: LLMConfig) -> None:
+        """build_scene uses scene.title when set, even if LLM provides one."""
+        simple_project.plot.scenes[0].title = "User Title"
+        mock_output = SceneProseOutput(title="LLM Title", content="Content.")
+        mock_result = _make_guards_result()
+
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
+            mock_guards.return_value = (mock_output, mock_result)
+
+            result = asyncio.run(
+                build_scene(
+                    scene=simple_project.plot.scenes[0],
+                    project=simple_project,
+                    prior_context="",
+                    config=llm_config,
+                )
+            )
+
+        assert result.title == "User Title"
+
+    def test_build_enhanced_scene_uses_llm_title(self, simple_project: Project, llm_config: LLMConfig) -> None:
+        """build_enhanced_scene uses LLM-generated title when scene has no explicit title."""
+        mock_output = EnhancedSceneProseOutput(
+            title="Dark Encounter",
+            hook=SceneHook(hook_type="action", content="Hook."),
+            beats=[BeatProseOutput(beat_id="beat-01", prose="Prose.", word_count=1)],
+        )
+        mock_result = _make_guards_result()
+
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
+            mock_guards.return_value = (mock_output, mock_result)
+
+            result = asyncio.run(
+                build_enhanced_scene(
+                    scene=simple_project.plot.scenes[0],
+                    project=simple_project,
+                    prior_context="",
+                    config=llm_config,
+                )
+            )
+
+        assert result.title == "Dark Encounter"
+
+    def test_build_enhanced_scene_prefers_scene_model_title(
+        self, simple_project: Project, llm_config: LLMConfig
+    ) -> None:
+        """build_enhanced_scene uses scene.title over LLM title."""
+        simple_project.plot.scenes[0].title = "Manual Title"
+        mock_output = EnhancedSceneProseOutput(
+            title="LLM Title",
+            hook=None,
+            beats=[BeatProseOutput(beat_id="beat-01", prose="Prose.", word_count=1)],
+        )
+        mock_result = _make_guards_result()
+
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
+            mock_guards.return_value = (mock_output, mock_result)
+
+            result = asyncio.run(
+                build_enhanced_scene(
+                    scene=simple_project.plot.scenes[0],
+                    project=simple_project,
+                    prior_context="",
+                    config=llm_config,
+                )
+            )
+
+        assert result.title == "Manual Title"

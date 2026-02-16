@@ -131,7 +131,7 @@ async def build_scene(
     return SceneOutput(
         scene_id=scene.id,
         chapter_id=chapter_id,
-        title=scene.summary,
+        title=scene.title or prose_output.title or scene.summary,
         content=prose_output.content,
         word_count=_count_words(prose_output.content),
     )
@@ -441,7 +441,7 @@ async def build_enhanced_scene(
     return SceneOutput(
         scene_id=scene.id,
         chapter_id=chapter_id,
-        title=scene.summary,
+        title=scene.title or prose_output.title or scene.summary,
         hook=prose_output.hook,
         beats=prose_output.beats,
         content=content,
