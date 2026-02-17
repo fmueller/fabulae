@@ -608,6 +608,206 @@ class TestBuildPrompts:
         assert "new paragraph" in prompt.lower()
         assert "attribution" in prompt.lower()
 
+    def test_scene_prompt_includes_word_count_target_for_novel(self) -> None:
+        """Scene prompt includes a word count target section for novel format."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[
+                Beat(id="beat-01", kind="opening"),
+                Beat(id="beat-02", kind="development"),
+            ],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+            fmt="novel",
+        )
+
+        assert "Word Count Target" in prompt
+        # 2 beats × 400 default = 800
+        assert "800 words" in prompt
+
+    def test_scene_prompt_word_count_uses_explicit_beat_targets(self) -> None:
+        """Scene prompt sums explicit beat target_words when provided."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[
+                Beat(id="beat-01", kind="opening", target_words=200),
+                Beat(id="beat-02", kind="climax", target_words=500),
+            ],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+            fmt="novel",
+        )
+
+        assert "Word Count Target" in prompt
+        assert "700 words" in prompt
+
+    def test_scene_prompt_word_count_mixes_explicit_and_default(self) -> None:
+        """Scene prompt mixes explicit beat targets with format defaults."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[
+                Beat(id="beat-01", kind="opening", target_words=100),
+                Beat(id="beat-02", kind="development"),  # will use short-story default: 150
+            ],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+            fmt="short-story",
+        )
+
+        assert "Word Count Target" in prompt
+        assert "250 words" in prompt
+
+    def test_scene_prompt_no_word_count_without_fmt(self) -> None:
+        """Scene prompt uses novel default when fmt is None (backward compat)."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        # Falls back to novel default (400 per beat)
+        assert "Word Count Target" in prompt
+        assert "400 words" in prompt
+
+    def test_scene_prompt_beat_shows_default_target_words(self) -> None:
+        """Beat without explicit target_words shows format default in beat listing."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+            fmt="short-story",
+        )
+
+        assert "Target words: ~150" in prompt
+
+    def test_enhanced_scene_prompt_includes_word_count_target(self) -> None:
+        """Enhanced scene prompt includes word count target section."""
+        from fabulae.features.build.prompts import build_enhanced_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[
+                Beat(id="beat-01", kind="opening"),
+                Beat(id="beat-02", kind="climax"),
+                Beat(id="beat-03", kind="resolution"),
+            ],
+        )
+
+        prompt = build_enhanced_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+            fmt="novella",
+        )
+
+        assert "Word Count Target" in prompt
+        # 3 beats × 250 default = 750
+        assert "750 words" in prompt
+
+    def test_scene_system_prompt_mentions_word_count(self) -> None:
+        """Standard system prompt mentions word-count targets."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+        assert "word-count" in prompt.lower()
+
+    def test_enhanced_scene_system_prompt_mentions_word_count(self) -> None:
+        """Enhanced system prompt mentions word-count targets."""
+        from fabulae.features.build.prompts import build_enhanced_scene_system_prompt
+
+        prompt = build_enhanced_scene_system_prompt(style=None)
+        assert "word-count" in prompt.lower()
+
+    def test_compute_scene_word_target_no_beats(self) -> None:
+        """_compute_scene_word_target returns None for empty beats."""
+        from fabulae.features.build.prompts import _compute_scene_word_target
+
+        assert _compute_scene_word_target([], "novel") is None
+
+    def test_compute_scene_word_target_poem_returns_none(self) -> None:
+        """_compute_scene_word_target returns None for poem format."""
+        from fabulae.features.build.prompts import _compute_scene_word_target
+        from fabulae.models import Beat
+
+        beats = [Beat(id="beat-01", kind="opening")]
+        assert _compute_scene_word_target(beats, "poem") is None
+
+    def test_default_beat_words_per_format(self) -> None:
+        """DEFAULT_BEAT_WORDS has reasonable values for all prose formats."""
+        from fabulae.features.build.prompts import DEFAULT_BEAT_WORDS
+
+        assert DEFAULT_BEAT_WORDS["novel"] > DEFAULT_BEAT_WORDS["novella"]
+        assert DEFAULT_BEAT_WORDS["novella"] > DEFAULT_BEAT_WORDS["short-story"]
+        assert DEFAULT_BEAT_WORDS["short-story"] > 0
+
 
 class TestBuildService:
     """Tests for build service orchestration."""

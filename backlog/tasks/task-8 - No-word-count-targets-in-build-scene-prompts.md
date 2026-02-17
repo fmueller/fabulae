@@ -1,7 +1,7 @@
 ---
 id: TASK-8
 title: No word count targets in build scene prompts
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

@@ -2,8 +2,40 @@
 
 from __future__ import annotations
 
-from fabulae.models import Beat, Character, Fragment, Scene, Stanza, Style, WorldFact
+from fabulae.models import Beat, Character, Fragment, LiteratureFormat, Scene, Stanza, Style, WorldFact
 from fabulae.prompts import build_language_guard_prompt, build_system_prompt, format_sections, serialize_for_prompt
+
+# Default words-per-beat when a beat has no explicit target_words.
+# Values are rough midpoints for each format's typical prose density.
+DEFAULT_BEAT_WORDS: dict[LiteratureFormat, int] = {
+    "novel": 400,
+    "novella": 250,
+    "short-story": 150,
+    # micro-prose and poem don't use beats
+    "micro-prose": 50,
+    "poem": 0,
+}
+
+
+def _compute_scene_word_target(beats: list[Beat], fmt: LiteratureFormat | None) -> int | None:
+    """Compute the total word-count target for a scene.
+
+    Sums explicit beat.target_words values; uses the format default for beats
+    that omit it.  Returns ``None`` only when there are no beats AND no format
+    default (i.e. poetry / micro-prose).
+    """
+    if not beats:
+        return None
+
+    effective_fmt = fmt or "novel"
+    default = DEFAULT_BEAT_WORDS.get(effective_fmt, 0)
+
+    # Don't produce a target for formats where it doesn't apply
+    if default == 0:
+        return None
+
+    total = sum(beat.target_words or default for beat in beats)
+    return total if total > 0 else None
 
 
 def _format_style(style: Style | None) -> str:
@@ -77,15 +109,23 @@ def _format_location(location: WorldFact | None, detailed: bool = False) -> str:
     return "\n".join(parts)
 
 
-def _format_beats(beats: list[Beat], enhanced: bool = False) -> str:
+def _format_beats(
+    beats: list[Beat],
+    enhanced: bool = False,
+    fmt: LiteratureFormat | None = None,
+) -> str:
     """Format beat sequence for scene generation.
 
     Args:
         beats: List of beats to format.
         enhanced: If True, include beat IDs and additional guidance for structured output.
+        fmt: Literature format, used to supply a default word target when a beat omits one.
     """
     if not beats:
         return "No specific beats defined. Write a cohesive scene."
+
+    effective_fmt = fmt or "novel"
+    default_words = DEFAULT_BEAT_WORDS.get(effective_fmt, 0)
 
     parts: list[str] = []
     for i, beat in enumerate(beats, 1):
@@ -100,8 +140,10 @@ def _format_beats(beats: list[Beat], enhanced: bool = False) -> str:
             info.append(f"   Outcome: {beat.outcome}")
         if beat.pace:
             info.append(f"   Pace: {beat.pace}")
-        if beat.target_words:
-            info.append(f"   Target words: ~{beat.target_words}")
+        # Show explicit target or format default
+        target = beat.target_words or default_words
+        if target:
+            info.append(f"   Target words: ~{target}")
         if enhanced and beat.constraints:
             info.append(f"   Constraints: {', '.join(beat.constraints)}")
         parts.append("\n".join(info))
@@ -118,6 +160,9 @@ def build_scene_system_prompt(style: Style | None) -> str:
         "Maintain consistent POV and tense throughout",
         "Create natural transitions between beats",
         "Use sensory details to ground the reader in the setting",
+        # Word count
+        "Aim for the word-count targets given per beat and for the scene total"
+        " — treat them as approximate goals, not hard limits",
         # Dialogue craft
         "Write dialogue that reveals character personality, desire, and conflict — not just information",
         "Start a new paragraph for each speaker change",
@@ -145,6 +190,7 @@ def build_scene_prompt(
     style: Style | None,
     prior_context: str,
     premise: str,
+    fmt: LiteratureFormat | None = None,
 ) -> str:
     """Build user prompt for scene generation."""
     sections: dict[str, str] = {}
@@ -172,7 +218,17 @@ def build_scene_prompt(
         facts_text = "\n".join(f"- {fact.name}: {', '.join(fact.facts)}" for fact in world_facts)
         sections["Relevant World Facts"] = facts_text
 
-    sections["Beat Sequence"] = _format_beats(scene.beats)
+    sections["Beat Sequence"] = _format_beats(scene.beats, fmt=fmt)
+
+    # Scene-level word count target
+    scene_target = _compute_scene_word_target(scene.beats, fmt)
+    if scene_target:
+        sections["Word Count Target"] = (
+            f"Aim for approximately {scene_target} words total for this scene. "
+            "This is a guideline, not a hard limit — prioritize narrative quality, "
+            "but stay in the neighborhood of the target."
+        )
+
     sections["Style Guidelines"] = _format_style(style)
 
     sections["Instructions"] = (
@@ -397,6 +453,9 @@ def build_enhanced_scene_system_prompt(style: Style | None) -> str:
         "Use sensory details to ground the reader (visual, auditory, tactile, olfactory)",
         "Maintain consistent POV and tense throughout",
         "Create natural transitions between beats",
+        # Word count
+        "Aim for the word-count targets given per beat and for the scene total"
+        " — treat them as approximate goals, not hard limits",
         # Enhanced narrative elements
         "Start with a compelling hook that draws the reader in immediately",
         "Vary hook types (action, dialogue, image, question, tension) from previous scenes",
@@ -431,6 +490,7 @@ def build_enhanced_scene_prompt(
     prior_context: str,
     premise: str,
     prior_hooks: list[str] | None = None,
+    fmt: LiteratureFormat | None = None,
 ) -> str:
     """Build user prompt for enhanced scene generation with hooks and beat tracking.
 
@@ -443,6 +503,7 @@ def build_enhanced_scene_prompt(
         prior_context: Summary of previous scenes.
         premise: Story premise.
         prior_hooks: Previous scene hooks for diversity.
+        fmt: Literature format for word-count defaults.
 
     Returns:
         User prompt string.
@@ -474,7 +535,17 @@ def build_enhanced_scene_prompt(
         sections["Relevant World Facts"] = facts_text
 
     # Include beat IDs for tracking
-    sections["Beat Sequence"] = _format_beats(scene.beats, enhanced=True)
+    sections["Beat Sequence"] = _format_beats(scene.beats, enhanced=True, fmt=fmt)
+
+    # Scene-level word count target
+    scene_target = _compute_scene_word_target(scene.beats, fmt)
+    if scene_target:
+        sections["Word Count Target"] = (
+            f"Aim for approximately {scene_target} words total for this scene. "
+            "This is a guideline, not a hard limit — prioritize narrative quality, "
+            "but stay in the neighborhood of the target."
+        )
+
     sections["Style Guidelines"] = _format_style(style)
 
     # Hook diversity guidance
@@ -694,6 +765,7 @@ Return JSON in this exact format:
 
 
 __all__ = [
+    "DEFAULT_BEAT_WORDS",
     "HOOK_TYPES",
     "build_continuity_prompt",
     "build_continuity_system_prompt",

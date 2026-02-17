@@ -109,6 +109,7 @@ async def build_scene(
         style=project.style,
         prior_context=prior_context,
         premise=project.plot.premise,
+        fmt=project.plot.format,
     )
 
     async def runner() -> SceneProseOutput:
@@ -411,6 +412,7 @@ async def build_enhanced_scene(
         prior_context=prior_context,
         premise=project.plot.premise,
         prior_hooks=prior_hooks,
+        fmt=project.plot.format,
     )
 
     async def runner() -> EnhancedSceneProseOutput:
