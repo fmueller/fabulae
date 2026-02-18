@@ -24,6 +24,7 @@ from fabulae.features.build.schemas import (
     BuildOptions,
     BuildOutput,
     ChapterOutput,
+    SceneHook,
     SceneOutput,
 )
 from fabulae.llm import LLMConfig
@@ -33,6 +34,11 @@ from fabulae.models import Project
 def _count_words(text: str) -> int:
     """Count words in text."""
     return len(text.split())
+
+
+def _format_hook_md(hook: SceneHook) -> str:
+    """Format a scene hook as italic markdown."""
+    return f"*{hook.content}*"
 
 
 def _combine_chapters(chapters: list[ChapterOutput]) -> str:
@@ -52,6 +58,8 @@ def _combine_scenes(scenes: list[SceneOutput]) -> str:
     for scene in scenes:
         if scene.title:
             parts.append(f"## {scene.title}\n")
+        if scene.hook:
+            parts.append(_format_hook_md(scene.hook))
         parts.append(scene.content)
     return "\n\n".join(parts)
 
@@ -144,7 +152,13 @@ async def _build_micro_prose(
     else:
         fragments = await build_micro_prose_sequential(project, config, options, progress, expected_language)
 
-    full_text = "\n\n---\n\n".join(f.content for f in fragments)
+    fragment_parts: list[str] = []
+    for f in fragments:
+        if f.hook:
+            fragment_parts.append(f"{_format_hook_md(f.hook)}\n\n{f.content}")
+        else:
+            fragment_parts.append(f.content)
+    full_text = "\n\n---\n\n".join(fragment_parts)
     return BuildOutput(
         metadata=_create_metadata(project, config, seed),
         fragments=fragments,

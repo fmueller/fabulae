@@ -452,13 +452,14 @@ async def build_enhanced_scene(
         on_json_error=on_json_error,
     )
 
-    # Assemble content from beats
+    # Assemble content from beats (hook is stored separately for distinct rendering)
     content_parts: list[str] = []
-    if prose_output.hook:
-        content_parts.append(prose_output.hook.content)
     for beat in prose_output.beats:
         content_parts.append(beat.prose)
     content = "\n\n".join(content_parts)
+
+    # Word count includes hook text
+    total_text = f"{prose_output.hook.content}\n\n{content}" if prose_output.hook else content
 
     return SceneOutput(
         scene_id=scene.id,
@@ -467,7 +468,7 @@ async def build_enhanced_scene(
         hook=prose_output.hook,
         beats=prose_output.beats,
         content=content,
-        word_count=_count_words(content),
+        word_count=_count_words(total_text),
     )
 
 

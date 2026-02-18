@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from fabulae.features.build.schemas import BuildOutput, ChapterOutput
+from fabulae.features.build.schemas import BuildOutput, ChapterOutput, SceneHook
 
 OutputFormat = Literal["md", "txt", "html"]
 
@@ -122,6 +122,17 @@ def _format_content(text: str, output_format: OutputFormat, title: str) -> str:
         return text
 
 
+def _format_hook(hook: SceneHook, output_format: OutputFormat) -> str:
+    """Format a scene hook for the given output format."""
+    if output_format == "md":
+        return f"*{hook.content}*"
+    elif output_format == "txt":
+        return hook.content
+    elif output_format == "html":
+        return f'<p class="hook">{html.escape(hook.content)}</p>'
+    return f"*{hook.content}*"
+
+
 def _format_chapter(chapter: ChapterOutput, output_format: OutputFormat) -> str:
     """Format a single chapter for output."""
     parts: list[str] = []
@@ -142,6 +153,9 @@ def _format_chapter(chapter: ChapterOutput, output_format: OutputFormat) -> str:
                 parts.append(f"\n{scene.title}\n{'-' * len(scene.title)}\n")
             elif output_format == "html":
                 parts.append(f"<h2>{html.escape(scene.title)}</h2>")
+
+        if scene.hook:
+            parts.append(_format_hook(scene.hook, output_format))
 
         if output_format == "html":
             parts.append(_markdown_to_html(scene.content))
@@ -207,7 +221,11 @@ def write_build_output(
 
         for i, fragment in enumerate(result.fragments, 1):
             filename = f"{i:02d}-{fragment.fragment_id}.{ext}"
-            content = _format_content(fragment.content, output_format, f"Fragment {i}")
+            fragment_text = fragment.content
+            if fragment.hook:
+                # Prepend hook as italic markdown; _format_content handles conversion
+                fragment_text = f"*{fragment.hook.content}*\n\n{fragment_text}"
+            content = _format_content(fragment_text, output_format, f"Fragment {i}")
             (fragments_dir / filename).write_text(content)
 
 
