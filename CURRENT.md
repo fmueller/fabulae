@@ -4,12 +4,14 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- **TASK-11**: Added prose craft guidelines to build prompts
+  - Show-don't-tell instruction with concrete example ("her hands trembled" not "she was nervous")
+  - Anti-purple-prose: prefer concrete nouns and strong verbs over adjective/adverb chains
+  - Pacing via sentence variation: short for tension, long for reflection
+  - Ground abstractions in tangible sensory details
+  - Enter scenes late / leave early — skip preamble
+  - Applied to all four prompt builders: standard scene, enhanced scene, standard fragment, enhanced fragment
 - **TASK-10**: Scene hooks now rendered distinctly in build output
-  - Hooks separated from scene `content` — stored in `hook` field only
-  - `_combine_scenes` renders hooks as italic markdown before content
-  - Fragment hooks rendered in micro-prose full text
-  - Writer renders hooks per format: italic (md), plain (txt), `<p class="hook">` (html)
-  - Existing `.hook` CSS class now used in HTML output
 - **TASK-9**: Enriched continuity summaries to preserve dialogue threads and character emotional states
 - **TASK-8**: Added word count targets to build scene prompts
 - **TASK-7**: Strengthened dialogue in build prompts — both standard and enhanced modes
@@ -18,7 +20,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Next
 
-- **TASK-11 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
+- **TASK-12 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
 - v0.1.0 release after build improvements and bug fixes are done
 - TUI, check, doctor commands moved to v0.2.0
 

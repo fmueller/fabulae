@@ -163,6 +163,14 @@ def build_scene_system_prompt(style: Style | None) -> str:
         # Word count
         "Aim for the word-count targets given per beat and for the scene total"
         " — treat them as approximate goals, not hard limits",
+        # Prose craft
+        "Show, don't tell: convey emotions through physical sensation, gesture, and action"
+        " — 'her hands trembled' not 'she was nervous'",
+        "Prefer concrete nouns and strong verbs over adjective and adverb chains"
+        " — cut words that don't earn their place",
+        "Vary sentence length: short sentences and fragments for tension, longer ones for reflection",
+        "Ground abstract ideas in specific, tangible details the reader can see, hear, or touch",
+        "Enter scenes late and leave early — skip throat-clearing preamble",
         # Dialogue craft
         "Write dialogue that reveals character personality, desire, and conflict — not just information",
         "Start a new paragraph for each speaker change",
@@ -292,6 +300,11 @@ def build_fragment_system_prompt(style: Style | None) -> str:
         "Create a complete micro-narrative with emotional resonance",
         "Use precise, carefully chosen language",
         "Maintain the style and tone specified",
+        # Prose craft
+        "Show, don't tell: convey emotions through physical sensation and action rather than naming them",
+        "Every word must earn its place — prefer concrete, specific language over ornate description",
+        "Vary sentence rhythm to control pacing",
+        # Output format
         "Return only the content field with the prose",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
@@ -479,6 +492,14 @@ def build_enhanced_scene_system_prompt(style: Style | None) -> str:
         "Vary hook types (action, dialogue, image, question, tension) from previous scenes",
         "Show character inner thoughts and reactions when POV allows",
         "Describe the environment to establish mood and atmosphere",
+        # Prose craft
+        "Show, don't tell: convey emotions through physical sensation, gesture, and action"
+        " — 'her hands trembled' not 'she was nervous'",
+        "Prefer concrete nouns and strong verbs over adjective and adverb chains"
+        " — cut words that don't earn their place",
+        "Vary sentence length: short sentences and fragments for tension, longer ones for reflection",
+        "Ground abstract ideas in specific, tangible details the reader can see, hear, or touch",
+        "Enter scenes late and leave early — skip throat-clearing preamble",
         # Dialogue craft
         "Write dialogue that reveals character personality, desire, and conflict — not just information",
         "Let each character's desire, need, and flaw shape what they say and how they say it",
@@ -614,6 +635,10 @@ def build_enhanced_fragment_system_prompt(style: Style | None) -> str:
         # Enhanced elements
         "Start with a compelling hook that draws the reader in",
         "Vary hook types from previous fragments",
+        # Prose craft
+        "Show, don't tell: convey emotions through physical sensation and action rather than naming them",
+        "Every word must earn its place — prefer concrete, specific language over ornate description",
+        "Vary sentence rhythm to control pacing",
         # Output format
         "Return JSON with 'hook' object and 'content' field",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
