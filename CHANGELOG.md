@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- Prose craft guidelines in build prompts — show-don't-tell, anti-purple-prose, sentence variation, tangible details, scene entry/exit
 - Distinct rendering of scene hooks in build output — italic in markdown/text, `<p class="hook">` in HTML using existing CSS
 - Enriched continuity summaries with dialogue thread and emotional state tracking for better scene-to-scene coherence
 - Word count targets in build scene prompts — format-aware defaults per beat (novel ~400, novella ~250, short-story ~150) with scene-level totals

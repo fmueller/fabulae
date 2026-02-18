@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from fabulae.features.build.prompts import build_continuity_prompt, build_continuity_system_prompt
+import pytest
+
+from fabulae.features.build.prompts import (
+    build_continuity_prompt,
+    build_continuity_system_prompt,
+    build_enhanced_fragment_system_prompt,
+    build_enhanced_scene_system_prompt,
+    build_fragment_system_prompt,
+    build_scene_system_prompt,
+)
 
 
 class TestContinuityPrompts:
@@ -36,3 +45,52 @@ class TestContinuityPrompts:
         assert "open_threads" in prompt
         assert "emotional_states" in prompt
         assert "summary" in prompt
+
+
+# Prose craft guidelines expected in scene prompts
+SCENE_CRAFT_PHRASES = [
+    "show, don't tell",
+    "concrete nouns and strong verbs",
+    "vary sentence length",
+    "tangible details",
+    "enter scenes late",
+]
+
+# Prose craft guidelines expected in fragment prompts (shorter list for micro-prose)
+FRAGMENT_CRAFT_PHRASES = [
+    "show, don't tell",
+    "earn its place",
+    "sentence rhythm",
+]
+
+
+class TestSceneProseCraft:
+    """Tests that scene system prompts include prose craft guidelines."""
+
+    @pytest.mark.parametrize("phrase", SCENE_CRAFT_PHRASES)
+    def test_standard_scene_prompt_contains_craft_guideline(self, phrase: str) -> None:
+        """Standard scene system prompt includes prose craft guideline."""
+        prompt = build_scene_system_prompt(style=None)
+        assert phrase in prompt.lower(), f"Expected '{phrase}' in standard scene system prompt"
+
+    @pytest.mark.parametrize("phrase", SCENE_CRAFT_PHRASES)
+    def test_enhanced_scene_prompt_contains_craft_guideline(self, phrase: str) -> None:
+        """Enhanced scene system prompt includes prose craft guideline."""
+        prompt = build_enhanced_scene_system_prompt(style=None)
+        assert phrase in prompt.lower(), f"Expected '{phrase}' in enhanced scene system prompt"
+
+
+class TestFragmentProseCraft:
+    """Tests that fragment system prompts include prose craft guidelines."""
+
+    @pytest.mark.parametrize("phrase", FRAGMENT_CRAFT_PHRASES)
+    def test_standard_fragment_prompt_contains_craft_guideline(self, phrase: str) -> None:
+        """Standard fragment system prompt includes prose craft guideline."""
+        prompt = build_fragment_system_prompt(style=None)
+        assert phrase in prompt.lower(), f"Expected '{phrase}' in standard fragment system prompt"
+
+    @pytest.mark.parametrize("phrase", FRAGMENT_CRAFT_PHRASES)
+    def test_enhanced_fragment_prompt_contains_craft_guideline(self, phrase: str) -> None:
+        """Enhanced fragment system prompt includes prose craft guideline."""
+        prompt = build_enhanced_fragment_system_prompt(style=None)
+        assert phrase in prompt.lower(), f"Expected '{phrase}' in enhanced fragment system prompt"

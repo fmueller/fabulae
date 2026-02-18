@@ -1,7 +1,7 @@
 ---
 id: TASK-11
 title: No show-don't-tell or prose craft instructions in prompts
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:
