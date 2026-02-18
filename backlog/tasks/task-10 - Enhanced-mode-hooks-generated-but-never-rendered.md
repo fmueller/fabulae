@@ -1,7 +1,7 @@
 ---
 id: TASK-10
 title: Enhanced mode hooks generated but never rendered
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

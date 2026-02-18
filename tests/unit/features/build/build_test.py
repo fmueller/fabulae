@@ -17,6 +17,7 @@ from fabulae.features.build.schemas import (
     BuildOutput,
     ChapterOutput,
     FragmentOutput,
+    SceneHook,
     SceneOutput,
 )
 from fabulae.features.build.writer import write_build_output
@@ -1412,3 +1413,180 @@ class TestPipelineAutoSelection:
             )
             output = strip_ansi(result.output)
             assert "Pipeline: sequential" in output
+
+
+class TestHookRendering:
+    """Tests for distinct rendering of SceneHook objects."""
+
+    def _create_metadata(self) -> BuildMetadata:
+        return BuildMetadata(
+            project_name="Hook Test",
+            format="novel",
+            seed=42,
+            model="test-model",
+            temperature=0.7,
+            timestamp=datetime(2024, 1, 15, 14, 30, 52),
+            version="0.1.0",
+        )
+
+    def test_combine_scenes_renders_hooks_as_italic(self) -> None:
+        """_combine_scenes renders hooks as italic markdown before content."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(
+                scene_id="s-01",
+                title="Opening",
+                hook=SceneHook(hook_type="action", content="The door burst open."),
+                content="Beat prose follows here.",
+                word_count=10,
+            ),
+        ]
+        result = _combine_scenes(scenes)
+        assert "*The door burst open.*" in result
+        assert result.index("*The door burst open.*") < result.index("Beat prose follows here.")
+
+    def test_combine_scenes_without_hooks(self) -> None:
+        """_combine_scenes works normally when scenes have no hooks."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(scene_id="s-01", title="Opening", content="Scene content.", word_count=2),
+        ]
+        result = _combine_scenes(scenes)
+        assert "Scene content." in result
+        assert "*" not in result.split("Scene content.")[0]  # No italic before content
+
+    def test_combine_chapters_includes_scene_hooks(self) -> None:
+        """_combine_chapters renders scene hooks within chapters."""
+        from fabulae.features.build.service import _combine_chapters
+
+        chapters = [
+            ChapterOutput(
+                chapter_id="ch-01",
+                title="Chapter One",
+                scenes=[
+                    SceneOutput(
+                        scene_id="s-01",
+                        title="Scene A",
+                        hook=SceneHook(hook_type="dialog", content='"Run!" she screamed.'),
+                        content="The chaos erupted.",
+                        word_count=5,
+                    ),
+                ],
+                word_count=5,
+            ),
+        ]
+        result = _combine_chapters(chapters)
+        assert "# Chapter One" in result
+        assert '*"Run!" she screamed.*' in result
+        assert "The chaos erupted." in result
+
+    def test_format_chapter_md_renders_hooks(self) -> None:
+        """_format_chapter renders scene hooks as italic in markdown."""
+        from fabulae.features.build.writer import _format_chapter
+
+        chapter = ChapterOutput(
+            chapter_id="ch-01",
+            title="Test Chapter",
+            scenes=[
+                SceneOutput(
+                    scene_id="s-01",
+                    title="Scene One",
+                    hook=SceneHook(hook_type="tension", content="Something was wrong."),
+                    content="Main scene content.",
+                    word_count=5,
+                ),
+            ],
+            word_count=5,
+        )
+        result = _format_chapter(chapter, "md")
+        assert "*Something was wrong.*" in result
+        assert result.index("*Something was wrong.*") < result.index("Main scene content.")
+
+    def test_format_chapter_html_renders_hooks_with_class(self) -> None:
+        """_format_chapter renders scene hooks with .hook CSS class in HTML."""
+        from fabulae.features.build.writer import _format_chapter
+
+        chapter = ChapterOutput(
+            chapter_id="ch-01",
+            title="Test Chapter",
+            scenes=[
+                SceneOutput(
+                    scene_id="s-01",
+                    hook=SceneHook(hook_type="image", content="Dawn broke over the valley."),
+                    content="The journey began.",
+                    word_count=5,
+                ),
+            ],
+            word_count=5,
+        )
+        result = _format_chapter(chapter, "html")
+        assert '<p class="hook">Dawn broke over the valley.</p>' in result
+
+    def test_format_chapter_txt_renders_hooks_plain(self) -> None:
+        """_format_chapter renders hooks as plain text in txt format."""
+        from fabulae.features.build.writer import _format_chapter
+
+        chapter = ChapterOutput(
+            chapter_id="ch-01",
+            title="Test Chapter",
+            scenes=[
+                SceneOutput(
+                    scene_id="s-01",
+                    hook=SceneHook(hook_type="question", content="Who would survive?"),
+                    content="Main content.",
+                    word_count=3,
+                ),
+            ],
+            word_count=3,
+        )
+        result = _format_chapter(chapter, "txt")
+        assert "Who would survive?" in result
+        # No italic markers in plain text
+        assert "*Who would survive?*" not in result
+
+    def test_write_fragments_with_hooks(self, tmp_path: Path) -> None:
+        """Writer renders fragment hooks in individual fragment files."""
+        output = BuildOutput(
+            metadata=BuildMetadata(
+                project_name="Test",
+                format="micro-prose",
+                model="test",
+                temperature=0.7,
+                timestamp=datetime.now(),
+                version="0.1.0",
+            ),
+            fragments=[
+                FragmentOutput(
+                    fragment_id="frag-01",
+                    hook=SceneHook(hook_type="image", content="Snow fell silently."),
+                    content="The village slept.",
+                    word_count=5,
+                ),
+            ],
+            full_text="*Snow fell silently.*\n\nThe village slept.",
+            total_word_count=5,
+        )
+        output_dir = tmp_path / "output"
+        write_build_output(output, output_dir, "md")
+
+        content = (output_dir / "fragments" / "01-frag-01.md").read_text()
+        assert "*Snow fell silently.*" in content
+        assert "The village slept." in content
+
+    def test_format_chapter_no_hook_no_extra_formatting(self) -> None:
+        """_format_chapter produces no hook formatting when scene has no hook."""
+        from fabulae.features.build.writer import _format_chapter
+
+        chapter = ChapterOutput(
+            chapter_id="ch-01",
+            title="Test Chapter",
+            scenes=[
+                SceneOutput(scene_id="s-01", content="Just content.", word_count=2),
+            ],
+            word_count=2,
+        )
+        result = _format_chapter(chapter, "md")
+        assert "Just content." in result
+        assert '<p class="hook">' not in result
