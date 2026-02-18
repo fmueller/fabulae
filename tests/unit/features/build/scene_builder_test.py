@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from fabulae.features.build.scene_builder import (
+    _format_continuity_summary,
     build_enhanced_fragment,
     build_enhanced_scene,
     build_enhanced_stanza,
@@ -591,6 +592,95 @@ class TestGenerateContinuitySummaryGuardsIntegration:
 
         call_kwargs = mock_guards.call_args[1]
         assert call_kwargs["on_json_error"] is callback
+
+
+class TestFormatContinuitySummary:
+    """Tests for _format_continuity_summary formatting logic."""
+
+    def test_summary_only(self) -> None:
+        """With no threads or states, returns just the summary."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        cs = ContinuitySummary(summary="Elena discovered the hidden passage.")
+        result = _format_continuity_summary(cs)
+        assert result == "Elena discovered the hidden passage."
+
+    def test_summary_with_open_threads(self) -> None:
+        """Open threads are appended on a separate line."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        cs = ContinuitySummary(
+            summary="Elena confronted Marcus about the letter.",
+            open_threads=["Marcus never explained where the letter came from", "Elena asked about the key"],
+        )
+        result = _format_continuity_summary(cs)
+        assert "Elena confronted Marcus" in result
+        assert "Open threads: Marcus never explained where the letter came from; Elena asked about the key" in result
+
+    def test_summary_with_emotional_states(self) -> None:
+        """Emotional states are appended on a separate line."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        cs = ContinuitySummary(
+            summary="The argument escalated.",
+            emotional_states=["Elena — furious", "Marcus — defensive and guilty"],
+        )
+        result = _format_continuity_summary(cs)
+        assert "Emotional states: Elena — furious; Marcus — defensive and guilty" in result
+
+    def test_full_enriched_summary(self) -> None:
+        """All three sections are present when threads and states are provided."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        cs = ContinuitySummary(
+            summary="Elena and Marcus reached a fragile truce.",
+            open_threads=["Who sent the warning note?"],
+            emotional_states=["Elena — wary", "Marcus — relieved but suspicious"],
+        )
+        result = _format_continuity_summary(cs)
+        lines = result.split("\n")
+        assert len(lines) == 3
+        assert lines[0] == "Elena and Marcus reached a fragile truce."
+        assert lines[1] == "Open threads: Who sent the warning note?"
+        assert lines[2] == "Emotional states: Elena — wary; Marcus — relieved but suspicious"
+
+    def test_empty_lists_treated_as_absent(self) -> None:
+        """Empty lists produce no extra lines."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        cs = ContinuitySummary(summary="Nothing notable.", open_threads=[], emotional_states=[])
+        result = _format_continuity_summary(cs)
+        assert result == "Nothing notable."
+        assert "\n" not in result
+
+
+class TestGenerateContinuitySummaryEnriched:
+    """Tests for generate_continuity_summary with enriched schema."""
+
+    def test_enriched_summary_is_formatted(self, llm_config: LLMConfig) -> None:
+        """generate_continuity_summary formats enriched ContinuitySummary into multi-line string."""
+        from fabulae.features.build.schemas import ContinuitySummary
+
+        mock_output = ContinuitySummary(
+            summary="A confrontation occurred.",
+            open_threads=["Unresolved promise"],
+            emotional_states=["Hero — angry"],
+        )
+        mock_result = _make_guards_result()
+
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guards:
+            mock_guards.return_value = (mock_output, mock_result)
+
+            result = asyncio.run(
+                generate_continuity_summary(
+                    scene_content="Scene prose here.",
+                    config=llm_config,
+                )
+            )
+
+        assert "A confrontation occurred." in result
+        assert "Open threads: Unresolved promise" in result
+        assert "Emotional states: Hero — angry" in result
 
 
 class TestSceneTitleFallback:

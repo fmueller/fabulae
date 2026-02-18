@@ -127,6 +127,17 @@ class ContinuitySummary(BaseModel):
     """Summary of a scene for continuity threading."""
 
     summary: str = Field(description="Brief summary of key events and character development")
+    open_threads: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Unresolved dialogue threads: promises, unanswered questions, "
+            "unfinished arguments, or topics left hanging"
+        ),
+    )
+    emotional_states: list[str] = Field(
+        default_factory=list,
+        description="Character emotional states at the end of the scene, e.g. 'Elena — determined but hiding guilt'",
+    )
 
 
 class SceneProseOutput(BaseModel):

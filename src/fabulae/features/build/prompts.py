@@ -245,13 +245,24 @@ def build_scene_prompt(
 def build_continuity_system_prompt() -> str:
     """Build system prompt for continuity summary generation."""
     return build_system_prompt(
-        purpose="Generate a brief summary of a scene for continuity tracking.",
+        purpose=(
+            "Generate a structured continuity summary of a scene "
+            "that preserves plot, dialogue threads, and character emotional states."
+        ),
         guidelines=[
-            "Summarize the key events that occurred",
+            "Summarize the key events that occurred in 2-3 sentences",
             "Note any significant character development or revelations",
             "Highlight any plot points that might be referenced later",
-            "Keep the summary concise (2-3 sentences)",
-            "Return only the summary field",
+            # Dialogue thread preservation
+            "Identify open dialogue threads: promises made, unanswered questions, "
+            "unfinished arguments, topics left hanging, or agreements/disagreements that may resurface",
+            "If no dialogue threads are open, return an empty list for open_threads",
+            # Character emotional state tracking
+            "Note each character's emotional state at the END of the scene — "
+            "include their name and a brief description (e.g. 'Elena — determined but hiding guilt')",
+            "Focus on emotional shifts: if a character entered happy and left angry, capture the ending state",
+            # Output
+            "Return all three fields: summary, open_threads, emotional_states",
             "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
         ],
     )
@@ -262,7 +273,14 @@ def build_continuity_prompt(scene_content: str) -> str:
     return format_sections(
         {
             "Scene Content": scene_content,
-            "Instructions": "Summarize this scene in 2-3 sentences for continuity tracking.",
+            "Instructions": (
+                "Analyze this scene and return a structured continuity summary with:\n"
+                '1. "summary": 2-3 sentences covering key events and plot developments\n'
+                '2. "open_threads": list of unresolved dialogue threads '
+                "(promises, unanswered questions, unfinished arguments, hanging topics)\n"
+                '3. "emotional_states": list of character emotional states at scene end '
+                "(e.g. 'Marcus — frustrated, doubting his allies')"
+            ),
         }
     )
 

@@ -138,6 +138,25 @@ async def build_scene(
     )
 
 
+def _format_continuity_summary(summary: ContinuitySummary) -> str:
+    """Format a structured continuity summary into a single string for context passing.
+
+    Combines plot summary, open dialogue threads, and character emotional states
+    into a readable block that downstream scene prompts can consume.
+    """
+    parts = [summary.summary]
+
+    if summary.open_threads:
+        threads = "; ".join(summary.open_threads)
+        parts.append(f"Open threads: {threads}")
+
+    if summary.emotional_states:
+        states = "; ".join(summary.emotional_states)
+        parts.append(f"Emotional states: {states}")
+
+    return "\n".join(parts)
+
+
 async def generate_continuity_summary(
     scene_content: str,
     config: LLMConfig,
@@ -151,7 +170,8 @@ async def generate_continuity_summary(
         on_json_error: Callback for JSON error notifications.
 
     Returns:
-        A brief summary for continuity threading.
+        A formatted summary including plot events, open dialogue threads,
+        and character emotional states for continuity threading.
     """
     system_prompt = build_continuity_system_prompt()
     user_prompt = build_continuity_prompt(scene_content)
@@ -171,7 +191,7 @@ async def generate_continuity_summary(
         on_json_error=on_json_error,
     )
 
-    return summary_output.summary
+    return _format_continuity_summary(summary_output)
 
 
 async def build_fragment(

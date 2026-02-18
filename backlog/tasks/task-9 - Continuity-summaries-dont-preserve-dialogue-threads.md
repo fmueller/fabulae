@@ -1,7 +1,7 @@
 ---
 id: TASK-9
 title: Continuity summaries don't preserve dialogue threads
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:
