@@ -1,7 +1,7 @@
 ---
 id: TASK-12
 title: Short-story scene headers should use scene breaks
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

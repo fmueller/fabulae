@@ -32,8 +32,8 @@ def _strip_markdown(text: str) -> str:
     text = re.sub(r"_(.+?)_", r"\1", text)
     # Remove links
     text = re.sub(r"\[(.+?)\]\(.+?\)", r"\1", text)
-    # Remove horizontal rules
-    text = re.sub(r"^---+$", "", text, flags=re.MULTILINE)
+    # Convert horizontal rules to typographic scene breaks
+    text = re.sub(r"^---+$", "* * *", text, flags=re.MULTILINE)
     return text
 
 

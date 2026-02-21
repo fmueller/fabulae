@@ -1,7 +1,7 @@
 ---
 id: TASK-14
 title: Standard scene prompts significantly weaker than enhanced
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:

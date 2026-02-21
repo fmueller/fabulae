@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - Third-party dependency license audit document with Apache-2.0 compatibility and release checklist
+- Short-story scene breaks — `---` separators replace `## title` headers; text output renders as `* * *`
+- Per-format prose differentiation — novel (expansive), novella (focused), short-story (economical) guidelines in system prompts
+- Standard scene prompts strengthened — detailed locations, inner thought, multi-sensory grounding, varied dialogue attribution (was enhanced-only)
 - Prose craft guidelines in build prompts — show-don't-tell, anti-purple-prose, sentence variation, tangible details, scene entry/exit
 - Distinct rendering of scene hooks in build output — italic in markdown/text, `<p class="hook">` in HTML using existing CSS
 - Enriched continuity summaries with dialogue thread and emotional state tracking for better scene-to-scene coherence

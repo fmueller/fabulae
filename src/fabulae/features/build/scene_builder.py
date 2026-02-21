@@ -100,7 +100,7 @@ async def build_scene(
     location = _get_location(scene, project)
     world_facts = _get_world_facts(scene, project)
 
-    system_prompt = build_scene_system_prompt(project.style)
+    system_prompt = build_scene_system_prompt(project.style, fmt=project.plot.format)
     user_prompt = build_scene_prompt(
         scene=scene,
         characters=characters,
@@ -422,7 +422,7 @@ async def build_enhanced_scene(
     location = _get_location(scene, project)
     world_facts = _get_world_facts(scene, project)
 
-    system_prompt = build_enhanced_scene_system_prompt(project.style)
+    system_prompt = build_enhanced_scene_system_prompt(project.style, fmt=project.plot.format)
     user_prompt = build_enhanced_scene_prompt(
         scene=scene,
         characters=characters,

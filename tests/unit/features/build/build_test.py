@@ -831,7 +831,9 @@ class TestBuildService:
         mock_result.output = SceneProseOutput(title="Test Title", content="Generated scene content.")
 
         summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Scene summary."})()
+        summary_mock.output = type(
+            "Summary", (), {"summary": "Scene summary.", "open_threads": [], "emotional_states": []}
+        )()
 
         with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
             mock_agent = AsyncMock()
@@ -945,7 +947,9 @@ class TestBuildService:
         mock_result.output = SceneProseOutput(title="Test Title", content="Content.")
 
         summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
+        summary_mock.output = type(
+            "Summary", (), {"summary": "Summary.", "open_threads": [], "emotional_states": []}
+        )()
 
         with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
             mock_agent = AsyncMock()
@@ -975,7 +979,9 @@ class TestBuildService:
         mock_result.output = SceneProseOutput(title="Test Title", content="Generated scene content.")
 
         summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Scene summary."})()
+        summary_mock.output = type(
+            "Summary", (), {"summary": "Scene summary.", "open_threads": [], "emotional_states": []}
+        )()
 
         with patch("fabulae.features.build.scene_builder.create_agent") as mock_create:
             mock_agent = AsyncMock()
@@ -1010,7 +1016,9 @@ class TestBuildService:
         mock_result.output = SceneProseOutput(title="Test Title", content="Content.")
 
         summary_mock = AsyncMock()
-        summary_mock.output = type("Summary", (), {"summary": "Summary."})()
+        summary_mock.output = type(
+            "Summary", (), {"summary": "Summary.", "open_threads": [], "emotional_states": []}
+        )()
 
         progress = MagicMock()
 
@@ -1073,8 +1081,8 @@ class TestBuildLanguageGuard:
         project = load_project(tmp_path)
         config = LLMConfig(model="test")
 
-        # Patch language guard to skip detection (test just ensures no crash)
-        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+        # Patch guards to skip detection (test just ensures no crash)
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guard:
             mock_guard.return_value = (
                 SceneProseOutput(title="Test Title", content="Inhalt auf Deutsch."),
                 type("Result", (), {"passed": True, "skipped": True})(),
@@ -1108,7 +1116,7 @@ class TestBuildLanguageGuard:
         assert project.style is not None
         assert project.style.language == "en"
 
-        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guard:
             mock_guard.return_value = (
                 SceneProseOutput(title="Test Title", content="English content."),
                 type("Result", (), {"passed": True, "skipped": True})(),
@@ -1123,13 +1131,13 @@ class TestBuildLanguageGuard:
                 options = BuildOptions(enhanced=False)
                 asyncio.run(build_project(project, config, expected_language=project.style.language, options=options))
 
-        # Verify language guard was called with expected language
+        # Verify guards were called with expected language
         assert mock_guard.call_count > 0
-        call_kwargs = mock_guard.call_args
-        assert call_kwargs[1].get("expected_language") == "en" or call_kwargs[0][2] == "en"
+        call_kwargs = mock_guard.call_args[1]
+        assert call_kwargs.get("expected_language") == "en"
 
     def test_build_scene_builder_passes_expected_language(self, tmp_path: Path) -> None:
-        """scene_builder.build_scene passes expected_language to run_with_language_guard."""
+        """scene_builder.build_scene passes expected_language to run_with_guards."""
         import asyncio
 
         from fabulae.features.build.scene_builder import build_scene
@@ -1148,7 +1156,7 @@ class TestBuildLanguageGuard:
         scene = project.plot.scenes[0]
         config = LLMConfig(model="test")
 
-        with patch("fabulae.features.build.scene_builder.run_with_language_guard") as mock_guard:
+        with patch("fabulae.features.build.scene_builder.run_with_guards") as mock_guard:
             mock_guard.return_value = (
                 SceneProseOutput(title="Test Title", content="German content."),
                 type("Result", (), {"passed": True, "skipped": False})(),
@@ -1159,8 +1167,6 @@ class TestBuildLanguageGuard:
         # Verify expected_language was passed
         call_kwargs = mock_guard.call_args[1]
         assert call_kwargs["expected_language"] == "de"
-        # Verify correct callback was provided
-        assert call_kwargs["correct"] is not None
 
 
 class TestEnhancedBuild:
@@ -1362,7 +1368,7 @@ class TestPipelineAutoSelection:
                 total_word_count=1,
             )
 
-            result = runner.invoke(app, ["build", str(tmp_path), "--model", "gpt-4o", "--no-history"])
+            result = runner.invoke(app, ["build", str(tmp_path), "--model", "gpt-4o", "--seed", "1"])
             output = strip_ansi(result.output)
             assert "Pipeline: batch" in output
 
@@ -1385,7 +1391,7 @@ class TestPipelineAutoSelection:
                 total_word_count=1,
             )
 
-            result = runner.invoke(app, ["build", str(tmp_path), "--model", "llama:7b", "--no-history"])
+            result = runner.invoke(app, ["build", str(tmp_path), "--model", "llama:7b", "--seed", "1"])
             output = strip_ansi(result.output)
             assert "Pipeline: sequential" in output
 
@@ -1409,7 +1415,7 @@ class TestPipelineAutoSelection:
             )
 
             result = runner.invoke(
-                app, ["build", str(tmp_path), "--model", "gpt-4o", "--pipeline", "sequential", "--no-history"]
+                app, ["build", str(tmp_path), "--model", "gpt-4o", "--pipeline", "sequential", "--seed", "1"]
             )
             output = strip_ansi(result.output)
             assert "Pipeline: sequential" in output
@@ -1590,3 +1596,255 @@ class TestHookRendering:
         result = _format_chapter(chapter, "md")
         assert "Just content." in result
         assert '<p class="hook">' not in result
+
+
+class TestShortStorySceneBreaks:
+    """Tests for TASK-12: short-story scene breaks instead of ## headers."""
+
+    def test_combine_scenes_short_story_uses_scene_breaks(self) -> None:
+        """Short-story format uses --- scene breaks instead of ## headers."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(scene_id="s-01", title="First", content="Scene one.", word_count=2),
+            SceneOutput(scene_id="s-02", title="Second", content="Scene two.", word_count=2),
+        ]
+        result = _combine_scenes(scenes, fmt="short-story")
+        assert "## First" not in result
+        assert "## Second" not in result
+        assert "---" in result
+        assert "Scene one." in result
+        assert "Scene two." in result
+
+    def test_combine_scenes_short_story_no_break_before_first(self) -> None:
+        """Short-story format does not insert a scene break before the first scene."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(scene_id="s-01", title="First", content="Scene one.", word_count=2),
+            SceneOutput(scene_id="s-02", title="Second", content="Scene two.", word_count=2),
+        ]
+        result = _combine_scenes(scenes, fmt="short-story")
+        # The result should start with the first scene content, not a break
+        assert not result.strip().startswith("---")
+
+    def test_combine_scenes_novel_keeps_headers(self) -> None:
+        """Novel format keeps ## headers (unchanged behavior)."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(scene_id="s-01", title="First", content="Scene one.", word_count=2),
+            SceneOutput(scene_id="s-02", title="Second", content="Scene two.", word_count=2),
+        ]
+        result = _combine_scenes(scenes, fmt="novel")
+        assert "## First" in result
+        assert "## Second" in result
+        assert "---" not in result
+
+    def test_combine_scenes_default_keeps_headers(self) -> None:
+        """Default (no fmt) keeps ## headers for backward compat."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(scene_id="s-01", title="Opening", content="Content.", word_count=1),
+        ]
+        result = _combine_scenes(scenes)
+        assert "## Opening" in result
+
+    def test_combine_scenes_short_story_with_hooks(self) -> None:
+        """Short-story scene breaks work correctly with hooks."""
+        from fabulae.features.build.service import _combine_scenes
+
+        scenes = [
+            SceneOutput(
+                scene_id="s-01",
+                title="First",
+                hook=SceneHook(hook_type="action", content="Door opens."),
+                content="Scene one.",
+                word_count=2,
+            ),
+            SceneOutput(
+                scene_id="s-02",
+                title="Second",
+                hook=SceneHook(hook_type="dialog", content="'Hello,' she said."),
+                content="Scene two.",
+                word_count=2,
+            ),
+        ]
+        result = _combine_scenes(scenes, fmt="short-story")
+        assert "*Door opens.*" in result
+        assert "---" in result
+        assert "*'Hello,' she said.*" in result
+
+    def test_strip_markdown_converts_hr_to_scene_break(self) -> None:
+        """_strip_markdown converts --- to * * * for visible scene breaks in text."""
+        from fabulae.features.build.writer import _strip_markdown
+
+        text = "Scene one.\n\n---\n\nScene two."
+        result = _strip_markdown(text)
+        assert "* * *" in result
+        assert "---" not in result
+
+
+class TestFormatProseDifferentiation:
+    """Tests for TASK-13: per-format prose differentiation in build prompts."""
+
+    def test_novel_system_prompt_includes_format_guidelines(self) -> None:
+        """Novel system prompt includes novel-specific prose guidelines."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None, fmt="novel")
+        assert "novel" in prompt.lower()
+        assert "immersive" in prompt.lower() or "atmosphere" in prompt.lower()
+
+    def test_novella_system_prompt_includes_format_guidelines(self) -> None:
+        """Novella system prompt includes novella-specific prose guidelines."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None, fmt="novella")
+        assert "novella" in prompt.lower()
+        assert "earn" in prompt.lower() or "momentum" in prompt.lower()
+
+    def test_short_story_system_prompt_includes_format_guidelines(self) -> None:
+        """Short-story system prompt includes short-story-specific prose guidelines."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None, fmt="short-story")
+        assert "short story" in prompt.lower()
+        assert "compression" in prompt.lower() or "economical" in prompt.lower() or "economy" in prompt.lower()
+
+    def test_enhanced_novel_system_prompt_includes_format_guidelines(self) -> None:
+        """Enhanced novel system prompt includes novel-specific prose guidelines."""
+        from fabulae.features.build.prompts import build_enhanced_scene_system_prompt
+
+        prompt = build_enhanced_scene_system_prompt(style=None, fmt="novel")
+        assert "novel" in prompt.lower()
+
+    def test_enhanced_short_story_system_prompt_includes_format_guidelines(self) -> None:
+        """Enhanced short-story system prompt includes short-story-specific prose guidelines."""
+        from fabulae.features.build.prompts import build_enhanced_scene_system_prompt
+
+        prompt = build_enhanced_scene_system_prompt(style=None, fmt="short-story")
+        assert "short story" in prompt.lower()
+
+    def test_no_format_guidelines_without_fmt(self) -> None:
+        """System prompt without fmt has no format-specific guidelines."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+        # Should not contain format-specific text when no fmt given
+        assert "you are writing a novel" not in prompt.lower()
+        assert "you are writing a novella" not in prompt.lower()
+        assert "you are writing a short story" not in prompt.lower()
+
+    def test_format_prose_guidelines_returns_empty_for_poem(self) -> None:
+        """Poem format returns no format-specific prose guidelines."""
+        from fabulae.features.build.prompts import _format_prose_guidelines
+
+        assert _format_prose_guidelines("poem") == []
+
+    def test_format_prose_guidelines_returns_empty_for_none(self) -> None:
+        """None format returns no format-specific prose guidelines."""
+        from fabulae.features.build.prompts import _format_prose_guidelines
+
+        assert _format_prose_guidelines(None) == []
+
+
+class TestStandardPromptParity:
+    """Tests for TASK-14: standard prompts backporting key enhanced features."""
+
+    def test_standard_scene_system_prompt_has_inner_thought(self) -> None:
+        """Standard scene system prompt mentions inner thought/interiority."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+        assert "inner thought" in prompt.lower() or "interiority" in prompt.lower()
+
+    def test_standard_scene_system_prompt_has_sensory_details(self) -> None:
+        """Standard scene system prompt mentions multi-sensory grounding."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+        assert "auditory" in prompt.lower() or "olfactory" in prompt.lower() or "tactile" in prompt.lower()
+
+    def test_standard_scene_system_prompt_has_desire_flaw_dialogue(self) -> None:
+        """Standard scene system prompt mentions desire/need/flaw shaping dialogue."""
+        from fabulae.features.build.prompts import build_scene_system_prompt
+
+        prompt = build_scene_system_prompt(style=None)
+        assert "desire" in prompt.lower()
+        assert "flaw" in prompt.lower()
+
+    def test_standard_scene_prompt_uses_detailed_location(self) -> None:
+        """Standard scene prompt uses detailed location formatting (sensory details)."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene, WorldFact
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            location="loc-01",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+        location = WorldFact(
+            id="loc-01", type="location", name="Old Library", facts=["Dusty shelves", "Flickering lamplight"]
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=location,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "Sensory details" in prompt
+        assert "Dusty shelves" in prompt
+
+    def test_standard_scene_prompt_instructions_mention_inner_thoughts(self) -> None:
+        """Standard scene user prompt instructions mention inner thoughts."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "inner thoughts" in prompt.lower()
+
+    def test_standard_scene_prompt_instructions_mention_attribution(self) -> None:
+        """Standard scene user prompt instructions mention varied attribution."""
+        from fabulae.features.build.prompts import build_scene_prompt
+        from fabulae.models import Beat, Scene
+
+        scene = Scene(
+            id="scene-01",
+            summary="Test scene",
+            beats=[Beat(id="beat-01", kind="opening")],
+        )
+
+        prompt = build_scene_prompt(
+            scene=scene,
+            characters=[],
+            location=None,
+            world_facts=[],
+            style=None,
+            prior_context="",
+            premise="A test story.",
+        )
+
+        assert "attribution" in prompt.lower()

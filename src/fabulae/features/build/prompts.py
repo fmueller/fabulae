@@ -38,6 +38,36 @@ def _compute_scene_word_target(beats: list[Beat], fmt: LiteratureFormat | None) 
     return total if total > 0 else None
 
 
+def _format_prose_guidelines(fmt: LiteratureFormat | None) -> list[str]:
+    """Return format-specific prose style guidelines.
+
+    Different literature formats demand different writing densities and approaches.
+    Novel prose is expansive, novella prose is focused, and short-story prose is
+    economical.  These guidelines are injected into the system prompt so the LLM
+    calibrates its output accordingly.
+    """
+    if fmt == "novel":
+        return [
+            "You are writing a NOVEL — allow room for immersive description, layered subtext, and "
+            "extended character interiority",
+            "Build atmosphere through environmental detail; let scenes breathe with sensory texture",
+            "Develop dialogue exchanges fully — characters can circle a topic, pause, react internally",
+        ]
+    if fmt == "novella":
+        return [
+            "You are writing a NOVELLA — every scene must earn its place by advancing plot or deepening character",
+            "Balance descriptive richness with narrative momentum; cut anything that doesn't serve the story",
+            "Favor suggestive detail over exhaustive description — imply the larger world",
+        ]
+    if fmt == "short-story":
+        return [
+            "You are writing a SHORT STORY — every sentence must earn its place; prefer compression over expansion",
+            "Favor implication over exposition; trust the reader to infer backstory and context",
+            "Enter late, leave early, suggest what you cannot show — economy is the craft",
+        ]
+    return []
+
+
 def _format_style(style: Style | None) -> str:
     """Format style guidance for prompts."""
     if not style:
@@ -151,15 +181,15 @@ def _format_beats(
     return "\n\n".join(parts)
 
 
-def build_scene_system_prompt(style: Style | None) -> str:
+def build_scene_system_prompt(style: Style | None, fmt: LiteratureFormat | None = None) -> str:
     """Build system prompt for scene generation."""
     guidelines = [
         "Write vivid, engaging prose that brings the scene to life",
         "Expand each beat into fully-realized narrative",
-        "Show character emotions and reactions through action and dialogue",
+        "Show character emotions through action, dialogue, and inner thought",
+        "Use sensory details to ground the reader (visual, auditory, tactile, olfactory)",
         "Maintain consistent POV and tense throughout",
         "Create natural transitions between beats",
-        "Use sensory details to ground the reader in the setting",
         # Word count
         "Aim for the word-count targets given per beat and for the scene total"
         " — treat them as approximate goals, not hard limits",
@@ -173,13 +203,17 @@ def build_scene_system_prompt(style: Style | None) -> str:
         "Enter scenes late and leave early — skip throat-clearing preamble",
         # Dialogue craft
         "Write dialogue that reveals character personality, desire, and conflict — not just information",
+        "Let each character's desire, need, and flaw shape what they say and how they say it",
         "Start a new paragraph for each speaker change",
         "Vary dialogue attribution: use action beats, untagged lines, and occasional said/asked",
-        "Aim for a healthy mix of dialogue, action, and interiority — avoid long stretches of pure narration",
+        "Balance dialogue with action and interiority — avoid long stretches of pure narration or pure dialogue",
         # Output format
         "Return only the content field with the complete scene prose",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
+
+    # Format-specific prose guidelines (TASK-13)
+    guidelines.extend(_format_prose_guidelines(fmt))
 
     if style and style.language:
         guidelines.append(build_language_guard_prompt(style.language))
@@ -220,7 +254,7 @@ def build_scene_prompt(
     )
 
     sections["Characters Present"] = _format_characters(characters, detailed=True)
-    sections["Location"] = _format_location(location)
+    sections["Location"] = _format_location(location, detailed=True)
 
     if world_facts:
         facts_text = "\n".join(f"- {fact.name}: {', '.join(fact.facts)}" for fact in world_facts)
@@ -242,7 +276,9 @@ def build_scene_prompt(
     sections["Instructions"] = (
         "Write the complete scene prose, expanding each beat into vivid narrative. "
         "Include natural dialogue when characters interact — let their desires, flaws, and conflicts "
-        "drive what they say. Start a new paragraph for each speaker. "
+        "drive what they say. Start a new paragraph for each speaker change. "
+        "Vary dialogue attribution: action beats, untagged lines, occasional said/asked. "
+        "Show inner thoughts when POV allows. Use sensory environment details to establish mood. "
         "Also provide a short scene title (2-5 words, evocative, not a full sentence). "
         'Return ONLY: {"title": "Short Title", "content": "..."}'
     )
@@ -475,7 +511,7 @@ def _format_prior_hooks(prior_hooks: list[str], limit: int = 3) -> str:
     return "\n".join(f"- {hook}" for hook in recent)
 
 
-def build_enhanced_scene_system_prompt(style: Style | None) -> str:
+def build_enhanced_scene_system_prompt(style: Style | None, fmt: LiteratureFormat | None = None) -> str:
     """Build system prompt for enhanced scene generation with hooks and beat tracking."""
     guidelines = [
         "Write vivid, engaging prose that brings the scene to life",
@@ -510,6 +546,9 @@ def build_enhanced_scene_system_prompt(style: Style | None) -> str:
         "Return JSON with 'hook' object and 'beats' array as specified",
         "CRITICAL: Return ONLY valid JSON. No markdown code blocks, no explanatory text",
     ]
+
+    # Format-specific prose guidelines (TASK-13)
+    guidelines.extend(_format_prose_guidelines(fmt))
 
     if style and style.language:
         guidelines.append(build_language_guard_prompt(style.language))
