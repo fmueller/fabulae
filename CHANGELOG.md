@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- Third-party dependency license audit document with Apache-2.0 compatibility and release checklist
 - Prose craft guidelines in build prompts — show-don't-tell, anti-purple-prose, sentence variation, tangible details, scene entry/exit
 - Distinct rendering of scene hooks in build output — italic in markdown/text, `<p class="hook">` in HTML using existing CSS
 - Enriched continuity summaries with dialogue thread and emotional state tracking for better scene-to-scene coherence
