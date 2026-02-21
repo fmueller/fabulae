@@ -81,6 +81,7 @@ Templates:
 - `fabulae shape <id>` shows details of a specific story shape.
 - `fabulae history [OPTIONS] <dir>` views or manages project history.
 - `fabulae build [OPTIONS] <dir>` generates complete narrative output from a project.
+- `fabulae tui [OPTIONS] <dir>` launches the interactive terminal interface.
 
 **Global options:**
 - `--no-history` disables project history tracking for the command.
@@ -265,6 +266,25 @@ output/
     │   └── ...
     └── fragments/          # Individual fragments (for micro-prose)
 ```
+
+### Interactive TUI
+
+Fabulae includes an interactive terminal interface built with [Textual](https://textual.textualize.io/).
+
+```bash
+# Launch TUI for an existing project
+fabulae tui ./my-novel
+
+# Start with project creation
+fabulae tui --new ./my-novel
+```
+
+The TUI provides a full Create → View → Edit → Build workflow with keyboard shortcuts:
+- `a` — Add entity
+- `e` — Edit entity
+- `d` — Delete entity
+- `b` — Build project
+- `q` — Quit
 
 ## How We Work
 

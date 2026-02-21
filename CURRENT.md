@@ -4,25 +4,19 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
-- **TASK-11**: Added prose craft guidelines to build prompts
-  - Show-don't-tell instruction with concrete example ("her hands trembled" not "she was nervous")
-  - Anti-purple-prose: prefer concrete nouns and strong verbs over adjective/adverb chains
-  - Pacing via sentence variation: short for tension, long for reflection
-  - Ground abstractions in tangible sensory details
-  - Enter scenes late / leave early — skip preamble
-  - Applied to all four prompt builders: standard scene, enhanced scene, standard fragment, enhanced fragment
-- **TASK-10**: Scene hooks now rendered distinctly in build output
-- **TASK-9**: Enriched continuity summaries to preserve dialogue threads and character emotional states
-- **TASK-8**: Added word count targets to build scene prompts
-- **TASK-7**: Strengthened dialogue in build prompts — both standard and enhanced modes
-- **TASK-6**: Added scene title generation — LLM generates short 2-5 word titles instead of using bloated summaries as headers
-- **TASK-5**: Fixed pipeline selection bug — large models now correctly default to batch mode
+- **TASK-1**: Added Textual TUI (`fabulae tui`) — interactive terminal interface for Create → View → Edit → Build workflow
+  - App shell with CSS styling, welcome screen, project screen, build screen
+  - Entity CRUD modals (add, edit, delete) for all entity types
+  - Project tree widget with hierarchical entity navigation
+  - Entity detail view with formatted display
+  - Relaxed project loading for incomplete/malformed projects
+  - Reworked from PR #27 onto current main (clean integration, no merge conflicts)
 
 ## Next
 
 - **TASK-12 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
 - v0.1.0 release after build improvements and bug fixes are done
-- TUI, check, doctor commands moved to v0.2.0
+- Check, doctor commands moved to v0.2.0
 
 ## Don't Forget
 

@@ -1,9 +1,10 @@
 ---
 id: TASK-1
 title: Simple TUI for v0.1.0 release
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-02-16 12:14'
+updated_date: '2026-02-21 10:57'
 labels:
   - feature
   - tui
