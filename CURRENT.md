@@ -5,13 +5,20 @@ Scratchpad for what's happening right now. Start here.
 ## Last
 
 - Added third-party license audit and Apache-2.0 release compliance checklist (`docs/THIRD_PARTY_LICENSE_AUDIT.md`)
+- **TASK-14**: Standard scene prompts strengthened to match enhanced mode
+  - Detailed location formatting (sensory details) now used in standard prompts
+  - System prompt includes inner thought, multi-sensory grounding, desire/flaw-driven dialogue
+  - User prompt instructions expanded: varied attribution, inner thoughts, sensory environment
+- **TASK-13**: Per-format prose differentiation in build prompts
+  - Novel: expansive — room for immersive description, layered subtext, extended interiority
+  - Novella: focused — every scene earns its place, suggestive detail over exhaustive description
+  - Short-story: economical — every sentence earns its place, implication over exposition
+  - Applied to both standard and enhanced scene system prompts
+- **TASK-12**: Short-story scene breaks replace `## title` headers
+  - Short-story format now uses `---` scene separators instead of `## {title}` headers
+  - Text output converts `---` to `* * *` (traditional fiction scene break)
+  - Novel/novella formats unchanged — still use `## title` headers
 - **TASK-11**: Added prose craft guidelines to build prompts
-  - Show-don't-tell instruction with concrete example ("her hands trembled" not "she was nervous")
-  - Anti-purple-prose: prefer concrete nouns and strong verbs over adjective/adverb chains
-  - Pacing via sentence variation: short for tension, long for reflection
-  - Ground abstractions in tangible sensory details
-  - Enter scenes late / leave early — skip preamble
-  - Applied to all four prompt builders: standard scene, enhanced scene, standard fragment, enhanced fragment
 - **TASK-10**: Scene hooks now rendered distinctly in build output
 - **TASK-9**: Enriched continuity summaries to preserve dialogue threads and character emotional states
 - **TASK-8**: Added word count targets to build scene prompts
@@ -21,8 +28,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Next
 
-- **TASK-12 – TASK-14**: Build prompt and output improvements (`medium`, `enhancement`)
-- v0.1.0 release after build improvements and bug fixes are done
+- v0.1.0 release after remaining bug fixes
 - TUI, check, doctor commands moved to v0.2.0
 
 ## Don't Forget

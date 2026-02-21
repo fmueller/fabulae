@@ -28,7 +28,7 @@ from fabulae.features.build.schemas import (
     SceneOutput,
 )
 from fabulae.llm import LLMConfig
-from fabulae.models import Project
+from fabulae.models import LiteratureFormat, Project
 
 
 def _count_words(text: str) -> int:
@@ -52,11 +52,18 @@ def _combine_chapters(chapters: list[ChapterOutput]) -> str:
     return "\n\n".join(parts)
 
 
-def _combine_scenes(scenes: list[SceneOutput]) -> str:
-    """Combine scene outputs into full text."""
+def _combine_scenes(scenes: list[SceneOutput], fmt: LiteratureFormat | None = None) -> str:
+    """Combine scene outputs into full text.
+
+    For short-story format, uses ``---`` scene breaks instead of ``## title``
+    headers — matching the publishing convention of subtle separators.
+    """
+    use_scene_breaks = fmt == "short-story"
     parts: list[str] = []
-    for scene in scenes:
-        if scene.title:
+    for i, scene in enumerate(scenes):
+        if use_scene_breaks and i > 0:
+            parts.append("---")
+        elif not use_scene_breaks and scene.title:
             parts.append(f"## {scene.title}\n")
         if scene.hook:
             parts.append(_format_hook_md(scene.hook))
@@ -128,7 +135,7 @@ async def _build_short_story(
     else:
         scenes, _ = await build_scenes_sequential(project, config, options, progress, expected_language)
 
-    full_text = _combine_scenes(scenes)
+    full_text = _combine_scenes(scenes, fmt=project.plot.format)
     return BuildOutput(
         metadata=_create_metadata(project, config, seed),
         scenes=scenes,

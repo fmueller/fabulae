@@ -1,7 +1,7 @@
 ---
 id: TASK-13
 title: No per-format prose differentiation in build prompts
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-02-16 12:14'
 labels:
