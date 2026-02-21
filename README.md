@@ -306,3 +306,5 @@ uv run pytest       # Run tests
 ## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+For third-party dependency licensing details and release-compliance notes, see
+[docs/THIRD_PARTY_LICENSE_AUDIT.md](docs/THIRD_PARTY_LICENSE_AUDIT.md).

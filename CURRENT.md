@@ -4,6 +4,7 @@ Scratchpad for what's happening right now. Start here.
 
 ## Last
 
+- Added third-party license audit and Apache-2.0 release compliance checklist (`docs/THIRD_PARTY_LICENSE_AUDIT.md`)
 - **TASK-11**: Added prose craft guidelines to build prompts
   - Show-don't-tell instruction with concrete example ("her hands trembled" not "she was nervous")
   - Anti-purple-prose: prefer concrete nouns and strong verbs over adjective/adverb chains
