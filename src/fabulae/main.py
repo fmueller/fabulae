@@ -20,6 +20,7 @@ from fabulae.features.entities import (
     world_app,
 )
 from fabulae.features.history.cli import register_history_command
+from fabulae.features.tui.cli import register_tui_command
 from fabulae.history.state import set_history_enabled
 from fabulae.models import AVAILABLE_FORMATS, load_project
 from fabulae.version_cli import version_command
@@ -53,6 +54,7 @@ register_create_command(app)
 register_build_command(app)
 register_shapes_commands(app)
 register_history_command(app)
+register_tui_command(app)
 
 # Entity CRUD commands
 app.add_typer(character_app, name="character")
