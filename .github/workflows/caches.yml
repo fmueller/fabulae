@@ -14,10 +14,9 @@ jobs:
       - name: Cleanup
         run: |
           cacheKeysForPR=$(gh cache list --ref $BRANCH --limit 100 --json id --jq '.[].id')
-          set +e
           for cacheKey in $cacheKeysForPR
           do
-            gh cache delete $cacheKey
+            gh cache delete $cacheKey || true
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
